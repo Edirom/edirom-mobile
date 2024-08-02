@@ -1,4 +1,4 @@
-webSocket = new WebSocket("https://echo.websocket.org/");
+webSocket = new WebSocket("ws://localhost:8080");
 
 webSocket.onopen = (event) => {
     console.log("Sending data!");
