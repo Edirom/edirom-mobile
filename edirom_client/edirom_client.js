@@ -1,9 +1,11 @@
 
 const connectBtn = document.querySelector("#connect-btn");
 
+
+
 connectBtn.addEventListener("click", () => {
     if (connectBtn.dataset.connected === "false") {
-        webSocket = new WebSocket("ws://localhost:8080");
+        webSocket = new WebSocket("http://localhost:3000/1234");
     }
     else {
         webSocket.close();
