@@ -20,9 +20,9 @@ webSocket.onopen = (event) => {
 
 webSocket.onclose = (event) => {
     console.log("Server connection closed!");
-    connectionStatusP.textContent = "SERVER: Not Connected";
-    connectionStatusP.classList.remove("connected");
-    connectionStatusP.classList.add("disconnected");
+    serverConnectionStatusP.textContent = "SERVER: Not Connected";
+    serverConnectionStatusP.classList.remove("connected");
+    serverConnectionStatusP.classList.add("disconnected");
 };
 
 webSocket.onmessage = (event) => {
@@ -49,8 +49,10 @@ sessionConnectBtn.addEventListener("click", () => {
 });
 
 sendMessageBtn.addEventListener("click", () => {
-    const message = messageInput.value;
-    const messageString = JSON.stringify({ message: message });
+    const links = document.querySelector('input[name="edirom-links"]:checked').value;
+    const messageString = JSON.stringify({ message: "open-links", links: links });
+    console.log("Sending:");
+    console.log(messageString);
     webSocket.send(messageString);
 });
 
