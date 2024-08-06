@@ -6,17 +6,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smartphone Client</title>
     <script src="smartphone_client.js" defer></script>
+    <link rel="stylesheet" href="smartphone_client.css">
 </head>
 
 <body>
     <h1>Smartphone Client</h1>
-    <label for="session-id-input">Session ID:</label>
-    <input type="text" id="session-id-input" name="session-id-input" placeholder="Session ID...">
-    <button id="connect-btn" data-connected="false">Open Connection</button>
-    <div>
-        <label for="message-input">Message:</label>
-        <input type="text" id="message-input" name="message-input" placeholder="Message...">
-        <button id="send-message-btn">Send</button>
+    <p id="server-connection-status" class="disconnected">SERVER: Not Connected</p>
+    <p id="session-connection-status" class="disconnected">SESSION: Not Connected</p>
+    <div id="session-connector-controls">
+        <label for="session-id-input">Session ID:</label>
+        <input type="text" id="session-id-input" name="session-id-input" placeholder="Session ID...">
+        <button id="session-connect-btn" data-connected="false">Open Connection</button>
+    </div>
+    <div id="page-turner-controls" class="hidden">
+        <!-- <input type="text" id="message-input" name="message-input" placeholder="Message..."> -->
+        <input type="radio" name="edirom-links" value="HTML">
+        <label for="html">D-MZsch-AU294_Sterbelied</label><br>
+        <input type="radio" name="edirom-links" value="CSS">
+        <label for="css">US-Wc_1-4</label><br>
+        <input type="radio" name="edirom-links" value="JavaScript">
+        <label for="javascript">D-MZsch-AU294_Sterbelied Seite 5 + US-Wc_1-4 Seite 4</label>
+        <div>
+            <button id="send-message-btn">Send</button>
+        </div>
     </div>
 </body>
 
