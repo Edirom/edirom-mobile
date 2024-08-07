@@ -8,6 +8,7 @@ const sessionConnectionStatusP = document.querySelector("#session-connection-sta
 const sessionConnectorControls = document.querySelector("#session-connector-controls");
 const pageTurnerControls = document.querySelector("#page-turner-controls");
 
+
 const webSocket = new WebSocket("http://localhost:3000");
 let sessionId = null;
 
@@ -42,7 +43,8 @@ webSocket.onmessage = (event) => {
 sessionConnectBtn.addEventListener("click", () => {
     sessionId = sessionIdInput.value;
     console.log(`Sending sessionId ${sessionId} to server`);
-    const messageString = JSON.stringify({ request: "mergeSessions", sessionId: sessionId });
+    let deviceInfo = `${getDeviceType()} (${getOs()}; ${getBrowser()})`;
+    const messageString = JSON.stringify({ request: "mergeSessions", sessionId: sessionId, deviceInfo: deviceInfo });
     webSocket.send(messageString);
 
     //TODO: What to do when merge with sessionId not successful
@@ -55,4 +57,69 @@ sendMessageBtn.addEventListener("click", () => {
     console.log(messageString);
     webSocket.send(messageString);
 });
+
+const detectDeviceType = () => {
+    console.log(navigator.userAgentData);
+    return /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent)
+        ? 'Mobile'
+        : 'Desktop';
+};
+
+function getOs() {
+    const userAgent = navigator.userAgent;
+    if (userAgent.includes("Windows")) {
+        return "Windows";
+    }
+    else if (userAgent.includes("Android")) {
+        return "Android";
+    }
+    else if (userAgent.includes("Linux")) {
+        return "Linux";
+    }
+    else if (userAgent.includes("iPhone") || userAgent.includes("iPad")) {
+        return "iOS";
+    }
+    else if (userAgent.includes("Mac")) {
+        return "MacOS";
+    } else {
+        return "Unknown";
+    }
+}
+
+function getDeviceType() {
+    const deviceType = getOs();
+    if (deviceType === "Windows" || deviceType === "Linux" || deviceType === "MacOS") {
+        return "Desktop";
+    }
+    else if (deviceType === "Android" || deviceType === "iOS") {
+        return "Mobile";
+    }
+    else {
+        return "Unknown";
+    }
+}
+
+function getBrowser() { // that can be improved
+    const userAgent = navigator.userAgent;
+    if (userAgent.includes("Firefox")) {
+        return "Firefox";
+    }
+    else if (userAgent.includes("Chrome")) {
+        return "Chrome";
+    }
+    else if (userAgent.includes("Safari")) {
+        return "Safari";
+    }
+    else if (userAgent.includes("Edge")) {
+        return "Edge";
+    }
+    else {
+        return "Unknown";
+    }
+}
+
+
+console.log(`${getDeviceType()} (${getOs()}) using ${getBrowser()}`);
+
+
 
