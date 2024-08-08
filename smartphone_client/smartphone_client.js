@@ -5,12 +5,15 @@
 // const sendMessageBtn = document.querySelector("#send-message-btn");
 const serverConnectionStatusP = document.querySelector("#server-connection-status");
 const sessionConnectionStatusP = document.querySelector("#session-connection-status");
+const scanSessionCodeBtn = document.querySelector("#scan-session-code-btn");
 // const sessionConnectorControls = document.querySelector("#session-connector-controls");
 // const pageTurnerControls = document.querySelector("#page-turner-controls");
 
 
 const webSocket = new WebSocket("http://localhost:3000");
 let sessionId = null;
+const html5QrCode = new Html5Qrcode(/* element id */ "reader");
+let cameraId = null;
 
 webSocket.onopen = (event) => {
     console.log("Server connection opened!");
@@ -121,47 +124,72 @@ function getBrowser() { // that can be improved
 
 console.log(`${getDeviceType()} (${getOs()}) using ${getBrowser()}`);
 
-
-Html5Qrcode.getCameras().then(devices => {
-    /**
-     * devices would be an array of objects of type:
-     * { id: "id", label: "label" }
-     */
-    console.log(devices);
-    if (devices && devices.length) {
-        var cameraId = devices[0].id;
-        for (let device of devices) {
-            if (device.label.includes("back")) { // Das ist noch sehr schlecht. Hier muss ich mal schauen, was der beste Weg ist. Irgendwie geht der Standardweg von der Library in Firefox nicht richtig?
-                cameraId = device.id;
-            }
-        }
-        // .. use this to start scanning.
-        const html5QrCode = new Html5Qrcode(/* element id */ "reader");
-        html5QrCode.start(
-            cameraId,
-            {
-                fps: 20,    // Optional, frame per seconds for qr code scanning
-                videoConstraints: { // Hier muss man in Firefox aufpassen. Manche Anageben, wie z.B. "ideal" scheinen nicht zu funktionieren. Außerdem: Wo wird jetzt die FPS gesetzt?
-                    "width": 2000,
-                    "height": 2000,
-                    "frameRate": 30,
-                    "deviceId": cameraId
+function getCameraId() {
+    Html5Qrcode.getCameras().then(devices => {
+        console.log(devices);
+        if (devices && devices.length) {
+            for (let device of devices) {
+                if (device.label.includes("back")) { // sometimes this works better for Firefox?
+                    cameraId = device.id;
+                    break;
                 }
-            },
-            (decodedText, decodedResult) => {
-                // do something when code is read
-                window.alert(decodedText);
-            },
-            (errorMessage) => {
-                // parse error, ignore it.
-            })
-            .catch((err) => {
-                // Start failed, handle it.
-            });
+            }
+            cameraId = { facingMode: "environment" }; // normaly this should work
+        }
+        return true; // Indicates success
+    }).catch(err => {
+        console.log(err);
+        return false; // Indicates an error occurred
+    }).then(success => {
+        if (success) {
+            scanSessionCodeBtn.classList.remove("hidden");
+        }
+        else {
+            alert("Please allow camera access to scan the session code!");
+            // I could add a button here to ask for camera access again
+        }
+    });
+}
+getCameraId();
+
+
+
+
+scanSessionCodeBtn.addEventListener("click", () => {
+    let videoConstraints = {
+        "width": 2000,
+        "height": 2000,
+        "frameRate": 30,
     }
-}).catch(err => {
-    // handle err
+    if (typeof cameraId === "object") {
+        videoConstraints.facingMode = "environment";
+    }
+    else {
+        videoConstraints.deviceId = cameraId;
+    }
+    startScanning(videoConstraints);
 });
+
+
+function startScanning(videoConstraints) {
+    html5QrCode.start(
+        cameraId,
+        {
+            fps: 20,    // Optional, frame per seconds for qr code scanning
+            videoConstraints: videoConstraints
+        },
+        (decodedText, decodedResult) => {
+            // do something when code is ready
+            window.alert(decodedText);
+        },
+        (errorMessage) => {
+            // parse error, ignore it.
+        })
+        .catch((err) => {
+            // Start failed, handle it.
+        });
+}
+
 
 
 
