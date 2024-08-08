@@ -12,3 +12,12 @@
 #server-connection-status ,#session-connection-status {
     width: 200px;
 }
+
+#reader {
+    display: flex;
+    justify-content: center;
+}
+
+video {
+    width: 300px !important; 
+}

@@ -1,13 +1,7 @@
-
-// const sessionConnectBtn = document.querySelector("#session-connect-btn");
-// const sessionIdInput = document.querySelector("#session-id-input");
-// const messageInput = document.querySelector("#message-input");
-// const sendMessageBtn = document.querySelector("#send-message-btn");
 const serverConnectionStatusP = document.querySelector("#server-connection-status");
 const sessionConnectionStatusP = document.querySelector("#session-connection-status");
-const scanSessionCodeBtn = document.querySelector("#scan-session-code-btn");
-// const sessionConnectorControls = document.querySelector("#session-connector-controls");
-// const pageTurnerControls = document.querySelector("#page-turner-controls");
+const startScanBtn = document.querySelector("#start-scan-btn");
+
 
 
 const webSocket = new WebSocket("http://localhost:3000");
@@ -34,24 +28,27 @@ webSocket.onmessage = (event) => {
     console.log(event.data);
     const data = JSON.parse(event.data);
     if (data.response === "sessionConnected") {
-        console.log("Session connected!");
-        sessionConnectionStatusP.classList.add("connected");
-        sessionConnectionStatusP.classList.remove("disconnected");
-        sessionConnectionStatusP.textContent = `SESSION: ${sessionId}`;
-        // sessionConnectorControls.classList.add("hidden");
-        // pageTurnerControls.classList.remove("hidden");
+        handleSessionConnected();
     }
 };
 
-// sessionConnectBtn.addEventListener("click", () => {
-//     sessionId = sessionIdInput.value;
-//     console.log(`Sending sessionId ${sessionId} to server`);
-//     let deviceInfo = `${getDeviceType()} (${getOs()}; ${getBrowser()})`;
-//     const messageString = JSON.stringify({ request: "mergeSessions", sessionId: sessionId, deviceInfo: deviceInfo });
-//     webSocket.send(messageString);
+startScanBtn.addEventListener("click", (e) => {
+    let type = e.target.dataset.type;
+    let videoConstraints = {
+        "width": 2000,
+        "height": 2000,
+        "frameRate": 30,
+    }
+    if (typeof cameraId === "object") {
+        videoConstraints.facingMode = "environment";
+    }
+    else {
+        videoConstraints.deviceId = cameraId;
+    }
+    startScanning(videoConstraints, type);
+});
 
-//     //TODO: What to do when merge with sessionId not successful
-// });
+
 
 // sendMessageBtn.addEventListener("click", () => {
 //     const links = document.querySelector('input[name="edirom-links"]:checked').value;
@@ -142,7 +139,7 @@ function getCameraId() {
         return false; // Indicates an error occurred
     }).then(success => {
         if (success) {
-            scanSessionCodeBtn.classList.remove("hidden");
+            startScanBtn.classList.remove("hidden");
         }
         else {
             alert("Please allow camera access to scan the session code!");
@@ -150,28 +147,10 @@ function getCameraId() {
         }
     });
 }
-getCameraId();
 
 
-
-
-scanSessionCodeBtn.addEventListener("click", () => {
-    let videoConstraints = {
-        "width": 2000,
-        "height": 2000,
-        "frameRate": 30,
-    }
-    if (typeof cameraId === "object") {
-        videoConstraints.facingMode = "environment";
-    }
-    else {
-        videoConstraints.deviceId = cameraId;
-    }
-    startScanning(videoConstraints);
-});
-
-
-function startScanning(videoConstraints) {
+function startScanning(videoConstraints, type) {
+    startScanBtn.classList.add("hidden");
     html5QrCode.start(
         cameraId,
         {
@@ -180,7 +159,13 @@ function startScanning(videoConstraints) {
         },
         (decodedText, decodedResult) => {
             // do something when code is ready
-            window.alert(decodedText);
+            if (type === "session") {
+                requestSessionMerge(decodedText);
+            }
+            else if (type === "page") {
+                handlePageCodeScan(decodedText);
+            }
+
         },
         (errorMessage) => {
             // parse error, ignore it.
@@ -190,6 +175,37 @@ function startScanning(videoConstraints) {
         });
 }
 
+function requestSessionMerge(decodedText) {
+    if (decodedText.length === 36) { // UUIDs have a length of 36
+        sessionId = decodedText;
+        console.log(`Sending sessionId ${sessionId} to server`);
+        let deviceInfo = `${getDeviceType()} (${getOs()}; ${getBrowser()})`;
+        const messageString = JSON.stringify({ request: "mergeSessions", sessionId: sessionId, deviceInfo: deviceInfo });
+        webSocket.send(messageString);
+        html5QrCode.pause();
+        //TODO: What to do when merge with sessionId not successful
+    }
+}
+
+function handleSessionConnected() {
+    console.log("Session connected!");
+    sessionConnectionStatusP.classList.add("connected");
+    sessionConnectionStatusP.classList.remove("disconnected");
+    sessionConnectionStatusP.textContent = `SESSION: ${sessionId}`;
+    html5QrCode.stop();
+    alert("Sitzung erfolgreich beigetreten!"); // Change that to Popover
+    startScanBtn.textContent = "Scanne Seitencode";
+    startScanBtn.dataset.type = "page";
+    startScanBtn.classList.remove("hidden");
+}
+
+function handlePageCodeScan(decodedText) {
+    if (decodedText.startsWith("pagecode://")) {
+        let pageCode = decodedText.substring(decodedText.length - 3);
+        alert(`Seitencode: ${pageCode}`);
+    }
+}
 
 
+getCameraId();
 
