@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smartphone Client</title>
     <script src="smartphone_client.js" defer></script>
+    <script src="html5-qrcode.min.js" type="text/javascript"></script>
     <link rel="stylesheet" href="smartphone_client.css">
 </head>
 
@@ -13,13 +14,13 @@
     <h1>Smartphone Client</h1>
     <p id="server-connection-status" class="disconnected">SERVER: Not Connected</p>
     <p id="session-connection-status" class="disconnected">SESSION: Not Connected</p>
-    <div id="session-connector-controls">
+    <div id="reader" width="600px" height="600px"></div>
+    <!-- <div id="session-connector-controls">
         <label for="session-id-input">Session ID:</label>
         <input type="text" id="session-id-input" name="session-id-input" placeholder="Session ID...">
         <button id="session-connect-btn" data-connected="false">Open Connection</button>
     </div>
     <div id="page-turner-controls" class="hidden">
-        <!-- <input type="text" id="message-input" name="message-input" placeholder="Message..."> -->
         <input type="radio" name="edirom-links" value="xmldb:exist:///db/apps/edirom-content/content/documents/sources/D-Msch_AU-294.xml">
         <label for="html">D-MZsch-AU294_Sterbelied</label><br>
 
@@ -33,7 +34,7 @@
         <div>
             <button id="send-message-btn">Send</button>
         </div>
-    </div>
+    </div> -->
 </body>
 
 </html>
