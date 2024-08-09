@@ -1,0 +1,71 @@
+.hidden {
+    display: none !important;
+}
+
+.disconnected {
+    background-color: red;
+}
+.connected {
+    background-color: rgb(0, 161, 0);
+}
+
+#server-connection-status ,#session-connection-status {
+    width: 200px;
+}
+
+#alerts-container {
+    text-align: center;
+}
+
+#alert {
+    padding: 10px;
+    border: 1px solid black;
+    border-radius: 8px;
+    color: white;
+}
+
+#alert.green {
+    background-color: rgb(0, 161, 0);
+}
+
+#alert.red {
+    background-color: red;
+}
+
+#start-scan-btn-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+#start-scan-btn-container button {
+    padding: 30px;
+    font-size: 20px;
+    border-radius: 8px;
+}
+
+#start-scan-btn-container button img{
+    height: 50px;
+}
+
+#start-scan-btn-container button p{
+    margin: 5px;
+}
+
+#reader-container {
+    text-align: center;
+}
+
+#reader {
+    display: flex;
+    justify-content: center;
+    aspect-ratio: 1; /* square aspect ratio */
+    width: 100%;
+}
+
+#reader video {
+    object-fit: cover !important; /* Do not scale the video */
+}
+
+
