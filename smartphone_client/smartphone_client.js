@@ -1,5 +1,7 @@
 const serverConnectionStatusP = document.querySelector("#server-connection-status");
 const sessionConnectionStatusP = document.querySelector("#session-connection-status");
+const alertsContainer = document.querySelector("#alerts-container");
+const alertP = document.querySelector("#alert");
 const startScanBtnContainer = document.querySelector("#start-scan-btn-container");
 const startScanBtn = document.querySelector("#start-scan-btn");
 const readerContainer = document.querySelector("#reader-container");
@@ -154,6 +156,7 @@ function getCameraId() {
 }
 
 function startScanning(videoConstraints, type) {
+    alertsContainer.classList.add("hidden");
     startScanBtnContainer.classList.add("hidden");
     readerContainer.classList.remove("hidden");
     html5QrCode.start(
@@ -198,7 +201,9 @@ function handleSessionConnected() {
     sessionConnectionStatusP.classList.remove("disconnected");
     sessionConnectionStatusP.textContent = `SESSION: ${sessionId}`;
     html5QrCode.stop();
-    alert("Sitzung erfolgreich beigetreten!"); // Change that to Popover
+    alertsContainer.classList.remove("hidden");
+    alertP.classList.add("green");
+    alertP.textContent = "Sitzung erfolgreich beigetreten!";
     startScanBtn.textContent = "Scanne Seitencode";
     startScanBtn.dataset.type = "page";
     scanTargetInfoP.textContent = "Scanne Seitencode";
