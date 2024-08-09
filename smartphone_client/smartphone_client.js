@@ -1,6 +1,9 @@
 const serverConnectionStatusP = document.querySelector("#server-connection-status");
 const sessionConnectionStatusP = document.querySelector("#session-connection-status");
+const startScanBtnContainer = document.querySelector("#start-scan-btn-container");
 const startScanBtn = document.querySelector("#start-scan-btn");
+const readerContainer = document.querySelector("#reader-container");
+const scanTargetInfoP = document.querySelector("#scan-target-info");
 
 
 
@@ -8,6 +11,7 @@ const webSocket = new WebSocket("http://localhost:3000");
 let sessionId = null;
 const html5QrCode = new Html5Qrcode(/* element id */ "reader");
 let cameraId = null;
+
 
 webSocket.onopen = (event) => {
     console.log("Server connection opened!");
@@ -37,7 +41,7 @@ startScanBtn.addEventListener("click", (e) => {
     let videoConstraints = {
         "width": 2000,
         "height": 2000,
-        "frameRate": 30,
+        "frameRate": 30
     }
     if (typeof cameraId === "object") {
         videoConstraints.facingMode = "environment";
@@ -139,7 +143,8 @@ function getCameraId() {
         return false; // Indicates an error occurred
     }).then(success => {
         if (success) {
-            startScanBtn.classList.remove("hidden");
+            startScanBtnContainer.classList.remove("hidden");
+            readerContainer.classList.add("hidden");
         }
         else {
             alert("Please allow camera access to scan the session code!");
@@ -148,14 +153,14 @@ function getCameraId() {
     });
 }
 
-
 function startScanning(videoConstraints, type) {
-    startScanBtn.classList.add("hidden");
+    startScanBtnContainer.classList.add("hidden");
+    readerContainer.classList.remove("hidden");
     html5QrCode.start(
         cameraId,
         {
             fps: 20,    // Optional, frame per seconds for qr code scanning
-            videoConstraints: videoConstraints
+            videoConstraints: videoConstraints,
         },
         (decodedText, decodedResult) => {
             // do something when code is ready
@@ -196,7 +201,9 @@ function handleSessionConnected() {
     alert("Sitzung erfolgreich beigetreten!"); // Change that to Popover
     startScanBtn.textContent = "Scanne Seitencode";
     startScanBtn.dataset.type = "page";
-    startScanBtn.classList.remove("hidden");
+    scanTargetInfoP.textContent = "Scanne Seitencode";
+    startScanBtnContainer.classList.remove("hidden");
+    readerContainer.classList.add("hidden");
 }
 
 function handlePageCodeScan(decodedText) {
@@ -206,6 +213,22 @@ function handlePageCodeScan(decodedText) {
     }
 }
 
+// function calculateBoxSize() { // I worte this function to calculate the box size for the QR code scanner. I do not use the qrbox at the moment
+//     const space = 0.33;
+//     let clientWidth = screen.width;
+//     let clientHeight = screen.height;
+//     console.log(clientWidth, clientHeight);
+//     let bodyMargin = parseInt(window.getComputedStyle(document.body).getPropertyValue("margin"));
+
+//     let predictedVideoWidth = clientWidth - 2 * bodyMargin;
+//     console.log("predictedVideoWidth: " + predictedVideoWidth);
+//     if (clientWidth > clientHeight) {
+//         let predictedVideoHeight = predictedVideoWidth * (9 / 16);
+//         console.log("predictedVideoHeight: " + predictedVideoHeight);
+//         return predictedVideoHeight - predictedVideoHeight * space;
+//     }
+//     return predictedVideoWidth - predictedVideoWidth * space;
+// }
 
 getCameraId();
 

@@ -1,5 +1,5 @@
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 .disconnected {
@@ -13,11 +13,33 @@
     width: 200px;
 }
 
+
+#start-scan-btn-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+#start-scan-btn {
+    padding: 30px;
+    font-size: 20px;
+    border-radius: 8px;
+}
+
+#reader-container {
+    text-align: center;
+}
+
 #reader {
     display: flex;
     justify-content: center;
+    aspect-ratio: 1; /* square aspect ratio */
+    width: 100%;
 }
 
-video {
-    width: 300px !important; 
+#reader video {
+    object-fit: cover !important; /* Do not scale the video */
 }
+
+

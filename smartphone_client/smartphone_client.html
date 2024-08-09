@@ -14,9 +14,13 @@
     <h1>Smartphone Client</h1>
     <p id="server-connection-status" class="disconnected">SERVER: Not Connected</p>
     <p id="session-connection-status" class="disconnected">SESSION: Not Connected</p>
-    <button id="start-scan-btn" class="hidden" data-type="session">Scanne Sizungscode</button>
-    <div id="reader"></div>
-
+    <div id="start-scan-btn-container" class="hidden">
+        <button id="start-scan-btn" data-type="session">Scanne Sitzungscode</button>
+    </div>
+    <div id="reader-container" class="hidden">
+        <div id="reader"></div>
+        <p id="scan-target-info">Scanne den Sitzungscode</p>
+    </div>
 
 
     <!-- <input type="radio" name="edirom-links" value="xmldb:exist:///db/apps/edirom-content/content/documents/sources/D-Msch_AU-294.xml#surface_26785d3d-217b-42dd-8d87-d7487e67b1de">
