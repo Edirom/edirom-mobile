@@ -39,10 +39,18 @@
     margin-bottom: 20px;
 }
 
-#start-scan-btn {
+#start-scan-btn-container button {
     padding: 30px;
     font-size: 20px;
     border-radius: 8px;
+}
+
+#start-scan-btn-container button img{
+    height: 50px;
+}
+
+#start-scan-btn-container button p{
+    margin: 5px;
 }
 
 #reader-container {

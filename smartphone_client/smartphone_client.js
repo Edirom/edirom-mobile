@@ -2,8 +2,8 @@ const serverConnectionStatusP = document.querySelector("#server-connection-statu
 const sessionConnectionStatusP = document.querySelector("#session-connection-status");
 const alertsContainer = document.querySelector("#alerts-container");
 const alertP = document.querySelector("#alert");
-const startScanBtnContainer = document.querySelector("#start-scan-btn-container");
-const startScanBtn = document.querySelector("#start-scan-btn");
+const startSessionScanBtn = document.querySelector("#start-session-scan-btn");
+const startPageScanBtn = document.querySelector("#start-page-scan-btn");
 const readerContainer = document.querySelector("#reader-container");
 const scanTargetInfoP = document.querySelector("#scan-target-info");
 
@@ -38,20 +38,14 @@ webSocket.onmessage = (event) => {
     }
 };
 
-startScanBtn.addEventListener("click", (e) => {
-    let type = e.target.dataset.type;
-    let videoConstraints = {
-        "width": 2000,
-        "height": 2000,
-        "frameRate": 30
-    }
-    if (typeof cameraId === "object") {
-        videoConstraints.facingMode = "environment";
-    }
-    else {
-        videoConstraints.deviceId = cameraId;
-    }
-    startScanning(videoConstraints, type);
+startSessionScanBtn.addEventListener("click", (e) => {
+    const videoConstraints = setVideoConstraints();
+    startScanning(videoConstraints, "session");
+});
+
+startPageScanBtn.addEventListener("click", (e) => {
+    const videoConstraints = setVideoConstraints();
+    startScanning(videoConstraints, "page");
 });
 
 
@@ -136,7 +130,7 @@ function getCameraId() {
         return false; // Indicates an error occurred
     }).then(success => {
         if (success) {
-            startScanBtnContainer.classList.remove("hidden");
+            startSessionScanBtn.classList.remove("hidden");
             readerContainer.classList.add("hidden");
         }
         else {
@@ -148,7 +142,8 @@ function getCameraId() {
 
 function startScanning(videoConstraints, type) {
     alertsContainer.classList.add("hidden");
-    startScanBtnContainer.classList.add("hidden");
+    startSessionScanBtn.classList.add("hidden");
+    startPageScanBtn.classList.add("hidden");
     readerContainer.classList.remove("hidden");
     html5QrCode.start(
         cameraId,
@@ -195,10 +190,8 @@ function handleSessionConnected() {
     alertsContainer.classList.remove("hidden");
     alertP.classList.add("green");
     alertP.textContent = "Sitzung erfolgreich beigetreten!";
-    startScanBtn.textContent = "Scanne Seitencode";
-    startScanBtn.dataset.type = "page";
     scanTargetInfoP.textContent = "Scanne Seitencode";
-    startScanBtnContainer.classList.remove("hidden");
+    startPageScanBtn.classList.remove("hidden");
     readerContainer.classList.add("hidden");
 }
 
@@ -215,7 +208,7 @@ function handlePageCodeScan(decodedText) {
             alertsContainer.classList.remove("hidden");
             alertP.classList.add("green");
             alertP.textContent = "Erfolgreich umgeblättert!";
-            startScanBtnContainer.classList.remove("hidden");
+            startPageScanBtn.classList.remove("hidden");
             readerContainer.classList.add("hidden");
         }
     }
@@ -232,6 +225,20 @@ function lookUpPageCode(pageCode) {
         return pageCodes[pageCode];
     }
     return false;
+}
+
+function setVideoConstraints() {
+    let videoConstraints = {
+        "width": 2000,
+        "height": 2000,
+        "frameRate": 30
+    }
+    if (typeof cameraId === "object") {
+        videoConstraints.facingMode = "environment";
+    }
+    else {
+        videoConstraints.deviceId = cameraId;
+    }
 }
 
 // function calculateBoxSize() { // I worte this function to calculate the box size for the QR code scanner. I do not use the qrbox at the moment
