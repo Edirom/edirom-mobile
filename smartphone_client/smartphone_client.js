@@ -64,12 +64,6 @@ startScanBtn.addEventListener("click", (e) => {
 //     webSocket.send(messageString);
 // });
 
-const detectDeviceType = () => {
-    console.log(navigator.userAgentData);
-    return /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent)
-        ? 'Mobile'
-        : 'Desktop';
-};
 
 function getOs() {
     const userAgent = navigator.userAgent;
@@ -98,7 +92,7 @@ function getDeviceType() {
         return "Desktop";
     }
     else if (deviceType === "Android" || deviceType === "iOS") {
-        return "Mobile";
+        return "Mobilgerät";
     }
     else {
         return "Unknown";
@@ -123,9 +117,6 @@ function getBrowser() { // that can be improved
         return "Unknown";
     }
 }
-
-
-console.log(`${getDeviceType()} (${getOs()}) using ${getBrowser()}`);
 
 function getCameraId() {
     Html5Qrcode.getCameras().then(devices => {
@@ -212,10 +203,35 @@ function handleSessionConnected() {
 }
 
 function handlePageCodeScan(decodedText) {
-    if (decodedText.startsWith("pagecode://")) {
-        let pageCode = decodedText.substring(decodedText.length - 3);
-        alert(`Seitencode: ${pageCode}`);
+    if (decodedText.startsWith("https://localhost:5500")) {
+        const pageCode = decodedText.substring(decodedText.length - 3);
+        const plist = lookUpPageCode(pageCode);
+        if (plist) {
+            const messageString = JSON.stringify({ message: "open-links", links: plist });
+            console.log("Sending:");
+            console.log(messageString);
+            webSocket.send(messageString);
+            html5QrCode.stop();
+            alertsContainer.classList.remove("hidden");
+            alertP.classList.add("green");
+            alertP.textContent = "Erfolgreich umgeblättert!";
+            startScanBtnContainer.classList.remove("hidden");
+            readerContainer.classList.add("hidden");
+        }
     }
+}
+
+function lookUpPageCode(pageCode) {
+    const pageCodes = { // this is ofcourse just a placeholder
+        "001": "xmldb:exist:///db/apps/edirom-content/content/documents/sources/D-Msch_AU-294.xml#surface_14fe956d-75ae-466c-aa92-8f0f2fd431ab", //Sterbelied S. 1
+        "002": "xmldb:exist:///db/apps/edirom-content/content/documents/sources/D-Msch_AU-294.xml#surface_b6229440-1839-486d-a96f-7eaad0648d52", //Sterbelied S. 2
+        "003": "xmldb:exist:///db/apps/edirom-content/content/documents/sources/D-Msch_AU-294.xml#surface_b738c597-f5dc-4078-8065-502ea740e772", //Sterbelied S. 3
+        "004": "xmldb:exist:///db/apps/edirom-content/content/documents/sources/D-Msch_AU-294.xml#surface_26785d3d-217b-42dd-8d87-d7487e67b1de" //Sterbelied S. 4
+    }
+    if (pageCodes[pageCode]) {
+        return pageCodes[pageCode];
+    }
+    return false;
 }
 
 // function calculateBoxSize() { // I worte this function to calculate the box size for the QR code scanner. I do not use the qrbox at the moment
