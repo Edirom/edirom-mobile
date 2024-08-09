@@ -9,7 +9,7 @@ const scanTargetInfoP = document.querySelector("#scan-target-info");
 
 
 
-const webSocket = new WebSocket("http://localhost:3000");
+const webSocket = new WebSocket("ws://localhost:3000");
 let sessionId = null;
 const html5QrCode = new Html5Qrcode(/* element id */ "reader");
 let cameraId = null;
@@ -239,6 +239,7 @@ function setVideoConstraints() {
     else {
         videoConstraints.deviceId = cameraId;
     }
+    return videoConstraints;
 }
 
 // function calculateBoxSize() { // I worte this function to calculate the box size for the QR code scanner. I do not use the qrbox at the moment
