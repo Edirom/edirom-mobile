@@ -17,6 +17,7 @@ let cameraId = null;
 
 webSocket.onopen = (event) => {
     console.log("Server connection opened!");
+    sendClientMetadata();
     serverConnectionStatusP.textContent = "SERVER: Connected";
     serverConnectionStatusP.classList.remove("disconnected");
     serverConnectionStatusP.classList.add("connected");
@@ -169,12 +170,25 @@ function startScanning(videoConstraints, type) {
         });
 }
 
+function getDeviceMetadata() { // TODO: The clients should only send the userAgent string to the server and the server should parse it. Then I have the weird parsing in one place
+    return {
+        deviceType: getDeviceType(),
+        os: getOs(),
+        browser: getBrowser()
+    };
+}
+
+function sendClientMetadata() {
+    const deviceMetadata = getDeviceMetadata();
+    const messageString = JSON.stringify({ message: "clientMetadata", clientmetadata: deviceMetadata });
+    webSocket.send(messageString);
+}
+
 function requestSessionMerge(decodedText) {
     if (decodedText.length === 36) { // UUIDs have a length of 36
         sessionId = decodedText;
         console.log(`Sending sessionId ${sessionId} to server`);
-        let deviceInfo = `${getDeviceType()} (${getOs()}; ${getBrowser()})`;
-        const messageString = JSON.stringify({ request: "mergeSessions", sessionId: sessionId, deviceInfo: deviceInfo });
+        const messageString = JSON.stringify({ request: "mergeSessions", sessionId: sessionId });
         webSocket.send(messageString);
         html5QrCode.pause();
         //TODO: What to do when merge with sessionId not successful
