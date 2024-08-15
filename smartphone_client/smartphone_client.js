@@ -33,7 +33,7 @@ webSocket.onmessage = (event) => {
     console.log("Received data!");
     console.log(event.data);
     const data = JSON.parse(event.data);
-    if (data.response === "sessionConnected") {
+    if (data.response === "sessionMerged") {
         handleSessionConnected();
     }
 };
