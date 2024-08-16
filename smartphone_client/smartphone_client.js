@@ -17,7 +17,7 @@ let cameraId = null;
 
 webSocket.onopen = (event) => {
     console.log("Server connection opened!");
-    sendClientMetadata();
+    sendUserAgent();
     serverConnectionStatusP.textContent = "SERVER: Connected";
     serverConnectionStatusP.classList.remove("disconnected");
     serverConnectionStatusP.classList.add("connected");
@@ -49,69 +49,6 @@ startPageScanBtn.addEventListener("click", (e) => {
     startScanning(videoConstraints, "page");
 });
 
-
-
-// sendMessageBtn.addEventListener("click", () => {
-//     const links = document.querySelector('input[name="edirom-links"]:checked').value;
-//     const messageString = JSON.stringify({ message: "open-links", links: links });
-//     console.log("Sending:");
-//     console.log(messageString);
-//     webSocket.send(messageString);
-// });
-
-
-function getOs() {
-    const userAgent = navigator.userAgent;
-    if (userAgent.includes("Windows")) {
-        return "Windows";
-    }
-    else if (userAgent.includes("Android")) {
-        return "Android";
-    }
-    else if (userAgent.includes("Linux")) {
-        return "Linux";
-    }
-    else if (userAgent.includes("iPhone") || userAgent.includes("iPad")) {
-        return "iOS";
-    }
-    else if (userAgent.includes("Mac")) {
-        return "MacOS";
-    } else {
-        return "Unknown";
-    }
-}
-
-function getDeviceType() {
-    const deviceType = getOs();
-    if (deviceType === "Windows" || deviceType === "Linux" || deviceType === "MacOS") {
-        return "Desktop";
-    }
-    else if (deviceType === "Android" || deviceType === "iOS") {
-        return "Mobilgerät";
-    }
-    else {
-        return "Unknown";
-    }
-}
-
-function getBrowser() { // that can be improved
-    const userAgent = navigator.userAgent;
-    if (userAgent.includes("Firefox")) {
-        return "Firefox";
-    }
-    else if (userAgent.includes("Chrome")) {
-        return "Chrome";
-    }
-    else if (userAgent.includes("Safari")) {
-        return "Safari";
-    }
-    else if (userAgent.includes("Edge")) {
-        return "Edge";
-    }
-    else {
-        return "Unknown";
-    }
-}
 
 function getCameraId() {
     Html5Qrcode.getCameras().then(devices => {
@@ -170,17 +107,9 @@ function startScanning(videoConstraints, type) {
         });
 }
 
-function getDeviceMetadata() { // TODO: The clients should only send the userAgent string to the server and the server should parse it. Then I have the weird parsing in one place
-    return {
-        deviceType: getDeviceType(),
-        os: getOs(),
-        browser: getBrowser()
-    };
-}
-
-function sendClientMetadata() {
-    const deviceMetadata = getDeviceMetadata();
-    const messageString = JSON.stringify({ message: "clientMetadata", clientmetadata: deviceMetadata });
+function sendUserAgent() { // For the device metadata
+    const userAgent = navigator.userAgent;
+    const messageString = JSON.stringify({ message: "userAgent", userAgent: userAgent });
     webSocket.send(messageString);
 }
 
