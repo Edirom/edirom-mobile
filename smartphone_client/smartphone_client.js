@@ -9,7 +9,7 @@ const scanTargetInfoP = document.querySelector("#scan-target-info");
 
 
 
-const webSocket = new WebSocket("ws://localhost:3000");
+const webSocket = new WebSocket("ws://localhost:8081");
 let sessionId = null;
 const html5QrCode = new Html5Qrcode(/* element id */ "reader");
 let cameraId = null;
