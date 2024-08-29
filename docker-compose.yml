@@ -10,7 +10,7 @@ services:
     environment:
       - SERVER_URL=ws://localhost:8081
   ws-server:
-    image: ws-server
+    image: dennisfriedl/hello-docker:action-test
     ports:
       - "8081:3000"
    
