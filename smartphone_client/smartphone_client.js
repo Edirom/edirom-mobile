@@ -7,7 +7,7 @@ const startPageScanBtn = document.querySelector("#start-page-scan-btn");
 const readerContainer = document.querySelector("#reader-container");
 const scanTargetInfoP = document.querySelector("#scan-target-info");
 
-
+// test
 
 const webSocket = new WebSocket("ws://localhost:8081");
 let sessionId = null;
