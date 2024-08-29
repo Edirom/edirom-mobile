@@ -1,7 +1,13 @@
+
+# TODO: Create the same for the client
+
+
 name: ws-server docker
 
 on:
   push:
+    paths:
+      - 'server/**'
 
 jobs:
   docker:
