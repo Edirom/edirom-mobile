@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   edirom-mobile:
-    image: edirom-mobile
+    image: dennisfriedl/edirom-mobile:main
     ports:
       - "8082:80"
     depends_on:
@@ -10,7 +10,7 @@ services:
     environment:
       - SERVER_URL=ws://localhost:8081
   ws-server:
-    image: dennisfriedl/hello-docker:action-test
+    image: dennisfriedl/edirom-ws-server:main
     ports:
       - "8081:3000"
    
