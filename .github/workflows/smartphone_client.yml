@@ -2,6 +2,9 @@ name: edirom-mobile docker
 
 on:
   push:
+    branches:
+      - main
+      - develop
     paths:
       - 'smartphone_client/**'
 

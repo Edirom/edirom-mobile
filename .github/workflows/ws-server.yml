@@ -2,6 +2,9 @@ name: ws-server docker
 
 on:
   push:
+    branches:
+      - main
+      - develop
     paths:
       - 'server/**'
 
