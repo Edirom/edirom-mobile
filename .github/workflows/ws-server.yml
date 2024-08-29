@@ -1,7 +1,3 @@
-
-# TODO: Create the same for the client
-
-
 name: ws-server docker
 
 on:
