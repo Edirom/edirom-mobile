@@ -2,15 +2,15 @@ version: "3.7"
 
 services:
   edirom-mobile:
-    image: edirom-mobile
+    image: dennisfriedl/edirom-mobile:action-test
     ports:
       - "8082:80"
     depends_on:
-      - ws-server
+      - edirom-ws-server
     environment:
       - SERVER_URL=ws://localhost:8081
-  ws-server:
-    image: ws-server
+  edirom-ws-server:
+    image: dennisfriedl/edirom-ws-server:action-test
     ports:
       - "8081:3000"
    
