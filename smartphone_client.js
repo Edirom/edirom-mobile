@@ -1,13 +1,24 @@
-const serverConnectionStatusP = document.querySelector("#server-connection-status");
-const sessionConnectionStatusP = document.querySelector("#session-connection-status");
+const headerConnectionStatus = document.querySelector("#header-connection-status");
 const alertsContainer = document.querySelector("#alerts-container");
 const alertP = document.querySelector("#alert");
+const startScanBtnContainer = document.querySelector("#start-scan-btn-container");
 const startSessionScanBtn = document.querySelector("#start-session-scan-btn");
 const startPageScanBtn = document.querySelector("#start-page-scan-btn");
 const readerContainer = document.querySelector("#reader-container");
-const scanTargetInfoP = document.querySelector("#scan-target-info");
+const explanationContainer = document.querySelector("#explanation-container");
 
+const explanationSessionConnection = `
+    <h1>Verbindung zu einer Edirom-Sitzung herstellen</h1>
+    <ol>
+        <li>Öffnen Sie auf Ihrem Computer die EWK-Edirom unter <a href="www.e-w-k.de/edirom.">e-w-k.de/edirom.</a></li>
+        <li>Öffen Sie in der Edirom das Verbindungsfenster mit einem Klick auf das grüne Feld oben rechts.</li>
+        <li>Tippen Sie auf diesem Gerät auf den unteren Button und scannen Sie den in der Edirom angezeigten QR-Code.</li>
+    </ol>
+`;
 
+const explanationPageTurning = `
+    <h1>Scannen Sie nun einen Seiten-Code, um in einen neuen Kontext zu gelangen</h1>
+`;
 
 const webSocket = new WebSocket("ws://localhost:3000");
 let sessionId = null;
@@ -18,16 +29,14 @@ let cameraId = null;
 webSocket.onopen = (event) => {
     console.log("Server connection opened!");
     sendUserAgent();
-    serverConnectionStatusP.textContent = "SERVER: Connected";
-    serverConnectionStatusP.classList.remove("disconnected");
-    serverConnectionStatusP.classList.add("connected");
+    headerConnectionStatus.classList.remove("disconnected");
+    headerConnectionStatus.classList.add("connected");
 };
 
 webSocket.onclose = (event) => {
     console.log("Server connection closed!");
-    serverConnectionStatusP.textContent = "SERVER: Not Connected";
-    serverConnectionStatusP.classList.remove("connected");
-    serverConnectionStatusP.classList.add("disconnected");
+    headerConnectionStatus.classList.remove("connected");
+    headerConnectionStatus.classList.add("disconnected");
 };
 
 webSocket.onmessage = (event) => {
@@ -69,6 +78,7 @@ function getCameraId() {
     }).then(success => {
         if (success) {
             startSessionScanBtn.classList.remove("hidden");
+            startScanBtnContainer.classList.remove("hidden");
             readerContainer.classList.add("hidden");
         }
         else {
@@ -82,6 +92,7 @@ function startScanning(videoConstraints, type) {
     alertsContainer.classList.add("hidden");
     startSessionScanBtn.classList.add("hidden");
     startPageScanBtn.classList.add("hidden");
+    startScanBtnContainer.classList.add("hidden");
     readerContainer.classList.remove("hidden");
     html5QrCode.start(
         cameraId,
@@ -126,16 +137,14 @@ function requestSessionMerge(decodedText) {
 
 function handleSessionConnected() {
     console.log("Session connected!");
-    sessionConnectionStatusP.classList.add("connected");
-    sessionConnectionStatusP.classList.remove("disconnected");
-    sessionConnectionStatusP.textContent = `SESSION: ${sessionId}`;
     html5QrCode.stop();
     alertsContainer.classList.remove("hidden");
     alertP.classList.add("green");
     alertP.textContent = "Sitzung erfolgreich beigetreten!";
-    scanTargetInfoP.textContent = "Scanne Seitencode";
     startPageScanBtn.classList.remove("hidden");
+    startScanBtnContainer.classList.remove("hidden");
     readerContainer.classList.add("hidden");
+    explanationContainer.innerHTML = explanationPageTurning;
 }
 
 function handlePageCodeScan(decodedText) {
@@ -150,6 +159,7 @@ function handlePageCodeScan(decodedText) {
         alertP.classList.add("green");
         alertP.textContent = "Erfolgreich umgeblättert!"; // TODO: This should only happen if the server sends a confirmation
         startPageScanBtn.classList.remove("hidden");
+        startScanBtnContainer.classList.remove("hidden");
         readerContainer.classList.add("hidden");
     }
 }
@@ -192,7 +202,6 @@ function insertSvgs() {
     const allSvgContainer = document.querySelectorAll(".svg-container");
     for (let svgContainer of allSvgContainer) {
         let path = "img/" + svgContainer.textContent + ".svg";
-        console.log(path);
         fetch(path)
             .then(response => response.text())
             .then(svgData => {

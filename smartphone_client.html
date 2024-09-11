@@ -10,33 +10,40 @@
     <link rel="stylesheet" href="smartphone_client.css">
 </head>
 
+
 <body>
     <header>
         <img id="header-logo" src="img/ewk_logo.png">
         <span id="header-title">Edirom-Mobile</span>
         <span id="header-connection-status"></span>
     </header>
-    <h1>Smartphone Client</h1>
-    <p id="server-connection-status" class="disconnected">SERVER: Not Connected</p>
-    <p id="session-connection-status" class="disconnected">SESSION: Not Connected</p>
-    <div id="alerts-container" class="hidden">
-        <p id="alert"></p>
-    </div>
-    <div id="start-scan-btn-container">
-        <button id="start-session-scan-btn" class="hidden">
-            <span class="svg-container">qr_code_scanner</span>
-            <span class="svg-container">devices</span>
-            <p>Scanne Sitzungscode</p>
-        </button>
-        <button id="start-page-scan-btn" class="hidden">
-            <span class="svg-container">qr_code_scanner</span>
-            <span class="svg-container">auto_stories</span>
-            <p>Scanne Seitencode</p>
-        </button>
-    </div>
-    <div id="reader-container" class="hidden">
-        <div id="reader"></div>
-        <p id="scan-target-info">Scanne den Sitzungscode</p>
+    <div id="content-container">
+        <div id="alerts-container" class="hidden">
+            <p id="alert"></p>
+        </div>
+        <div id="explanation-container">
+            <h1>Verbindung zu einer Edirom-Sitzung herstellen</h1>
+            <ol>
+                <li>Navigieren Sie auf Ihrem Computer auf die EWK-Edirom unter <a href="www.e-w-k.de/edirom">e-w-k.de/edirom</a>.</li>
+                <li>Öffnen Sie in der Edirom das Verbindungsfenster mit einem Klick auf das grüne Feld oben rechts.</li>
+                <li>Tippen Sie auf diesem Gerät auf den unteren Button und scannen Sie den in der Edirom angezeigten QR-Code.</li>
+            </ol>
+        </div>
+        <div id="start-scan-btn-container">
+            <button id="start-session-scan-btn" class="hidden">
+                <span class="svg-container">qr_code_scanner</span>
+                <span class="svg-container">devices</span>
+                <p>Scanne Sitzungscode</p>
+            </button>
+            <button id="start-page-scan-btn" class="hidden">
+                <span class="svg-container">qr_code_scanner</span>
+                <span class="svg-container">auto_stories</span>
+                <p>Scanne Seitencode</p>
+            </button>
+        </div>
+        <div id="reader-container" class="hidden">
+            <div id="reader"></div>
+        </div>
     </div>
 </body>
 

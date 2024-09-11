@@ -1,6 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+
 :root {
     --ewk-primary-color: #232a44;
     --ewk-secondary-color: #e9d9af;
+    --ewk-tertiary-color: #faf6f0;
 }
 
 
@@ -17,6 +20,9 @@
 
 body {
     margin: 0;
+    background-color: var(--ewk-tertiary-color);
+    font-family: Montserrat;
+    font-weight: 300;
 }
 
 header {
@@ -30,10 +36,16 @@ header {
     align-items: center;
 }
 
+
 button {
     background-color: var(--ewk-primary-color);
     color: var(--ewk-secondary-color);
     cursor: pointer;
+}
+
+h1 {
+    font-size: 1.3em;
+    text-align: center;
 }
 
 
@@ -57,18 +69,13 @@ button {
 }
 
 /* Green status */
-#header-connection-status.green {
+#header-connection-status.connected {
     background-color: green;
 }
 
 /* Red status */
-#header-connection-status.red {
+#header-connection-status.disconnected {
     background-color: red;
-}
-
-
-#server-connection-status ,#session-connection-status {
-    width: 200px;
 }
 
 #alerts-container {
@@ -77,6 +84,7 @@ button {
 
 #alert {
     padding: 10px;
+    margin: 10px;
     border: 1px solid black;
     border-radius: 8px;
     color: white;
@@ -88,6 +96,10 @@ button {
 
 #alert.red {
     background-color: red;
+}
+
+#explanation-container {    
+    padding: 0 10px 0px 10px;
 }
 
 #start-scan-btn-container {
