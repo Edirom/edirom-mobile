@@ -188,3 +188,23 @@ function setVideoConstraints() {
 
 getCameraId();
 
+function insertSvgs() {
+    const allSvgContainer = document.querySelectorAll(".svg-container");
+    for (let svgContainer of allSvgContainer) {
+        let path = "img/" + svgContainer.textContent + ".svg";
+        console.log(path);
+        fetch(path)
+            .then(response => response.text())
+            .then(svgData => {
+                svgContainer.innerHTML = svgData;
+            })
+            .catch(error => {
+                console.error("Error fetching SVG:", error);
+            });
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    insertSvgs();
+});
+

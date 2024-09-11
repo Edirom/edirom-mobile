@@ -1,3 +1,9 @@
+:root {
+    --ewk-primary-color: #232a44;
+    --ewk-secondary-color: #e9d9af;
+}
+
+
 .hidden {
     display: none !important;
 }
@@ -8,6 +14,58 @@
 .connected {
     background-color: rgb(0, 161, 0);
 }
+
+body {
+    margin: 0;
+}
+
+header {
+    position: relative;
+    background-color: var(--ewk-primary-color);
+    color: var(--ewk-secondary-color);
+    height: 35px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+button {
+    background-color: var(--ewk-primary-color);
+    color: var(--ewk-secondary-color);
+    cursor: pointer;
+}
+
+
+#header-logo {
+    height: 100%;
+}
+
+#header-title {
+    font-size: 1.5em;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+#header-connection-status {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: red; 
+    margin: 5px;
+}
+
+/* Green status */
+#header-connection-status.green {
+    background-color: green;
+}
+
+/* Red status */
+#header-connection-status.red {
+    background-color: red;
+}
+
 
 #server-connection-status ,#session-connection-status {
     width: 200px;
@@ -42,12 +100,16 @@
 #start-scan-btn-container button {
     padding: 30px;
     font-size: 20px;
+    border: none;
     border-radius: 8px;
+    box-shadow: rgba(0, 0, 0, 0.55) 2.95px 2.95px 3.6px;
 }
 
-#start-scan-btn-container button img{
+#start-scan-btn-container button svg {
     height: 50px;
+    fill: var(--ewk-secondary-color)
 }
+
 
 #start-scan-btn-container button p{
     margin: 5px;

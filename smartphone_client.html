@@ -11,6 +11,11 @@
 </head>
 
 <body>
+    <header>
+        <img id="header-logo" src="img/ewk_logo.png">
+        <span id="header-title">Edirom-Mobile</span>
+        <span id="header-connection-status"></span>
+    </header>
     <h1>Smartphone Client</h1>
     <p id="server-connection-status" class="disconnected">SERVER: Not Connected</p>
     <p id="session-connection-status" class="disconnected">SESSION: Not Connected</p>
@@ -19,13 +24,13 @@
     </div>
     <div id="start-scan-btn-container">
         <button id="start-session-scan-btn" class="hidden">
-            <img src="img/qr_code_scanner.svg">
-            <img src="img/devices.svg">
+            <span class="svg-container">qr_code_scanner</span>
+            <span class="svg-container">devices</span>
             <p>Scanne Sitzungscode</p>
         </button>
         <button id="start-page-scan-btn" class="hidden">
-            <img src="img/qr_code_scanner.svg">
-            <img src="img/auto_stories.svg">
+            <span class="svg-container">qr_code_scanner</span>
+            <span class="svg-container">auto_stories</span>
             <p>Scanne Seitencode</p>
         </button>
     </div>
