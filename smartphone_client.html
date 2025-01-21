@@ -21,28 +21,127 @@
         <div id="alerts-container" class="hidden">
             <p id="alert"></p>
         </div>
-        <div id="explanation-container">
-            <h1>Verbindung zu einer Edirom-Sitzung herstellen</h1>
-            <ol>
-                <li>Navigieren Sie auf Ihrem Computer auf die EWK-Edirom unter <a href="www.e-w-k.de/edirom">e-w-k.de/edirom</a>.</li>
-                <li>Öffnen Sie in der Edirom das Verbindungsfenster mit einem Klick auf das grüne Feld oben rechts.</li>
-                <li>Tippen Sie auf diesem Gerät auf den unteren Button und scannen Sie den in der Edirom angezeigten QR-Code.</li>
-            </ol>
+        <div class="page" id="loginPage">
+            <h1>Bitte einloggen:</h1>
+            <div class="formContainer">
+                <form>
+                    <label for="loginName">Benutzername:</label><br>
+                    <input type="text" id="loginName" name="name"><br>
+                    <label for="loginPassword">Passwort:</label><br>
+                    <input type="password" id="loginPassword" name="password">
+                </form>
+                <button id="loginPageSubmit">Login</button>
+            </div>
+            <h1 id="loginAdvertisementHeader">Noch kein Subskribent?</h1>
+            <p id="loginAdvertisementText"><a href="#">▶ Zugang beschaffen</a></p>
+            <img id="schottLogo" src="https://upload.wikimedia.org/wikipedia/de/thumb/a/a5/Schott_Music_logo.svg/1920px-Schott_Music_logo.svg.png" height="60px">
         </div>
-        <div id="start-scan-btn-container">
-            <button id="start-session-scan-btn" class="hidden">
-                <span class="svg-container">qr_code_scanner</span>
-                <span class="svg-container">devices</span>
-                <p>Scanne Sitzungscode</p>
-            </button>
-            <button id="start-page-scan-btn" class="hidden">
-                <span class="svg-container">qr_code_scanner</span>
-                <span class="svg-container">auto_stories</span>
-                <p>Scanne Seitencode</p>
-            </button>
+        <div class="page" id="loginSuccessPage">
+            <h1>Willkommen</h1>
+            <h1>Sie haben sich erfolgreich eingeloggt!</h1>
+            <button id="loginSuccessContinue">Fortfahren</button>
         </div>
-        <div id="reader-container" class="hidden">
-            <div id="reader"></div>
+        <div class="page" id="functionalitiesMenuPage">
+            <p>Aktueller Kontext: ...</p>
+            <h1>Erweiterungen:</h1>
+            <div id="functionalitiesMenu">
+                <div><button id="lesartenBtn">Lesarten</button></div>
+                <div><button id="faksimilesBtn">Faksimiles</button></div>
+            </div>
+        </div>
+        <div class="page" id="textualRemarksMobilePage">
+            <h1>Lesarten:</h1>
+            <table>
+                <tr>
+                    <th>Takt</th>
+                    <th>Anmerkung</th>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>
+                        <p class="td-head">Auftakt zu 1 | Klav. Ia | 1. Note</p>
+                        <p class="td-text">Legatobogen bis zur 3/4 in T. 2, Klav. Ia verlängert, analog T. 12–14, 26–28, 30–32.
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>Francisco Chang</td>
+                </tr>
+                <tr>
+                    <td>5</td>
+                    <td>Francisco Chang</td>
+                </tr>
+                <tr>
+                    <td>6</td>
+                    <td>Francisco Chang</td>
+                </tr>
+                <tr>
+                    <td>7</td>
+                    <td>Francisco Chang</td>
+                </tr>
+                <tr>
+                    <td>9</td>
+                    <td>Francisco Chang</td>
+                </tr>
+                <tr>
+                    <td>10</td>
+                    <td>Francisco Chang</td>
+                </tr>
+                <tr>
+                    <td>11</td>
+                    <td>Francisco Chang</td>
+                </tr>
+                <tr>
+                    <td>12</td>
+                    <td>Francisco Chang</td>
+                </tr>
+                <tr>
+                    <td>13</td>
+                    <td>Francisco Chang</td>
+                </tr>
+                <tr>
+                    <td>15</td>
+                    <td>Francisco Chang</td>
+                </tr>
+                <tr>
+                    <td>17</td>
+                    <td>Francisco Chang</td>
+                </tr>
+                <tr>
+                    <td>19</td>
+                    <td>Francisco Chang</td>
+                </tr>
+                <tr>
+                    <td>22</td>
+                    <td>Francisco Chang</td>
+                </tr>
+            </table>
+        </div>
+        <div class="page" id="connectToSessionPage">
+            <div id="explanation-container">
+                <h1>Verbindung zu einer Edirom-Sitzung herstellen</h1>
+                <ol>
+                    <li>Navigieren Sie auf Ihrem Computer auf die EWK-Edirom unter <a href="www.e-w-k.de/edirom">e-w-k.de/edirom</a>.</li>
+                    <li>Öffnen Sie in der Edirom das Verbindungsfenster mit einem Klick auf das grüne Feld oben rechts.</li>
+                    <li>Tippen Sie auf diesem Gerät auf den unteren Button und scannen Sie den in der Edirom angezeigten QR-Code.</li>
+                </ol>
+            </div>
+            <div id="start-scan-btn-container">
+                <button id="start-session-scan-btn" class="hidden">
+                    <span class="svg-container">qr_code_scanner</span>
+                    <span class="svg-container">devices</span>
+                    <p>Scanne Sitzungscode</p>
+                </button>
+                <button id="start-page-scan-btn" class="hidden">
+                    <span class="svg-container">qr_code_scanner</span>
+                    <span class="svg-container">auto_stories</span>
+                    <p>Scanne Seitencode</p>
+                </button>
+            </div>
+            <div id="reader-container" class="hidden">
+                <div id="reader"></div>
+            </div>
         </div>
     </div>
 </body>

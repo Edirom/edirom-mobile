@@ -142,4 +142,72 @@ h1 {
     object-fit: cover !important; /* Do not scale the video */
 }
 
+#loginPage .formContainer {
+    display: block;
+    text-align: center;
+}
+
+#loginPage form {
+    display: inline-block;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: left;
+}
+
+#loginPage #loginAdvertisementHeader {
+    margin-top: 40px;
+    margin-bottom: 0px;
+}
+
+#loginPage #loginAdvertisementText {
+    text-align: center;
+}
+
+#loginPage #schottLogo {
+    margin: 15px;
+}
+
+#loginSuccessPage #loginSuccessContinue {
+    width: 180px;
+    height: 80px;
+    font-size: 20px;
+}
+
+#functionalitiesMenu div {
+    display: flex;
+    justify-content: center;
+}
+
+#functionalitiesMenu button {
+    width: 80%;
+    height: 60px;
+    font-size: 20px;
+    margin-top: 10px;
+}
+
+#textualRemarksMobilePage table,
+#textualRemarksMobilePage th,
+#textualRemarksMobilePage td {
+    border: 1px solid;
+}
+
+#textualRemarksMobilePage table {
+    border-collapse: collapse;
+}
+
+#textualRemarksMobilePage th,
+#textualRemarksMobilePage td {
+    padding: 6px;
+}
+
+#textualRemarksMobilePage .td-head,
+#textualRemarksMobilePage .td-text {
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+
+#textualRemarksMobilePage .td-head {
+    font-weight: bold;
+    text-align: center;
+}
 

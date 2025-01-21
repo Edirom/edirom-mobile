@@ -1,3 +1,4 @@
+const loginPageSubmit = document.querySelector("#loginPageSubmit");
 const headerConnectionStatus = document.querySelector("#header-connection-status");
 const alertsContainer = document.querySelector("#alerts-container");
 const alertP = document.querySelector("#alert");
@@ -48,6 +49,18 @@ webSocket.onmessage = (event) => {
     }
 };
 
+loginPageSubmit.addEventListener("click", (e) => {
+    handleLoginAttempt();
+});
+
+document.querySelector("#loginSuccessContinue").addEventListener("click", (e) => {
+    switchPage("functionalitiesMenuPage");
+});
+
+document.querySelector("#lesartenBtn").addEventListener("click", (e) => {
+    switchPage("textualRemarksMobilePage");
+});
+
 startSessionScanBtn.addEventListener("click", (e) => {
     const videoConstraints = setVideoConstraints();
     startScanning(videoConstraints, "session");
@@ -58,6 +71,25 @@ startPageScanBtn.addEventListener("click", (e) => {
     startScanning(videoConstraints, "page");
 });
 
+
+function handleLoginAttempt() {
+    const username = document.getElementById('loginName').value;
+    const password = document.getElementById('loginPassword').value;
+    switchPage("loginSuccessPage");
+}
+
+function switchPage(newPage) {
+    console.log(newPage)
+    // Hide all page sections
+    document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
+
+    // Show the current page section
+    const newPageEl = document.querySelector(`#${newPage}`);
+    console.log(newPageEl)
+    if (newPageEl) {
+        newPageEl.classList.remove('hidden');
+    }
+}
 
 function getCameraId() {
     Html5Qrcode.getCameras().then(devices => {
@@ -217,3 +249,5 @@ document.addEventListener("DOMContentLoaded", function () {
     insertSvgs();
 });
 
+
+switchPage("loginPage");
