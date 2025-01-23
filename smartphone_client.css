@@ -37,7 +37,7 @@ header {
 }
 
 /* Fixed Circle Styling */
-.fixed-circle {
+#new-qr-code-scan-btn {
     fill: var(--ewk-secondary-color);
     position: fixed;          
     bottom: 20px;             
@@ -54,7 +54,7 @@ header {
     z-index: 1000;            
   }
 
-.fixed-circle svg {
+#new-qr-code-scan-btn svg {
     height: 50px;
     fill: var(--ewk-secondary-color)
 }

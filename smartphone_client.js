@@ -1,3 +1,4 @@
+const newQrCodeScanBtn = document.querySelector("#new-qr-code-scan-btn");
 const loginPageSubmit = document.querySelector("#loginPageSubmit");
 const headerConnectionStatus = document.querySelector("#header-connection-status");
 const alertsContainer = document.querySelector("#alerts-container");
@@ -19,19 +20,28 @@ let sessionId = null;
 const html5QrCode = new Html5Qrcode(/* element id */ "reader");
 let cameraId = null;
 
-initialState = { page: "loginPage" }
-history.replaceState(initialState, "", "loginPage");
+// initialState = { page: "loginPage" }
+history.replaceState({ page: "functionalitiesMenuPage" }, "", "functionalitiesMenuPage");
 
+state = { page: "" }
 
 // Handle forward/back buttons
 window.addEventListener("popstate", (event) => {
+    console.log("--------");
+    console.log(history);
     // If a state has been provided, we have a "simulated" page
     // and we update the current page.
     if (event.state) {
         // Simulate the loading of the previous page
-        console.log("State:");
+        console.log("Current State:");
+        console.log(state);
+        console.log("Future State:");
         console.log(event.state);
-        switchPage(event.state.page);
+        if (state.page === "functionalitiesMenuPage") {
+            confirm("Edirom-Mobile wirklich verlassen?");
+        }
+        if (event.state.page === "functionalitiesMenuPage")
+            switchPage(event.state.page);
     }
 });
 
@@ -49,21 +59,27 @@ webSocket.onclose = (event) => {
     headerConnectionStatus.classList.add("disconnected");
 };
 
-webSocket.onmessage = (event) => {
+webSocket.onmessage = (e) => {
     console.log("Received data!");
-    console.log(event.data);
-    const data = JSON.parse(event.data);
+    console.log(e.data);
+    const data = JSON.parse(e.data);
     if (data.response === "sessionMerged") {
         handleSessionConnected();
     }
 };
+
+
+newQrCodeScanBtn.addEventListener("click", (e) => {
+    switchPage("connectToSessionPage");
+});
 
 loginPageSubmit.addEventListener("click", (e) => {
     handleLoginAttempt();
 });
 
 document.querySelector("#loginSuccessContinue").addEventListener("click", (e) => {
-    moveToNextPage({ page: "functionalitiesMenuPage" });
+    // moveToNextPage({ page: "functionalitiesMenuPage" });
+    switchPage("functionalitiesMenuPage");
 });
 
 document.querySelector("#lesartenBtn").addEventListener("click", (e) => {
@@ -84,24 +100,19 @@ startPageScanBtn.addEventListener("click", (e) => {
 function handleLoginAttempt() {
     const username = document.getElementById('loginName').value;
     const password = document.getElementById('loginPassword').value;
-    moveToNextPage({ page: "loginSuccessPage" });
+    switchPage("loginSuccessPage");
 }
 
 function switchPage(newPage) {
-    console.log("____BEGIN____");
-    console.log("new Page:");
-    console.log(newPage);
-    console.log(history)
+    state.page = newPage;
     // Hide all page sections
     document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
 
     // Show the current page section
     const newPageEl = document.querySelector(`#${newPage}`);
-    console.log(newPageEl)
     if (newPageEl) {
         newPageEl.classList.remove('hidden');
     }
-    console.log("____END____");
 }
 
 function moveToNextPage(state) {
@@ -268,3 +279,5 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 switchPage("loginPage");
+
+
