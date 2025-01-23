@@ -8,14 +8,7 @@ const startPageScanBtn = document.querySelector("#start-page-scan-btn");
 const readerContainer = document.querySelector("#reader-container");
 const explanationContainer = document.querySelector("#explanation-container");
 
-const explanationSessionConnection = `
-    <h1>Verbindung zu einer Edirom-Sitzung herstellen</h1>
-    <ol>
-        <li>Öffnen Sie auf Ihrem Computer die EWK-Edirom unter <a href="www.e-w-k.de/edirom.">e-w-k.de/edirom.</a></li>
-        <li>Öffen Sie in der Edirom das Verbindungsfenster mit einem Klick auf das grüne Feld oben rechts.</li>
-        <li>Tippen Sie auf diesem Gerät auf den unteren Button und scannen Sie den in der Edirom angezeigten QR-Code.</li>
-    </ol>
-`;
+
 
 const explanationPageTurning = `
     <h1>Scannen Sie nun einen Seiten-Code, um in einen neuen Kontext zu gelangen</h1>
@@ -25,6 +18,22 @@ const webSocket = new WebSocket("ws://localhost:3000");
 let sessionId = null;
 const html5QrCode = new Html5Qrcode(/* element id */ "reader");
 let cameraId = null;
+
+initialState = { page: "loginPage" }
+history.replaceState(initialState, "", "loginPage");
+
+
+// Handle forward/back buttons
+window.addEventListener("popstate", (event) => {
+    // If a state has been provided, we have a "simulated" page
+    // and we update the current page.
+    if (event.state) {
+        // Simulate the loading of the previous page
+        console.log("State:");
+        console.log(event.state);
+        switchPage(event.state.page);
+    }
+});
 
 
 webSocket.onopen = (event) => {
@@ -54,11 +63,11 @@ loginPageSubmit.addEventListener("click", (e) => {
 });
 
 document.querySelector("#loginSuccessContinue").addEventListener("click", (e) => {
-    switchPage("functionalitiesMenuPage");
+    moveToNextPage({ page: "functionalitiesMenuPage" });
 });
 
 document.querySelector("#lesartenBtn").addEventListener("click", (e) => {
-    switchPage("textualRemarksMobilePage");
+    moveToNextPage({ page: "textualRemarksMobilePage" });
 });
 
 startSessionScanBtn.addEventListener("click", (e) => {
@@ -75,11 +84,14 @@ startPageScanBtn.addEventListener("click", (e) => {
 function handleLoginAttempt() {
     const username = document.getElementById('loginName').value;
     const password = document.getElementById('loginPassword').value;
-    switchPage("loginSuccessPage");
+    moveToNextPage({ page: "loginSuccessPage" });
 }
 
 function switchPage(newPage) {
-    console.log(newPage)
+    console.log("____BEGIN____");
+    console.log("new Page:");
+    console.log(newPage);
+    console.log(history)
     // Hide all page sections
     document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
 
@@ -89,11 +101,16 @@ function switchPage(newPage) {
     if (newPageEl) {
         newPageEl.classList.remove('hidden');
     }
+    console.log("____END____");
+}
+
+function moveToNextPage(state) {
+    history.pushState(state, "", state.page);
+    switchPage(state.page);
 }
 
 function getCameraId() {
     Html5Qrcode.getCameras().then(devices => {
-        console.log(devices);
         if (devices && devices.length) {
             for (let device of devices) {
                 if (device.label.includes("back")) { // sometimes this works better for Firefox?
