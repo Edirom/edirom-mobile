@@ -36,6 +36,29 @@ header {
     align-items: center;
 }
 
+/* Fixed Circle Styling */
+.fixed-circle {
+    fill: var(--ewk-secondary-color);
+    position: fixed;          
+    bottom: 20px;             
+    right: 20px;              
+    width: 70px;              
+    height: 70px;             
+    background-color: var(--ewk-primary-color);
+    border-radius: 50%;       
+    display: flex;            /* Centers the SVG icon */
+    align-items: center;      /* Vertically centers the icon */
+    justify-content: center;  /* Horizontally centers the icon */
+    box-shadow: 2px 2px 6px black; 
+    cursor: pointer;          
+    z-index: 1000;            
+  }
+
+.fixed-circle svg {
+    height: 50px;
+    fill: var(--ewk-secondary-color)
+}
+
 
 button {
     background-color: var(--ewk-primary-color);
