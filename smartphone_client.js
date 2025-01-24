@@ -5,9 +5,7 @@ const alertsContainer = document.querySelector("#alerts-container");
 const alertP = document.querySelector("#alert");
 const startScanBtnContainer = document.querySelector("#start-scan-btn-container");
 const startSessionScanBtn = document.querySelector("#start-session-scan-btn");
-const startPageScanBtn = document.querySelector("#start-page-scan-btn");
-const readerContainer = document.querySelector("#reader-container");
-const explanationContainer = document.querySelector("#explanation-container");
+
 
 
 
@@ -16,27 +14,61 @@ const explanationPageTurning = `
 `;
 
 const webSocket = new WebSocket("ws://localhost:3000");
-let sessionId = null;
 const html5QrCode = new Html5Qrcode(/* element id */ "reader");
-let cameraId = null;
+
 
 // initialState = { page: "loginPage" }
 history.replaceState({ page: "functionalitiesMenuPage" }, "", "functionalitiesMenuPage");
 
-state = { page: "" }
+state = {
+    page: null,
+    queuedPage: null,
+    camera: {
+        id: null
+    },
+    wsConnection: {
+        connected: false,
+        session: {
+            id: null,
+            connected: false
+        }
+    }
+}
+
+function getCameraId() {
+    if (state.camera.id) {
+        // Already have the camera ID
+        return Promise.resolve();
+    }
+    console.log("getting new Camera Id...");
+    return Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length) {
+            state.camera.id = { facingMode: "environment" }; // normaly this should work
+            for (let device of devices) {
+                if (device.label.includes("back")) { // sometimes this works better for Firefox?
+                    state.camera.id = device.id;
+                    break;
+                }
+            }
+        }
+        else {
+            throw new Error("No camera devices found.");
+        }
+    }).catch(err => {
+        console.error("getCameraId error:", err);
+        // You might want to show an alert or handle permissions issues here
+        alert("Please allow camera access to scan the session code!");
+        throw err; // Re-throw to let the caller know there's an error
+    });
+}
+
 
 // Handle forward/back buttons
 window.addEventListener("popstate", (event) => {
-    console.log("--------");
-    console.log(history);
     // If a state has been provided, we have a "simulated" page
     // and we update the current page.
     if (event.state) {
         // Simulate the loading of the previous page
-        console.log("Current State:");
-        console.log(state);
-        console.log("Future State:");
-        console.log(event.state);
         if (state.page === "functionalitiesMenuPage") {
             confirm("Edirom-Mobile wirklich verlassen?");
         }
@@ -61,7 +93,6 @@ webSocket.onclose = (event) => {
 
 webSocket.onmessage = (e) => {
     console.log("Received data!");
-    console.log(e.data);
     const data = JSON.parse(e.data);
     if (data.response === "sessionMerged") {
         handleSessionConnected();
@@ -70,7 +101,7 @@ webSocket.onmessage = (e) => {
 
 
 newQrCodeScanBtn.addEventListener("click", (e) => {
-    switchPage("connectToSessionPage");
+    switchPage("controlEdiromPage", true);
 });
 
 loginPageSubmit.addEventListener("click", (e) => {
@@ -78,22 +109,19 @@ loginPageSubmit.addEventListener("click", (e) => {
 });
 
 document.querySelector("#loginSuccessContinue").addEventListener("click", (e) => {
-    // moveToNextPage({ page: "functionalitiesMenuPage" });
-    switchPage("functionalitiesMenuPage");
+    switchPage("functionalitiesMenuPage", true);
 });
 
 document.querySelector("#lesartenBtn").addEventListener("click", (e) => {
-    moveToNextPage({ page: "textualRemarksMobilePage" });
+    switchPage("textualRemarksMobilePage", true);
+});
+
+document.querySelector("#controlEdiromBtn").addEventListener("click", (e) => {
+    switchPage("controlEdiromPage", true);
 });
 
 startSessionScanBtn.addEventListener("click", (e) => {
-    const videoConstraints = setVideoConstraints();
-    startScanning(videoConstraints, "session");
-});
-
-startPageScanBtn.addEventListener("click", (e) => {
-    const videoConstraints = setVideoConstraints();
-    startScanning(videoConstraints, "page");
+    startSessionCodeScanning();
 });
 
 
@@ -103,8 +131,23 @@ function handleLoginAttempt() {
     switchPage("loginSuccessPage");
 }
 
-function switchPage(newPage) {
-    state.page = newPage;
+function switchPage(newPage, pushHistory = false) {
+    const oldPage = state.page;
+    const functionalitiesThatRequireSession = ["controlEdiromPage"];
+
+    // Clean ups
+    if (oldPage === "connectToSessionPage") {
+        html5QrCode.stop();
+    }
+
+    // Connect to session if required
+    if (functionalitiesThatRequireSession.includes(newPage) && state.wsConnection.session.connected === false) {
+        console.log("I am here");
+        state.queuedPage = newPage
+        switchPage("connectToSessionPage")
+        return
+    }
+
     // Hide all page sections
     document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
 
@@ -113,62 +156,56 @@ function switchPage(newPage) {
     if (newPageEl) {
         newPageEl.classList.remove('hidden');
     }
+
+    state.page = newPage;
+
+    if (pushHistory) {
+        history.pushState(state, "", state.page);
+    }
 }
 
-function moveToNextPage(state) {
-    history.pushState(state, "", state.page);
-    switchPage(state.page);
-}
-
-function getCameraId() {
-    Html5Qrcode.getCameras().then(devices => {
-        if (devices && devices.length) {
-            for (let device of devices) {
-                if (device.label.includes("back")) { // sometimes this works better for Firefox?
-                    cameraId = device.id;
-                    break;
-                }
-            }
-            cameraId = { facingMode: "environment" }; // normaly this should work
-        }
-        return true; // Indicates success
-    }).catch(err => {
-        console.log(err);
-        return false; // Indicates an error occurred
-    }).then(success => {
-        if (success) {
-            startSessionScanBtn.classList.remove("hidden");
-            startScanBtnContainer.classList.remove("hidden");
-            readerContainer.classList.add("hidden");
-        }
-        else {
-            alert("Please allow camera access to scan the session code!");
-            // I could add a button here to ask for camera access again
-        }
+function startSessionCodeScanning() {
+    alertsContainer.classList.add("hidden");
+    startSessionScanBtn.classList.add("hidden");
+    startScanBtnContainer.classList.add("hidden");
+    document.querySelector("#connectToSessionPage .reader-container").classList.remove("hidden");
+    getCameraId().then(() => {
+        // Now state.camera.id is guaranteed to be set (or an error would've been thrown)
+        // ... start scanning logic here ...
+        const videoConstraints = setVideoConstraints();
+        html5QrCode.start(
+            state.camera.id,
+            {
+                fps: 20,    // Optional, frame per seconds for qr code scanning
+                videoConstraints: videoConstraints,
+            },
+            (decodedText, decodedResult) => {
+                // do something when code is ready
+                requestSessionMerge(decodedText);
+            },
+            (errorMessage) => {
+                // parse error, ignore it.
+            })
+            .catch((err) => {
+                // Start failed, handle it.
+            });
+    }).catch((err) => {
+        // Handle the case where we don't have a camera ID
+        console.error("startScanning error:", err);
     });
 }
 
-function startScanning(videoConstraints, type) {
-    alertsContainer.classList.add("hidden");
-    startSessionScanBtn.classList.add("hidden");
-    startPageScanBtn.classList.add("hidden");
-    startScanBtnContainer.classList.add("hidden");
+function startPageCodeScanning(videoConstraints) {
     readerContainer.classList.remove("hidden");
     html5QrCode.start(
-        cameraId,
+        state.camera.id,
         {
             fps: 20,    // Optional, frame per seconds for qr code scanning
             videoConstraints: videoConstraints,
         },
         (decodedText, decodedResult) => {
             // do something when code is ready
-            if (type === "session") {
-                requestSessionMerge(decodedText);
-            }
-            else if (type === "page") {
-                handlePageCodeScan(decodedText);
-            }
-
+            handlePageCodeScan(decodedText);
         },
         (errorMessage) => {
             // parse error, ignore it.
@@ -186,7 +223,8 @@ function sendUserAgent() { // For the device metadata
 
 function requestSessionMerge(decodedText) {
     if (decodedText.length === 36) { // UUIDs have a length of 36
-        sessionId = decodedText;
+        const sessionId = decodedText;
+        state.wsConnection.session.id = sessionId;
         console.log(`Sending sessionId ${sessionId} to server`);
         const messageString = JSON.stringify({ request: "mergeSessions", sessionId: sessionId });
         webSocket.send(messageString);
@@ -197,22 +235,17 @@ function requestSessionMerge(decodedText) {
 
 function handleSessionConnected() {
     console.log("Session connected!");
-    html5QrCode.stop();
-    alertsContainer.classList.remove("hidden");
+    state.wsConnection.session.connected = true;
     alertP.classList.add("green");
     alertP.textContent = "Sitzung erfolgreich beigetreten!";
-    startPageScanBtn.classList.remove("hidden");
-    startScanBtnContainer.classList.remove("hidden");
-    readerContainer.classList.add("hidden");
-    explanationContainer.innerHTML = explanationPageTurning;
+    switchPage(state.queuedPage, true);
+    state.queuedPage = null;
 }
 
 function handlePageCodeScan(decodedText) {
     if (decodedText.startsWith("https://localhost:5500")) {
         const pageCode = decodedText.substring(decodedText.length - 3);
         const messageString = JSON.stringify({ message: "scanned-qr-code", code: pageCode });
-        console.log("Sending:");
-        console.log(messageString);
         webSocket.send(messageString);
         html5QrCode.stop();
         alertsContainer.classList.remove("hidden");
@@ -230,11 +263,11 @@ function setVideoConstraints() {
         "height": 2000,
         "frameRate": 30
     }
-    if (typeof cameraId === "object") {
+    if (typeof state.camera.id === "object") {
         videoConstraints.facingMode = "environment";
     }
     else {
-        videoConstraints.deviceId = cameraId;
+        videoConstraints.deviceId = state.camera.id;
     }
     return videoConstraints;
 }
@@ -256,7 +289,7 @@ function setVideoConstraints() {
 //     return predictedVideoWidth - predictedVideoWidth * space;
 // }
 
-getCameraId();
+// getCameraId(); //TODO: das erst abfragen, wenn es gebraucht wird und auch nur, wenn es nicht gesetzt wurde.
 
 function insertSvgs() {
     const allSvgContainer = document.querySelectorAll(".svg-container");
@@ -278,6 +311,6 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 
-switchPage("loginPage");
+switchPage("functionalitiesMenuPage");
 
 

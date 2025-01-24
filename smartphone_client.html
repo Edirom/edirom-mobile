@@ -24,6 +24,8 @@
         <div id="alerts-container" class="hidden">
             <p id="alert"></p>
         </div>
+
+        <!-- loginPage -->
         <div class="page" id="loginPage">
             <h1>Bitte einloggen:</h1>
             <div class="formContainer">
@@ -39,19 +41,25 @@
             <p id="loginAdvertisementText"><a href="#">▶ Zugang beschaffen</a></p>
             <img id="schottLogo" src="https://upload.wikimedia.org/wikipedia/de/thumb/a/a5/Schott_Music_logo.svg/1920px-Schott_Music_logo.svg.png" height="60px">
         </div>
+
+        <!-- loginSuccessPage -->
         <div class="page" id="loginSuccessPage">
             <h1>Willkommen</h1>
             <h1>Sie haben sich erfolgreich eingeloggt!</h1>
             <button id="loginSuccessContinue">Fortfahren</button>
         </div>
+
+        <!-- functionalitiesMenuPage -->
         <div class="page" id="functionalitiesMenuPage">
             <p>Aktueller Kontext: ...</p>
             <h1>Erweiterungen:</h1>
             <div id="functionalitiesMenu">
                 <div><button id="lesartenBtn">Lesarten</button></div>
-                <div><button id="faksimilesBtn">Faksimiles</button></div>
+                <div><button id="controlEdiromBtn">Umblätterer</button></div>
             </div>
         </div>
+
+        <!-- textualRemarksMobilePage -->
         <div class="page" id="textualRemarksMobilePage">
             <h1>Lesarten:</h1>
             <table>
@@ -153,8 +161,10 @@
                 </tr>
             </table>
         </div>
+
+        <!-- connectToSessionPage -->
         <div class="page" id="connectToSessionPage">
-            <div id="explanation-container">
+            <div class="explanation-container">
                 <h1>Verbindung zu einer Edirom-Sitzung herstellen</h1>
                 <ol>
                     <li>Navigieren Sie auf Ihrem Computer auf die EWK-Edirom unter <a href="www.e-w-k.de/edirom">e-w-k.de/edirom</a>.</li>
@@ -163,20 +173,30 @@
                 </ol>
             </div>
             <div id="start-scan-btn-container">
-                <button id="start-session-scan-btn" class="hidden">
+                <button id="start-session-scan-btn">
                     <span class="svg-container">qr_code_scanner</span>
                     <span class="svg-container">devices</span>
                     <p>Scanne Sitzungscode</p>
                 </button>
-                <button id="start-page-scan-btn" class="hidden">
-                    <span class="svg-container">qr_code_scanner</span>
-                    <span class="svg-container">auto_stories</span>
-                    <p>Scanne Seitencode</p>
-                </button>
             </div>
-            <div id="reader-container" class="hidden">
+            <div class="reader-container" class="hidden">
                 <div id="reader"></div>
             </div>
+        </div>
+
+        <!-- scanNewQrCodePage -->
+        <div class="page" id="scanNewQrCodePage">
+            <div class="explanation-container">
+                <h1>Neuen QR-Code scannen</h1>
+            </div>
+            <div class="reader-container" class="hidden">
+                <div id="reader"></div>
+            </div>
+        </div>
+
+        <!-- controlEdiromPage -->
+        <div class="page" id="controlEdiromPage">
+            <h1>Umblätterer</h1>
         </div>
     </div>
 </body>
