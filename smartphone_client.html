@@ -21,7 +21,7 @@
         <div id="footer-burger-menu"><span class="svg-container">menu</span></div>
         <div id="context-container">
             <div id="footer-arrow-left"><span class="svg-container">keyboard_arrow_left</span></div>
-            <div id="current-context">Lieder I S. 2</div>
+            <div id="current-context">Lieder I S. <span id="current-context-pages">X-Y</span></div>
             <div id="footer-arrow-right"><span class="svg-container">keyboard_arrow_right</span></div>
         </div>
         <div id="new-qr-code-scan-btn">
@@ -30,13 +30,22 @@
         <div id="new-qr-code-scan-btn-border">
         </div>
     </footer>
+    <!-- scanNewQrCodePopover -->
+    <div popover="manual" id="scanNewQrCodePopover">
+        <div class="explanation-container">
+            <h1>Neuen QR-Code scannen</h1>
+        </div>
+        <div class="reader-container">
+            <div id="page-reader" class="reader"></div>
+        </div>
+    </div>
     <div id="content-container">
-        <div id="alerts-container" class="hidden">
+        <div id="alerts-container" class="display-none">
             <p id="alert"></p>
         </div>
 
         <!-- loginPage -->
-        <div class="page" id="loginPage">
+        <div class="page display-none" id="loginPage">
             <h1>Bitte einloggen:</h1>
             <div class="formContainer">
                 <form>
@@ -53,159 +62,10 @@
         </div>
 
         <!-- loginSuccessPage -->
-        <div class="page" id="loginSuccessPage">
+        <div class="page display-none" id="loginSuccessPage">
             <h1>Willkommen</h1>
             <h1>Sie haben sich erfolgreich eingeloggt!</h1>
             <button id="loginSuccessContinue">Fortfahren</button>
-        </div>
-
-        <!-- functionalitiesMenuPage -->
-        <div class="page" id="functionalitiesMenuPage">
-            <h1>Erweiterungen:</h1>
-            <div id="functionalitiesMenu">
-                <div><button id="lesartenBtn">Lesarten</button></div>
-                <div><button id="controlEdiromBtn">Umblätterer</button></div>
-            </div>
-        </div>
-
-        <!-- textualRemarksMobilePage -->
-        <div class="page" id="textualRemarksMobilePage">
-            <h1>Lesarten:</h1>
-            <table>
-                <tr>
-                    <th>Takt</th>
-                    <th>Anmerkung</th>
-                </tr>
-                <tr>
-                    <td>1</td>
-                    <td>
-                        <p class="td-head">Auftakt zu 1 | Klav. Ia | 1. Note</p>
-                        <p class="td-text">Legatobogen bis zur 3/4 in T. 2, Klav. Ia verlängert, analog T. 12–14, 26–28, 30–32.
-                        </p>
-                    </td>
-                </tr>
-                <tr>
-                    <td>2</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>5</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>6</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>7</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>9</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>10</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>11</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>12</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>13</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>15</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>17</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>19</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>22</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>22</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>22</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>22</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>22</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>22</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>22</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>22</td>
-                    <td>Francisco Chang</td>
-                </tr>
-                <tr>
-                    <td>22</td>
-                    <td>Francisco Chang</td>
-                </tr>
-            </table>
-        </div>
-
-        <!-- connectToSessionPage -->
-        <div class="page" id="connectToSessionPage">
-            <div class="explanation-container">
-                <h1>Verbindung zu einer Edirom-Sitzung herstellen</h1>
-                <ol>
-                    <li>Navigieren Sie auf Ihrem Computer auf die EWK-Edirom unter <a href="www.e-w-k.de/edirom">e-w-k.de/edirom</a>.</li>
-                    <li>Öffnen Sie in der Edirom das Verbindungsfenster mit einem Klick auf das grüne Feld oben rechts.</li>
-                    <li>Tippen Sie auf diesem Gerät auf den unteren Button und scannen Sie den in der Edirom angezeigten QR-Code.</li>
-                </ol>
-            </div>
-            <div id="start-scan-btn-container">
-                <button id="start-session-scan-btn">
-                    <span class="svg-container">qr_code_scanner</span>
-                    <span class="svg-container">devices</span>
-                    <p>Scanne Sitzungscode</p>
-                </button>
-            </div>
-            <div class="reader-container" class="hidden">
-                <div id="reader"></div>
-            </div>
-        </div>
-
-        <!-- scanNewQrCodePage -->
-        <div class="page" id="scanNewQrCodePage">
-            <div class="explanation-container">
-                <h1>Neuen QR-Code scannen</h1>
-            </div>
-            <div class="reader-container" class="hidden">
-                <div id="reader"></div>
-            </div>
-        </div>
-
-        <!-- controlEdiromPage -->
-        <div class="page" id="controlEdiromPage">
-            <h1>Umblätterer</h1>
         </div>
     </div>
 </body>

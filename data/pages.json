@@ -1,0 +1,14 @@
+{
+    "a3-1_lieder-1": {
+        "name": "Lieder I",
+        "pages_data": {
+            "1-2": {
+                "edition_mei_file": "abc.xml",
+                "measures": [
+                    "21fd3",
+                    "g5jd3"
+                ]
+            }
+        }
+    }
+}

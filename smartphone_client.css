@@ -7,8 +7,16 @@
 }
 
 
-.hidden {
+.display-none {
     display: none !important;
+}
+
+.hidden {
+    visibility: hidden !important;
+}
+
+.blur {
+    filter: blur(3px) !important;
 }
 
 .disconnected {
@@ -49,12 +57,14 @@ footer {
     color: var(--ewk-secondary-color);
     height: 35px;
     padding: 10px;
+    margin-top: 35px;
     left: 0;
     right: 0;
     bottom: 0;
     display: flex;
     /* justify-content: space-between; */
     align-items: center;
+    z-index: 1000;
 }
 
 #footer-burger-menu svg{
@@ -74,7 +84,7 @@ footer {
 }
 
 #current-context {
-    width: 120px;
+    width: 140px;
     text-align: center;
     font-size: 20px;
 }
@@ -209,18 +219,20 @@ h1 {
     margin: 5px;
 }
 
-#reader-container {
+.reader-container {
     text-align: center;
+    display: flex;
+    justify-content: center;
 }
 
-#reader {
+.reader {
     display: flex;
     justify-content: center;
     aspect-ratio: 1; /* square aspect ratio */
-    width: 100%;
+    width: 90%;
 }
 
-#reader video {
+.reader video {
     object-fit: cover !important; /* Do not scale the video */
 }
 
@@ -293,3 +305,17 @@ h1 {
     text-align: center;
 }
 
+
+#scanNewQrCodePopover {
+    width: 80%;
+    padding: 10px;
+    background-color: var(--ewk-tertiary-color);
+    border: 1px solid black;
+    box-shadow: 5.0px 10px 10px hsl(0deg 0% 0% / 0.55);
+}
+
+
+#content-container {
+    transition: filter 0.4s ease; /* for the blur transition */
+    filter: blur(0px); /* Initial state: no blur */
+}
