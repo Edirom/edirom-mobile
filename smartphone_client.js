@@ -287,12 +287,34 @@ function buildConnectToSessionPage(contentContainer) {
 }
 
 function buildControlEdiromPage(contentContainer) {
+
+    let documents_list = ""
+    let pageCode = null;
+    if (state.context.pages == "1-2") {
+        documents_list = `<li>D-Msch AU-294 1</li>`;
+        pageCode = "001";
+    }
+    if (state.context.pages == "3-4") {
+        documents_list = `<li>D-Msch AU-294 2</li>`
+        pageCode = "002";
+    }
+    if (state.context.pages == "5-6") {
+        documents_list = `<li>D-Msch AU-294 4</li><li>F18 Schalk-444 11</li>`
+        pageCode = "003";
+    }
+    if (state.context.pages == "7-8") {
+        documents_list = `<li>D-Msch AU-294 5</li><li>F18 Schalk-444 12</li>`
+        pageCode = "004";
+    }
+
+    const messageString = JSON.stringify({ message: "scanned-qr-code", code: pageCode }); //TODO: Das "scanned-qr-code" zu nennen ist natürlich noch großer Quatsch.
+    webSocket.send(messageString);
+
     let htmlString = `<div class="page" id="controlEdiromPage">
     <h1>Edirom-Steuerung</h1>
     <h2>Geöffnet wurden:</h2>
     <ul>
-        <li>Quelle1 auf Seite 3</li>
-        <li>Quelle2 auf Seite 4</li>
+        ${documents_list}
     </ul>
     </div>`;
 
@@ -491,8 +513,6 @@ function handleSessionConnected() {
 function handlePageCodeScan(decodedText) {
     if (decodedText.startsWith("https://localhost:5500")) {
         const pageCode = decodedText.substring(decodedText.length - 3);
-        // const messageString = JSON.stringify({ message: "scanned-qr-code", code: pageCode });
-        // webSocket.send(messageString);
         destroyPageCodeScanning();
         const newContext = getContextFromQrCode(pageCode);
         switchContext(newContext);
