@@ -65,15 +65,15 @@ window.addEventListener("popstate", (event) => {
 
 webSocket.onopen = (event) => {
     console.log("Server connection opened!");
+    state.wsConnection.connected = true;
     sendUserAgent();
-    headerConnectionStatus.classList.remove("disconnected");
-    headerConnectionStatus.classList.add("connected");
+    changeConnectionColor();
 };
 
 webSocket.onclose = (event) => {
     console.log("Server connection closed!");
-    headerConnectionStatus.classList.remove("connected");
-    headerConnectionStatus.classList.add("disconnected");
+    state.wsConnection.connected = false;
+    changeConnectionColor();
 };
 
 webSocket.onmessage = (e) => {
@@ -138,6 +138,18 @@ document.querySelector("#scanNewQrCodePopover").addEventListener("toggle", (even
         destroyPageCodeScanning();
     }
 });
+
+
+function changeConnectionColor() {
+    let connectionStatus = "disconnected"
+    if (state.wsConnection.connected == true) {
+        connectionStatus = "connected";
+        if (state.wsConnection.session.connected == true) {
+            connectionStatus = "session";
+        }
+    }
+    headerConnectionStatus.setAttribute("data-connection-status", connectionStatus);
+}
 
 function getContextFromQrCode(pageCode) {
     if (pageCode == "001") {
@@ -473,6 +485,7 @@ function startPageCodeScanning(videoConstraints) {
 
 function destroyPageCodeScanning() {
     document.querySelector("#scanNewQrCodePopover").hidePopover();
+    console.log(html5QrCode);
     html5QrCode.stop();
 }
 
@@ -497,6 +510,7 @@ function requestSessionMerge(decodedText) {
 function handleSessionConnected() {
     console.log("Session connected!");
     state.wsConnection.session.connected = true;
+    changeConnectionColor();
     alertP.classList.add("green");
     alertP.textContent = "Sitzung erfolgreich beigetreten!";
     switchPage(state.queuedPage);
