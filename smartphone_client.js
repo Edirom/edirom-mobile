@@ -9,9 +9,6 @@ const webSocket = new WebSocket("ws://localhost:3000");
 var html5QrCode = null;
 
 
-// initialState = { page: "loginPage" }
-// history.replaceState({ page: "functionalitiesMenuPage" }, "", "functionalitiesMenuPage");
-
 state = {
     page: "functionalitiesMenuPage",
     queuedPage: null,
@@ -58,15 +55,10 @@ function getCameraId() {
 
 // Handle forward/back buttons
 window.addEventListener("popstate", (event) => {
-    // If a state has been provided, we have a "simulated" page
-    // and we update the current page.
     if (event.state) {
-        // Simulate the loading of the previous page
-        if (state.page === "functionalitiesMenuPage") {
-            confirm("Edirom-Mobile wirklich verlassen?");
-        }
-        if (event.state.page === "functionalitiesMenuPage")
+        if (event.state.page === "functionalitiesMenuPage") {
             switchPage(event.state.page);
+        }
     }
 });
 
@@ -191,27 +183,26 @@ function handleLoginAttempt() {
 }
 
 function switchPage(newPage, pushHistory = false) {
-    console.log("!!!");
     const oldPage = state.page;
     const functionalitiesThatRequireSession = ["controlEdiromPage"];
     const contentContainer = document.querySelector("#content-container")
 
     // Clean ups
     contentContainer.innerHTML = "";
-    if (["connectToSessionPage", "scanNewQrCodePage"].includes(oldPage)) {
+    if (oldPage === "connectToSessionPage" && html5QrCode) {
         html5QrCode.stop();
     }
 
     // Connect to session if required
     if (functionalitiesThatRequireSession.includes(newPage) && state.wsConnection.session.connected === false) {
-        state.queuedPage = newPage
-        switchPage("connectToSessionPage")
-        return
+        state.queuedPage = newPage;
+        switchPage("connectToSessionPage", true);
+        return;
     }
 
     state.page = newPage;
     if (pushHistory) {
-        // history.pushState(state, "", state.page);
+        history.pushState(state, "");
     }
 
     if (newPage == "functionalitiesMenuPage") {
@@ -228,6 +219,8 @@ function switchPage(newPage, pushHistory = false) {
     }
 
     insertSvgs(contentContainer);
+
+    console.log(history);
 }
 
 function buildFunctionalitiesMenuPage(contentContainer) {
@@ -506,7 +499,8 @@ function handleSessionConnected() {
     state.wsConnection.session.connected = true;
     alertP.classList.add("green");
     alertP.textContent = "Sitzung erfolgreich beigetreten!";
-    switchPage(state.queuedPage, true);
+    switchPage(state.queuedPage);
+    history.replaceState(state, "");
     state.queuedPage = null;
 }
 
@@ -577,6 +571,7 @@ function setInitialContext() {
 
     context = getContextFromQrCode(pageCode);
     switchContext(context);
+    history.replaceState(state, "");
 }
 
 document.addEventListener("DOMContentLoaded", function () {

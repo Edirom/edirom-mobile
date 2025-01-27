@@ -136,6 +136,11 @@ button {
 }
 
 h1 {
+    font-size: 1.4em;
+    text-align: center;
+}
+
+h2 {
     font-size: 1.3em;
     text-align: center;
 }
