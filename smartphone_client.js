@@ -239,7 +239,7 @@ function buildFunctionalitiesMenuPage(contentContainer) {
     let htmlString = `<div class="page" id="functionalitiesMenuPage">
       <h1>Erweiterungen:</h1>
       <div id="functionalitiesMenu">
-        <div><button id="lesartenBtn">Lesarten</button></div>
+        <div><button id="lesartenBtn">Texkritische Anmerkungen</button></div>
         <div><button id="controlEdiromBtn">Edirom-Steuerung</button></div>
       </div>
     </div>`;
@@ -406,7 +406,7 @@ function buildTextualRemarksMobilePage(contentContainer) {
     }
 
     let htmlString = `<div class="page" id="textualRemarksMobilePage">
-    <h1>Lesarten:</h1>
+    <h1>Textkritische Anmerkungen:</h1>
     <table>
         <tr>
             <th>Takt</th>
