@@ -17,7 +17,7 @@
         <span id="header-title">Edirom-Mobile</span>
         <span id="header-connection-status" data-connection-status="disconnected"></span>
     </header>
-    <footer>
+    <footer id="footer">
         <div id="footer-burger-menu"><span class="svg-container">menu</span></div>
         <div id="context-container">
             <div id="footer-arrow-left"><span class="svg-container">keyboard_arrow_left</span></div>
@@ -39,33 +39,31 @@
             <div id="page-reader" class="reader"></div>
         </div>
     </div>
+    <!-- loginPage -->
+    <div class="page" id="loginPage">
+        <h1>Bitte einloggen:</h1>
+        <div class="formContainer">
+            <form>
+                <label for="loginName">Benutzername:</label><br>
+                <input type="text" id="loginName" name="name"><br>
+                <label for="loginPassword">Passwort:</label><br>
+                <input type="password" id="loginPassword" name="password">
+            </form>
+            <button id="loginPageSubmit">Login</button>
+        </div>
+        <h1 id="loginAdvertisementHeader">Noch kein Subskribent?</h1>
+        <p id="loginAdvertisementText"><a href="#">▶ Zugang beschaffen</a></p>
+        <img id="schottLogo" src="https://upload.wikimedia.org/wikipedia/de/thumb/a/a5/Schott_Music_logo.svg/1920px-Schott_Music_logo.svg.png" height="60px">
+    </div>
+    <!-- loginSuccessPage -->
+    <div class="page display-none" id="loginSuccessPage">
+        <h1>Willkommen</h1>
+        <h1>Sie haben sich erfolgreich eingeloggt.</h1>
+        <button id="loginSuccessContinue">Fortfahren</button>
+    </div>
     <div id="content-container">
         <div id="alerts-container" class="display-none">
             <p id="alert"></p>
-        </div>
-
-        <!-- loginPage -->
-        <div class="page display-none" id="loginPage">
-            <h1>Bitte einloggen:</h1>
-            <div class="formContainer">
-                <form>
-                    <label for="loginName">Benutzername:</label><br>
-                    <input type="text" id="loginName" name="name"><br>
-                    <label for="loginPassword">Passwort:</label><br>
-                    <input type="password" id="loginPassword" name="password">
-                </form>
-                <button id="loginPageSubmit">Login</button>
-            </div>
-            <h1 id="loginAdvertisementHeader">Noch kein Subskribent?</h1>
-            <p id="loginAdvertisementText"><a href="#">▶ Zugang beschaffen</a></p>
-            <img id="schottLogo" src="https://upload.wikimedia.org/wikipedia/de/thumb/a/a5/Schott_Music_logo.svg/1920px-Schott_Music_logo.svg.png" height="60px">
-        </div>
-
-        <!-- loginSuccessPage -->
-        <div class="page display-none" id="loginSuccessPage">
-            <h1>Willkommen</h1>
-            <h1>Sie haben sich erfolgreich eingeloggt!</h1>
-            <button id="loginSuccessContinue">Fortfahren</button>
         </div>
     </div>
 </body>

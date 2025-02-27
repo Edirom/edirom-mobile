@@ -10,6 +10,7 @@ var html5QrCode = null;
 
 
 state = {
+    first: true,
     page: "functionalitiesMenuPage",
     queuedPage: null,
     camera: {
@@ -126,7 +127,10 @@ loginPageSubmit.addEventListener("click", (e) => {
 });
 
 document.querySelector("#loginSuccessContinue").addEventListener("click", (e) => {
-    switchPage("functionalitiesMenuPage", true);
+    document.querySelector("#loginSuccessPage").classList.add("display-none");
+    document.querySelector("#functionalitiesMenuPage").classList.remove("display-none");
+    document.querySelector("#footer").classList.remove("display-none");
+    // switchPage("functionalitiesMenuPage", true);
 });
 
 document.querySelector("#scanNewQrCodePopover").addEventListener("toggle", (event) => {
@@ -185,16 +189,19 @@ function switchContext(newContext) {
         document.querySelector("#footer-arrow-right").classList.remove("hidden")
     }
 
+    console.log("bbbb");
     switchPage(state.page);
 }
 
 function handleLoginAttempt() {
     const username = document.getElementById('loginName').value;
     const password = document.getElementById('loginPassword').value;
-    switchPage("loginSuccessPage");
+    document.querySelector("#loginPage").classList.add("display-none");
+    document.querySelector("#loginSuccessPage").classList.remove("display-none");
 }
 
 function switchPage(newPage, pushHistory = false) {
+    console.log("SwitchPage:", newPage);
     const oldPage = state.page;
     const functionalitiesThatRequireSession = ["controlEdiromPage"];
     const contentContainer = document.querySelector("#content-container")
@@ -236,7 +243,7 @@ function switchPage(newPage, pushHistory = false) {
 }
 
 function buildFunctionalitiesMenuPage(contentContainer) {
-    let htmlString = `<div class="page" id="functionalitiesMenuPage">
+    let htmlString = `<div id="functionalitiesMenuPage">
       <h1>Erweiterungen:</h1>
       <div id="functionalitiesMenu">
         <div><button id="lesartenBtn">Texkritische Anmerkungen</button></div>
@@ -256,6 +263,12 @@ function buildFunctionalitiesMenuPage(contentContainer) {
     contentContainer.querySelector("#controlEdiromBtn").addEventListener("click", (e) => {
         switchPage("controlEdiromPage", true);
     });
+
+    if (state.first === true) {
+        state.first = false;
+        contentContainer.querySelector("#functionalitiesMenuPage").classList.add("display-none");
+        document.querySelector("#footer").classList.add("display-none");
+    }
 }
 
 function buildConnectToSessionPage(contentContainer) {

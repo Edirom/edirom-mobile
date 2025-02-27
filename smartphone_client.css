@@ -19,7 +19,8 @@
     filter: blur(3px) !important;
 }
 
-body, html {
+body,
+html {
     margin: 0;
     padding: 0;
     width: 100%;
@@ -60,7 +61,7 @@ footer {
     z-index: 1000;
 }
 
-#footer-burger-menu svg{
+#footer-burger-menu svg {
     height: 35px;
     fill: var(--ewk-secondary-color)
 }
@@ -70,10 +71,14 @@ footer {
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    flex-direction: row; /* Default value; arranges children in a row */
-    flex-wrap: nowrap;   /* Prevents wrapping to the next line */
-    justify-content: center; /* Aligns items horizontally */
-    align-items: center; /* Aligns items vertically */
+    flex-direction: row;
+    /* Default value; arranges children in a row */
+    flex-wrap: nowrap;
+    /* Prevents wrapping to the next line */
+    justify-content: center;
+    /* Aligns items horizontally */
+    align-items: center;
+    /* Aligns items vertically */
 }
 
 #current-context {
@@ -90,20 +95,23 @@ footer {
 }
 
 #new-qr-code-scan-btn {
-    position: absolute;          
-    bottom: 4px;             
-    right: 2px;              
-    width: 60px;              
-    height: 60px;             
+    position: absolute;
+    bottom: 4px;
+    right: 2px;
+    width: 60px;
+    height: 60px;
     background-color: var(--ewk-secondary-color);
-    border-radius: 50%;       
-    display: flex;            /* Centers the SVG icon */
-    align-items: center;      /* Vertically centers the icon */
-    justify-content: center;  /* Horizontally centers the icon */
+    border-radius: 50%;
+    display: flex;
+    /* Centers the SVG icon */
+    align-items: center;
+    /* Vertically centers the icon */
+    justify-content: center;
+    /* Horizontally centers the icon */
     /* box-shadow: 2px 2px 6px black;  */
-    cursor: pointer;          
-    z-index: 1000;            
-  }
+    cursor: pointer;
+    z-index: 1000;
+}
 
 #new-qr-code-scan-btn svg {
     height: 35px;
@@ -111,15 +119,15 @@ footer {
 }
 
 #new-qr-code-scan-btn-border {
-    position: absolute;          
-    bottom: -1px;             
-    right: -2px;              
-    width: 68px;              
-    height: 68px;             
+    position: absolute;
+    bottom: -1px;
+    right: -2px;
+    width: 68px;
+    height: 68px;
     background-color: var(--ewk-primary-color);
-    border-radius: 50%;                
-    z-index: 999;            
-  }
+    border-radius: 50%;
+    z-index: 999;
+}
 
 
 button {
@@ -154,7 +162,7 @@ h2 {
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background-color: red; 
+    background-color: red;
     margin: 5px;
 }
 
@@ -191,7 +199,7 @@ h2 {
     background-color: red;
 }
 
-.explanation-container {    
+.explanation-container {
     padding: 0 10px 0px 10px;
 }
 
@@ -216,7 +224,7 @@ h2 {
 }
 
 
-#start-scan-btn-container button p{
+#start-scan-btn-container button p {
     margin: 5px;
 }
 
@@ -229,12 +237,14 @@ h2 {
 .reader {
     display: flex;
     justify-content: center;
-    aspect-ratio: 1; /* square aspect ratio */
+    aspect-ratio: 1;
+    /* square aspect ratio */
     width: 90%;
 }
 
 .reader video {
-    object-fit: cover !important; /* Do not scale the video */
+    object-fit: cover !important;
+    /* Do not scale the video */
 }
 
 #loginPage .formContainer {
@@ -259,13 +269,19 @@ h2 {
 }
 
 #loginPage #schottLogo {
-    margin: 15px;
+    display: block;
+    margin: auto;
+    margin-top: 60px;
+    width: 50%;
 }
 
 #loginSuccessPage #loginSuccessContinue {
     width: 180px;
     height: 80px;
     font-size: 20px;
+    margin: auto;
+    margin-top: 40px;
+    display: block;
 }
 
 #functionalitiesMenu div {
@@ -317,6 +333,8 @@ h2 {
 
 
 #content-container {
-    transition: filter 0.4s ease; /* for the blur transition */
-    filter: blur(0px); /* Initial state: no blur */
+    transition: filter 0.4s ease;
+    /* for the blur transition */
+    filter: blur(0px);
+    /* Initial state: no blur */
 }
