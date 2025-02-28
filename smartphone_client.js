@@ -236,6 +236,9 @@ function switchPage(newPage, pushHistory = false) {
     else if (newPage == "controlEdiromPage") {
         buildControlEdiromPage(contentContainer);
     }
+    else if (newPage == "videoplayerPage") {
+        buildVideoplayerPage(contentContainer);
+    }
 
     insertSvgs(contentContainer);
 
@@ -248,6 +251,7 @@ function buildFunctionalitiesMenuPage(contentContainer) {
       <div id="functionalitiesMenu">
         <div><button id="lesartenBtn">Textkritische Anmerkungen</button></div>
         <div><button id="controlEdiromBtn">Edirom-Steuerung</button></div>
+        <div><button id="videoplayerBtn">Videoplayer</button></div>
       </div>
     </div>`;
 
@@ -262,6 +266,9 @@ function buildFunctionalitiesMenuPage(contentContainer) {
     });
     contentContainer.querySelector("#controlEdiromBtn").addEventListener("click", (e) => {
         switchPage("controlEdiromPage", true);
+    });
+    contentContainer.querySelector("#videoplayerBtn").addEventListener("click", (e) => {
+        switchPage("videoplayerPage", true);
     });
 
     if (state.first === true) {
@@ -435,6 +442,35 @@ function buildTextualRemarksMobilePage(contentContainer) {
 
     contentContainer.appendChild(tempContainer.firstChild);
 }
+
+function buildVideoplayerPage(contentContainer) {
+
+    // let htmlString = `<div class="page" id="videoplayerPage">
+    // <h1>Textkritische Anmerkungen:</h1>
+    // </div>`;
+
+    // // Create a temporary container
+    // const tempContainer = document.createElement('div');
+    // tempContainer.innerHTML = htmlString.trim();
+
+    // contentContainer.appendChild(tempContainer.firstChild);
+
+    let videoplayerJsElement = document.createElement("script");
+    videoplayerJsElement.setAttribute("defer", "defer");
+    videoplayerJsElement.setAttribute("src", "videoplayerElement.js")
+    document.querySelector("head").appendChild(videoplayerJsElement);
+
+    // const style = window.getComputedStyle(contentContainer); // To get the padding values
+    // let paddingLeftAndRight = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+    // let paddingTopAndBottom = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    let maxWidth = screen.availWidth - 20;
+    let maxHeight = screen.availHeight - 20;
+
+    let elementString = `<edirom-videoplayer id="videoplayer" state="pause" src-data="robinhood.mov" maxsize="${maxWidth}x${maxHeight}"></edirom-videoplayer>`;
+
+    contentContainer.innerHTML = elementString.trim();
+}
+
 
 function startSessionCodeScanning() {
     html5QrCode = new Html5Qrcode(/* element id */ "session-reader");
