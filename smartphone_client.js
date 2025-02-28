@@ -309,19 +309,19 @@ function buildControlEdiromPage(contentContainer) {
     let documents_list = ""
     let pageCode = null;
     if (state.context.pages == "1-2") {
-        documents_list = `<li>D-Msch AU-294 1</li>`;
+        documents_list = `<li>D-MZsch AU-294 1</li>`;
         pageCode = "001";
     }
     if (state.context.pages == "3-4") {
-        documents_list = `<li>D-Msch AU-294 2</li>`
+        documents_list = `<li>D-MZsch AU-294 2</li>`
         pageCode = "002";
     }
     if (state.context.pages == "5-6") {
-        documents_list = `<li>D-Msch AU-294 4</li><li>F18 Schalk-444 11</li>`
+        documents_list = `<li>D-MZsch AU-294 4</li><li>F18 Schalk-444 11</li>`
         pageCode = "003";
     }
     if (state.context.pages == "7-8") {
-        documents_list = `<li>D-Msch AU-294 5</li><li>F18 Schalk-444 12</li>`
+        documents_list = `<li>D-MZsch AU-294 5</li><li>F18 Schalk-444 12</li>`
         pageCode = "004";
     }
 
