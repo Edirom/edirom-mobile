@@ -246,7 +246,7 @@ function buildFunctionalitiesMenuPage(contentContainer) {
     let htmlString = `<div id="functionalitiesMenuPage">
       <h1>Erweiterungen:</h1>
       <div id="functionalitiesMenu">
-        <div><button id="lesartenBtn">Texkritische Anmerkungen</button></div>
+        <div><button id="lesartenBtn">Textkritische Anmerkungen</button></div>
         <div><button id="controlEdiromBtn">Edirom-Steuerung</button></div>
       </div>
     </div>`;
