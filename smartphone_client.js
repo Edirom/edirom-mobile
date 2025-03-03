@@ -457,7 +457,7 @@ function buildVideoplayerPage(contentContainer) {
 
     let videoplayerJsElement = document.createElement("script");
     videoplayerJsElement.setAttribute("defer", "defer");
-    videoplayerJsElement.setAttribute("src", "videoplayerElement.js")
+    videoplayerJsElement.setAttribute("src", "https://127.0.0.1:5501/videoplayer.js")
     document.querySelector("head").appendChild(videoplayerJsElement);
 
     // const style = window.getComputedStyle(contentContainer); // To get the padding values
