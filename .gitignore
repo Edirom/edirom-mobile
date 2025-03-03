@@ -3,3 +3,5 @@
 .DS_Store
 *.mov
 videoplayer.js
+*.webm
+*.mkv
