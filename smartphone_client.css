@@ -337,4 +337,6 @@ h2 {
     /* for the blur transition */
     filter: blur(0px);
     /* Initial state: no blur */
+
+    padding: 10px;
 }
