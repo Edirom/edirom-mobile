@@ -5,3 +5,4 @@
 videoplayer.js
 *.webm
 *.mkv
+data/measures.json
