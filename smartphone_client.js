@@ -486,7 +486,190 @@ function buildVideoplayerPage(contentContainer) {
         loopEndingTimeMs = "110000";
     }
 
-    let elementString = `<edirom-videoplayer id="videoplayer" state="pause" src-data="robinhood.mov" width="${maxWidth}" height="${maxHeight}" loop-beginning-time-ms="${loopBeginningTimeMs}" loop-ending-time-ms="${loopEndingTimeMs}"></edirom-videoplayer>`;
+    let measuresData = `[{"measureId" : "performance.m1",
+  "measureLabel" : "0",
+  "begin" : "00:00:00.00",
+  "end" : "00:00:04.00"
+}, {
+  "measureId" : "performance.m2",
+  "measureLabel" : "1",
+  "begin" : "00:00:04.00",
+  "end" : "00:00:08.00"
+}, {
+  "measureId" : "performance.m3",
+  "measureLabel" : "2",
+  "begin" : "00:00:08.00",
+  "end" : "00:00:12.00"
+}, {
+  "measureId" : "performance.m4",
+  "measureLabel" : "3",
+  "begin" : "00:00:12.00",
+  "end" : "00:00:16.00"
+}, {
+  "measureId" : "performance.m5",
+  "measureLabel" : "4",
+  "begin" : "00:00:16.00",
+  "end" : "00:00:20.00"
+}, {
+  "measureId" : "performance.m6",
+  "measureLabel" : "5",
+  "begin" : "00:00:20.00",
+  "end" : "00:00:24.00"
+}, {
+  "measureId" : "performance.m7",
+  "measureLabel" : "6",
+  "begin" : "00:00:24.00",
+  "end" : "00:00:28.00"
+}, {
+  "measureId" : "performance.m8",
+  "measureLabel" : "7",
+  "begin" : "00:00:28.00",
+  "end" : "00:00:32.00"
+}, {
+  "measureId" : "performance.m9",
+  "measureLabel" : "8",
+  "begin" : "00:00:32.00",
+  "end" : "00:00:36.00"
+}, {
+  "measureId" : "performance.m10",
+  "measureLabel" : "9",
+  "begin" : "00:00:36.00",
+  "end" : "00:00:40.00"
+}, {
+  "measureId" : "performance.m11",
+  "measureLabel" : "10",
+  "begin" : "00:00:40.00",
+  "end" : "00:00:44.00"
+}, {
+  "measureId" : "performance.m12",
+  "measureLabel" : "11",
+  "begin" : "00:00:44.00",
+  "end" : "00:00:48.00"
+}, {
+  "measureId" : "performance.m13",
+  "measureLabel" : "12",
+  "begin" : "00:00:48.00",
+  "end" : "00:00:52.00"
+}, {
+  "measureId" : "performance.m14",
+  "measureLabel" : "13",
+  "begin" : "00:00:52.00",
+  "end" : "00:00:56.00"
+}, {
+  "measureId" : "performance.m15",
+  "measureLabel" : "14",
+  "begin" : "00:00:56.00",
+  "end" : "00:01:00.00"
+}, {
+  "measureId" : "performance.m16",
+  "measureLabel" : "15",
+  "begin" : "00:01:00.00",
+  "end" : "00:01:04.00"
+}, {
+  "measureId" : "performance.m17",
+  "measureLabel" : "16",
+  "begin" : "00:01:04.00",
+  "end" : "00:01:08.00"
+}, {
+  "measureId" : "performance.m18",
+  "measureLabel" : "17",
+  "begin" : "00:01:08.00",
+  "end" : "00:01:12.00"
+}, {
+  "measureId" : "performance.m19",
+  "measureLabel" : "18",
+  "begin" : "00:01:12.00",
+  "end" : "00:01:16.00"
+}, {
+  "measureId" : "performance.m20",
+  "measureLabel" : "19",
+  "begin" : "00:01:16.00",
+  "end" : "00:01:20.00"
+}, {
+  "measureId" : "performance.m21",
+  "measureLabel" : "20",
+  "begin" : "00:01:20.00",
+  "end" : "00:01:24.00"
+}, {
+  "measureId" : "performance.m22",
+  "measureLabel" : "21",
+  "begin" : "00:01:24.00",
+  "end" : "00:01:28.00"
+}, {
+  "measureId" : "performance.m23",
+  "measureLabel" : "22",
+  "begin" : "00:01:28.00",
+  "end" : "00:01:32.00"
+}, {
+  "measureId" : "performance.m24",
+  "measureLabel" : "23",
+  "begin" : "00:01:32.00",
+  "end" : "00:01:36.00"
+}, {
+  "measureId" : "performance.m25",
+  "measureLabel" : "24",
+  "begin" : "00:01:36.00",
+  "end" : "00:01:40.00"
+}, {
+  "measureId" : "performance.m26",
+  "measureLabel" : "25",
+  "begin" : "00:01:40.00",
+  "end" : "00:01:44.00"
+}, {
+  "measureId" : "performance.m27",
+  "measureLabel" : "26",
+  "begin" : "00:01:44.00",
+  "end" : "00:01:48.00"
+}, {
+  "measureId" : "performance.m28",
+  "measureLabel" : "27",
+  "begin" : "00:01:48.00",
+  "end" : "00:01:52.00"
+}, {
+  "measureId" : "performance.m29",
+  "measureLabel" : "28",
+  "begin" : "00:01:52.00",
+  "end" : "00:01:56.00"
+}, {
+  "measureId" : "performance.m30",
+  "measureLabel" : "29",
+  "begin" : "00:01:56.00",
+  "end" : "00:02:00.00"
+}, {
+  "measureId" : "performance.m31",
+  "measureLabel" : "30",
+  "begin" : "00:02:00.00",
+  "end" : "00:02:04.00"
+}, {
+  "measureId" : "performance.m32",
+  "measureLabel" : "31",
+  "begin" : "00:02:04.00",
+  "end" : "00:02:08.00"
+}, {
+  "measureId" : "performance.m33",
+  "measureLabel" : "32",
+  "begin" : "00:02:08.00",
+  "end" : "00:02:12.00"
+}, {
+  "measureId" : "performance.m34",
+  "measureLabel" : "33",
+  "begin" : "00:02:12.00",
+  "end" : "00:02:16.00"
+}, {
+  "measureId" : "performance.m35",
+  "measureLabel" : "34",
+  "begin" : "00:02:16.00",
+  "end" : "00:02:20.00"
+}, {
+  "measureId" : "performance.m36",
+  "measureLabel" : "35",
+  "begin" : "00:02:20.00",
+  "end" : "00:02:25.00"
+}]`;
+
+    measuresData = measuresData.replace(/\n/g, "");
+
+    let elementString = `<edirom-videoplayer id="videoplayer" state="pause" src-data="robinhood.mov" width="${maxWidth}" height="${maxHeight}" loop-beginning-time-ms="${loopBeginningTimeMs}" loop-ending-time-ms="${loopEndingTimeMs}" measures-data='${measuresData}'></edirom-videoplayer>`;
 
     contentContainer.innerHTML = elementString.trim();
 }
