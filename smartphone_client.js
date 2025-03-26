@@ -467,26 +467,26 @@ function buildVideoplayerPage(contentContainer) {
     let maxWidth = screen.availWidth - 20;
     let maxHeight = screen.availHeight - 20;
 
-    let loopBeginningTime = "";
-    let loopEndingTime = "";
+    let loopBeginningTimeMs = "";
+    let loopEndingTimeMs = "";
     if (state.context.pages == "1-2") {
-        loopBeginningTime = "70";
-        loopEndingTime = "80";
+        loopBeginningTimeMs = "70000";
+        loopEndingTimeMs = "80000";
     }
     if (state.context.pages == "3-4") {
-        loopBeginningTime = "80";
-        loopEndingTime = "90";
+        loopBeginningTimeMs = "80000";
+        loopEndingTimeMs = "90000";
     }
     if (state.context.pages == "5-6") {
-        loopBeginningTime = "90";
-        loopEndingTime = "100";
+        loopBeginningTimeMs = "90000";
+        loopEndingTimeMs = "100000";
     }
     if (state.context.pages == "7-8") {
-        loopBeginningTime = "100";
-        loopEndingTime = "110";
+        loopBeginningTimeMs = "100000";
+        loopEndingTimeMs = "110000";
     }
 
-    let elementString = `<edirom-videoplayer id="videoplayer" state="pause" src-data="robinhood.mov" width="${maxWidth}" height="${maxHeight}" loop-beginning-time="${loopBeginningTime}" loop-ending-time="${loopEndingTime}"></edirom-videoplayer>`;
+    let elementString = `<edirom-videoplayer id="videoplayer" state="pause" src-data="robinhood.mov" width="${maxWidth}" height="${maxHeight}" loop-beginning-time-ms="${loopBeginningTimeMs}" loop-ending-time-ms="${loopEndingTimeMs}"></edirom-videoplayer>`;
 
     contentContainer.innerHTML = elementString.trim();
 }
