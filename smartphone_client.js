@@ -9,6 +9,12 @@ const webSocket = new WebSocket("ws://localhost:3000");
 var html5QrCode = null;
 
 
+let videoplayerJsElement = document.createElement("script");
+videoplayerJsElement.setAttribute("defer", "defer");
+videoplayerJsElement.setAttribute("src", "https://127.0.0.1:5501/videoplayer.js")
+document.querySelector("head").appendChild(videoplayerJsElement);
+
+
 state = {
     first: true,
     page: "functionalitiesMenuPage",
@@ -455,18 +461,32 @@ function buildVideoplayerPage(contentContainer) {
 
     // contentContainer.appendChild(tempContainer.firstChild);
 
-    let videoplayerJsElement = document.createElement("script");
-    videoplayerJsElement.setAttribute("defer", "defer");
-    videoplayerJsElement.setAttribute("src", "https://127.0.0.1:5501/videoplayer.js")
-    document.querySelector("head").appendChild(videoplayerJsElement);
-
     // const style = window.getComputedStyle(contentContainer); // To get the padding values
     // let paddingLeftAndRight = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
     // let paddingTopAndBottom = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
     let maxWidth = screen.availWidth - 20;
     let maxHeight = screen.availHeight - 20;
 
-    let elementString = `<edirom-videoplayer id="videoplayer" state="pause" src-data="robinhood.mov" maxsize="${maxWidth}x${maxHeight}"></edirom-videoplayer>`;
+    let loopBeginningTime = "";
+    let loopEndingTime = "";
+    if (state.context.pages == "1-2") {
+        loopBeginningTime = "70";
+        loopEndingTime = "80";
+    }
+    if (state.context.pages == "3-4") {
+        loopBeginningTime = "80";
+        loopEndingTime = "90";
+    }
+    if (state.context.pages == "5-6") {
+        loopBeginningTime = "90";
+        loopEndingTime = "100";
+    }
+    if (state.context.pages == "7-8") {
+        loopBeginningTime = "100";
+        loopEndingTime = "110";
+    }
+
+    let elementString = `<edirom-videoplayer id="videoplayer" state="pause" src-data="robinhood.mov" width="${maxWidth}" height="${maxHeight}" loop-beginning-time="${loopBeginningTime}" loop-ending-time="${loopEndingTime}"></edirom-videoplayer>`;
 
     contentContainer.innerHTML = elementString.trim();
 }
