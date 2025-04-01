@@ -102,8 +102,20 @@ document.querySelector("#footer-arrow-left").addEventListener("click", (e) => {
     else if (state.context.pages === "7-8") {
         newPages = "5-6";
     }
+    else if (state.context.pages === "9-10") {
+        newPages = "7-8";
+    }
+    else if (state.context.pages === "11-12") {
+        newPages = "9-10";
+    }
+    else if (state.context.pages === "13-14") {
+        newPages = "11-12";
+    }
+    else if (state.context.pages === "15-16") {
+        newPages = "13-14";
+    }
     newContext = {
-        "volume": "a3-1_lieder-1", "pages": newPages
+        "volume": "robin_hood_1c", "pages": newPages
     };
     switchContext(newContext);
 });
@@ -118,8 +130,20 @@ document.querySelector("#footer-arrow-right").addEventListener("click", (e) => {
     else if (state.context.pages === "5-6") {
         newPages = "7-8";
     }
+    else if (state.context.pages === "7-8") {
+        newPages = "9-10";
+    }
+    else if (state.context.pages === "9-10") {
+        newPages = "11-12";
+    }
+    else if (state.context.pages === "11-12") {
+        newPages = "13-14";
+    }
+    else if (state.context.pages === "13-14") {
+        newPages = "15-16";
+    }
     newContext = {
-        "volume": "a3-1_lieder-1", "pages": newPages
+        "volume": "robin_hood_1c", "pages": newPages
     };
     switchContext(newContext);
 });
@@ -163,16 +187,28 @@ function changeConnectionColor() {
 
 function getContextFromQrCode(pageCode) {
     if (pageCode == "001") {
-        return { "volume": "a3-1_lieder-1", "pages": "1-2" };
+        return { "volume": "robin_hood_1c", "pages": "1-2" };
     }
     if (pageCode == "002") {
-        return { "volume": "a3-1_lieder-1", "pages": "3-4" };
+        return { "volume": "robin_hood_1c", "pages": "3-4" };
     }
     if (pageCode == "003") {
-        return { "volume": "a3-1_lieder-1", "pages": "5-6" };
+        return { "volume": "robin_hood_1c", "pages": "5-6" };
     }
     if (pageCode == "004") {
-        return { "volume": "a3-1_lieder-1", "pages": "7-8" };
+        return { "volume": "robin_hood_1c", "pages": "7-8" };
+    }
+    if (pageCode == "005") {
+        return { "volume": "robin_hood_1c", "pages": "9-10" };
+    }
+    if (pageCode == "006") {
+        return { "volume": "robin_hood_1c", "pages": "11-12" };
+    }
+    if (pageCode == "007") {
+        return { "volume": "robin_hood_1c", "pages": "13-14" };
+    }
+    if (pageCode == "008") {
+        return { "volume": "robin_hood_1c", "pages": "15-16" };
     }
 }
 
@@ -188,7 +224,7 @@ function switchContext(newContext) {
     else {
         document.querySelector("#footer-arrow-left").classList.remove("hidden")
     }
-    if (state.context.pages === "7-8") {
+    if (state.context.pages === "15-16") {
         document.querySelector("#footer-arrow-right").classList.add("hidden")
     }
     else {
@@ -256,8 +292,8 @@ function buildFunctionalitiesMenuPage(contentContainer) {
       <h1>Erweiterungen:</h1>
       <div id="functionalitiesMenu">
         <div><button id="lesartenBtn">Textkritische Anmerkungen</button></div>
-        <div><button id="controlEdiromBtn">Edirom-Steuerung</button></div>
         <div><button id="videoplayerBtn">Videoplayer</button></div>
+        <div><button id="controlEdiromBtn">Edirom-Steuerung</button></div>
       </div>
     </div>`;
 
