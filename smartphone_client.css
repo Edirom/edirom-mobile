@@ -51,12 +51,10 @@ footer {
     color: var(--ewk-secondary-color);
     height: 35px;
     padding: 10px;
-    margin-top: 35px;
     left: 0;
     right: 0;
     bottom: 0;
     display: flex;
-    /* justify-content: space-between; */
     align-items: center;
     z-index: 1000;
 }
@@ -337,8 +335,8 @@ h2 {
     /* for the blur transition */
     filter: blur(0px);
     /* Initial state: no blur */
-
     padding: 10px;
+    padding-bottom: 68px;
 }
 
 .inline-music-character {
