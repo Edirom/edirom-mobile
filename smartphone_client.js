@@ -412,74 +412,258 @@ function buildTextualRemarksMobilePage(contentContainer) {
     let row_data = "";
     if (state.context.pages == "1-2") {
         row_data = `<tr>
-        <td>Auftakt zu 1 | Klav. Ia | 1. Note</td>
-        <td>Legatobogen bis zur 3/4 in T. 2, Klav. Ia verlängert, analog T. 12–14, 26–28, 30–32.</td>
+        <td>Takt 1</td>
+        <td>Taktvorzeichnung <img class="inline-music-character" src="https://smufl-browser.edirom.de/E08A.png"/> ergänzt gemäß C1 sowie mit Blick auf Metrum.</td>
         </tr>
         <tr>
-        <td>Takt 2 | Klav. Ia/b | Ganzer Takt</td>
-        <td>Stimmen von Klav. I sind in C im System von Klav. II
-        notiert; Stimmen hier im System von Klav. I gesetzt; Bassschlüssel bereits vor den
-        Taktstrich zu T. 2 gesetzt, statt vor den Taktstrich zu T. 3, analog T. 13/14.
-        </td>
+        <td>Takt 7, I</td>
+        <td>Halbe korrigiert zu punktierte Halbe gemäß C1 sowie mit Blick auf Metrum.</td>
         </tr>
         <tr>
-        <td>Takt 3 | Singstimme | 2. Note</td>
-        <td>Beginn der Crescendogabel bereits zur 2. Note gesetzt, analog T. 29 und gemäß A und B.
-        </td>
-        </tr>`;
+        <td>Takt 8, Ib</td>
+        <td>Viertelpausen ergänzt gemäß C1 sowie mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 9, IIa</td>
+        <td>Achtelpause ergänzt gemäß C1 sowie mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 10, IIb</td>
+        <td>Achtelpause ergänzt gemäß C1 , analog T. 12 sowie mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 11, I</td>
+        <td><img class="inline-music-character" src="https://smufl-browser.edirom.de/E261.png"/> zu e4 ergänzt gemäß C1 sowie analog Intervallstruktur bei 3. und 5. Note sowie bei T. 12, 14 1.–3. Note.</td>
+        </tr>
+        <tr>
+        <td>Takt 11, IIa</td>
+        <td>Viertelpause ergänzt gemäß C1 sowie mit Blick auf Metrum.</td>
+        </tr>
+        `;
     }
 
     if (state.context.pages == "3-4") {
         row_data = `<tr>
-        <td>Takt 10 | Klav. Ib | 8/8</td>
-        <td>gis korrigiert zu g, mit Blick auf harmonischen Kontext.</td>
+        <td>Takt 15, IIc</td>
+        <td>b0 korrigiert zu d1 gemäß C1 sowie analog T. 9, 11, 13–14, 16–18, 20, 22–25 (Orgelpunkt auf d1/ d2 ).</td>
         </tr>
         <tr>
-        <td>Takt 12 | Klav. I | Ganzer Takt</td>
-        <td>Stimmen von Klav. I sind in C im System von Klav. II
-        notiert; Stimmen hier im System von Klav. I gesetzt, analog T. 13/14.
-        </td>
+        <td>Takt 16, IIb</td>
+        <td>Halbe korrigiert zu punktierte Halbe analog T. 13–15 sowie mit Blick auf Metrum.</td>
         </tr>
         <tr>
-        <td>Takt 12 | Klav. I | 4/4</td>
-        <td>mp unter das System gesetzt, espr. über das System, analog T. 1.
-        </td>
+        <td>Takt 17, IIc</td>
+        <td>Halbe korrigiert zu punktierte Halbe analog T. 13–15 sowie mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 17, I</td>
+        <td><img class="inline-music-character" src="https://smufl-browser.edirom.de/E261.png"/> zu a4 ergänzt gemäß C1 sowie analog Intervallstruktur bei 2.–5. Note (Durdreiklänge).</td>
         </tr>`;
     }
 
     if (state.context.pages == "5-6") {
         row_data = `<tr>
-        <td>Takt 19 | Klav. Ia/b | 1. Note</td>
-        <td>Legatobogen zum 1/8 in Klav. Ib gesetzt statt zur Halben in Klav. Ia, analog T. 41,
-        46 und 47.</td>
+        <td>Takt 25, IIa</td>
+        <td>Violinschlüssel gemäß C1 ergänzt, da D-Dur-Tonleiter (Schlüssel bei Korrektur versehentlich radiert).</td>
         </tr>
         <tr>
-        <td>Takt 27 | Klav. IIa | 6–7/8</td>
-        <td>SLegatobogen ergänzt, analog T. 1, 13, 31 und 48.
-        </td>
+        <td>Takt 25, IIb</td>
+        <td>Viertelpause ergänzt gemäß C1 sowie mit Blick auf Metrum.</td>
         </tr>
         <tr>
-        <td>Takt 27 | Klav. IIa | 7/8</td>
-        <td>Staccatopunkt ergänzt, analog T. 1, 13, 31 und 48.
-        </td>
+        <td>Takt 26, Ib</td>
+        <td>Vierundsechzigstel korrigiert zu (Septolen-)Zweiunddreißigstel mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 28, II</td>
+        <td><img class="inline-music-character" src="https://smufl-browser.edirom.de/E262.png"/> zu cis4 ergänzt gemäß C1 sowie analog System I.</td>
+        </tr>
+        <tr>
+        <td>Takt 30, Ia</td>
+        <td>Sechzehntel korrigiert zu Zweiunddreißigstel mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 30, Ia</td>
+        <td><img class="inline-music-character" src="https://smufl-browser.edirom.de/E261.png"/> zu f5 ergänzt analog f6.</td>
+        </tr>
+        <tr>
+        <td>Takt 30, Ia</td>
+        <td><img class="inline-music-character" src="https://smufl-browser.edirom.de/E260.png"/> zu des5 ergänzt gemäß C1 sowie analog Intervallstruktur bei 18/32, 20/32 und 22/32 (Des-Dur-Dreiklänge).</td>
+        </tr>
+        <tr>
+        <td>Takt 30, Ic, II</td>
+        <td>Notation im Hinblick auf durchgängiges Harfenglissando angepasst.</td>
         </tr>`;
     }
 
     if (state.context.pages == "7-8") {
         row_data = `<tr>
-        <td>Takt 28 | Singstimme | 4/4</td>
-        <td>Vortragsanweisung »(ruhiger)« getilgt, da allein aufgrund des Akkoladen- und Seitenumbruchs in C eingefügt.
-        </td>
+        <td>Takt 38, I</td>
+        <td>Staccatopunkt ergänzt analog System II.</td>
         </tr>
         <tr>
-        <td>Takt 28 | Klav. Ia/b | Ganzer Takt</td>
-        <td>Stimmen von Klav. I sind in C im System von Klav. II notiert; Stimmen hier im System von Klav. I gesetzt; Bassschlüssel bereits vor den Taktstrich zu T. 28 gesetzt, statt vor den Taktstrich zu T. 29, analog T. 13/14.
-        </td>
+        <td>Takt 41, 43, II</td>
+        <td>Viertel e1 korrigiert zu doppelt punktierte Viertel gemäß C1 sowie analog E.</td>
         </tr>
         <tr>
-        <td>Takt 44 | Klav. Ia | 4/4</td>
-        <td>Viertel cis 3/e 3 in Klav. Ia rhythmisch verändert zu Achtel sowie der Stimme Klav. Ib zugeordnet, analog Klav. Ia/b, 2. Note bzw. 3/8 und gemäß B. 
-        </td>
+        <td>Takt 42, I</td>
+        <td>Pausen ergänzt gemäß C1 , analog T. 44 sowie mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 42, II</td>
+        <td>Achtel korrigiert zu punktierte Achtel gemäß C1 , analog 3. Note sowie mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 44, II</td>
+        <td>Achtel korrigiert zu punktierte Achtel gemäß C1 sowie mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 44, II</td>
+        <td>Achtel korrigiert zu Sechzehntel gemäß C1 sowie mit Blick auf Metrum.</td>
+        </tr>`;
+    }
+
+    if (state.context.pages == "9-10") {
+        row_data = `<tr>
+        <td>Takt 47, Ia</td>
+        <td>Achtel korrigiert zu punktierte Achtel gemäß C1 sowie mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 48, II</td>
+        <td>Achtel korrigiert zu punktierte Achtel gemäß C1 , analog System Ib sowie mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 49, II</td>
+        <td><img class="inline-music-character" src="https://smufl-browser.edirom.de/E260.png"/> zu des4 ergänzt gemäß C1 sowie analog 1. Note und T. 50 1. Note (Des-Dur-Harmonie).</td>
+        </tr>
+        <tr>
+        <td>Takt 53, II</td>
+        <td><img class="inline-music-character" src="https://smufl-browser.edirom.de/E260.png"/> zu des3 und <img class="inline-music-character" src="https://smufl-browser.edirom.de/E260.png"/> zu as3 ergänzt gemäß C1 sowie analog 1. Note (Des-Dur-Harmonie).</td>
+        </tr>
+        <tr>
+        <td>Takt 54, II</td>
+        <td><img class="inline-music-character" src="https://smufl-browser.edirom.de/E260.png"/> zu des3 und <img class="inline-music-character" src="https://smufl-browser.edirom.de/E260.png"/> zu as3 ergänzt gemäß C1 sowie analog 1. Note und T. 55 1. Note (Des-Dur-Harmonie).</td>
+        </tr>
+        <tr>
+        <td>Takt 55, Ib, IIb</td>
+        <td>poco <img class="inline-music-character" src="https://smufl-browser.edirom.de/E536.png"/> : poco  unsichere Lesart.</td>
+        </tr>
+        <tr>
+        <td>Takt 55, Ib</td>
+        <td>Achtelpause von 5/8 versetzt zu 6/8 gemäß C1 sowie mit Blick auf Metrum (Halbe bei 1. Note, Achtel bei 5/8).</td>
+        </tr>
+        <tr>
+        <td>Takt 55, IIb</td>
+        <td>Achtelpause ergänzt gemäß C1 sowie analog System Ib.</td>
+        </tr>
+        <tr>
+        <td>Takt 57, IIa/b</td>
+        <td>Halbe Pause ergänzt mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 57, IIa</td>
+        <td>Abgeschnittene Notation ergänzt gemäß C1.</td>
+        </tr>
+        <tr>
+        <td>Takt 57|58</td>
+        <td>Doppeltaktstrich gemäß C1.</td>
+        </tr>`;
+    }
+
+    if (state.context.pages == "11-12") {
+        row_data = `<tr>
+        <td>Takt 57|58</td>
+        <td>Doppeltaktstrich gemäß C1.</td>
+        </tr>
+        <tr>
+        <td>Takt 58</td>
+        <td>Taktvorzeichnung 3/4 getilgt, da redundant.</td>
+        </tr>
+        <tr>
+        <td>Takt 65, IIIb</td>
+        <td>Staccatopunkte ergänzt analog 2–4/8.</td>
+        </tr>
+        <tr>
+        <td>Takt 66, IIIb</td>
+        <td>Staccatopunkte ergänzt analog T. 65.</td>
+        </tr>
+        <tr>
+        <td>Takt 67, I</td>
+        <td>Achtelpause ergänzt gemäß C1 , analog System II sowie mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 69, IV</td>
+        <td><img class="inline-music-character" src="https://smufl-browser.edirom.de/E4A0.png"/> ergänzt gemäß C1 sowie analog T. 73 (bei Korrektur versehentlich radiert).</td>
+        </tr>`;
+    }
+
+    if (state.context.pages == "13-14") {
+        row_data = `<tr>
+        <td>Takt 71, II</td>
+        <td>Achtelpause ergänzt gemäß C1 sowie mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 71, IVb</td>
+        <td>Halbe korrigiert zu punktierte Halbe gemäß C1 sowie mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 75, III</td>
+        <td>Wohl versehentlich radierter Staccatopunkt ergänzt gemäß C1 sowie analog 5–6/8 und T. 71–72.</td>
+        </tr>
+        <tr>
+        <td>Takt 77, Ia/b</td>
+        <td>Überzählige Achtelpause nach 3. Note bei 6/8 getilgt mit Blick auf Metrum sowie analog T. 73, 74.</td>
+        </tr>
+        <tr>
+        <td>Takt 77, III</td>
+        <td>Sechzehntel korrigiert zu punktierte Sechzehntel gemäß C1 , analog 1. und 7. Note sowie mit Blick auf Metrum.</td>
+        </tr>
+        <tr>
+        <td>Takt 79–80, III</td>
+        <td>in 8 as___ bei T. 79 2. Note mit Geltungslinie bis T. 80 6/8 nicht ausgeschrieben, da nicht eindeutig.</td>
+        </tr>
+        <tr>
+        <td>Takt 80, II</td>
+        <td><img class="inline-music-character" src="https://smufl-browser.edirom.de/E260.png"/> zu es3 ergänzt gemäß C1 sowie analog 1. Note und T. 79 2.–3. Note.</td>
+        </tr>
+        <tr>
+        <td>Takt 80, III</td>
+        <td>Staccatopunkte ergänzt analog System I.</td>
+        </tr>
+        <tr>
+        <td>Takt 81, II</td>
+        <td>Instrumentationsangabe versetzt von T. 82 1. Note (Seitenumbruch bei T. 81 | T. 82).</td>
+        </tr>
+        <tr>
+        <td>Takt 82, I</td>
+        <td><img class="inline-music-character" src="https://smufl-browser.edirom.de/E260.png"/> zu es3 ergänzt gemäß C1 sowie analog T. 81.</td>
+        </tr>
+        <tr>
+        <td>Takt 83–84, Ib</td>
+        <td>Halbe bei T. 83 1. Note und unvollständige Notation bei T. 84 1/4 korrigiert zu punktierte Halbe bei T. 83 mit Ligaturbogen zu Viertel bei T. 84 1/4.</td>
+        </tr>`;
+    }
+
+    if (state.context.pages == "15-16") {
+        row_data = `<tr>
+        <td>Takt 85, Ib</td>
+        <td>Ganze korrigiert zu punktierte Halbe.</td>
+        </tr>
+        <tr>
+        <td>Takt 87, III</td>
+        <td>Staccatopunkt ergänzt analog T. 81–84.</td>
+        </tr>
+        <tr>
+        <td>Takt 88, unter III</td>
+        <td>Tremolo-Balken für Paukenwirbel ergänzt analog T. 87.</td>
+        </tr>
+        <tr>
+        <td>Takt 89, IIa</td>
+        <td>pizz. ergänzt analog IIb.</td>
+        </tr>
+        <tr>
+        <td>Takt 90, III</td>
+        <td>Halbe korrigiert zu punktierte Halbe gemäß C1 , analog System I sowie mit Blick auf Metrum.</td>
         </tr>`;
     }
 

@@ -340,3 +340,9 @@ h2 {
 
     padding: 10px;
 }
+
+.inline-music-character {
+    height: 1em;
+    display: inline-block;
+    vertical-align: text-bottom;
+}
