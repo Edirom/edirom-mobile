@@ -59,7 +59,7 @@ footer {
     z-index: 1000;
 }
 
-#footer-burger-menu svg {
+#header-burger-menu svg {
     height: 35px;
     fill: var(--ewk-secondary-color)
 }
@@ -145,11 +145,7 @@ h2 {
 }
 
 
-#header-logo {
-    height: 100%;
-}
-
-#header-title {
+#header-edition-name {
     font-size: 1.5em;
     position: absolute;
     left: 50%;
@@ -245,42 +241,6 @@ h2 {
     /* Do not scale the video */
 }
 
-#loginPage .formContainer {
-    display: block;
-    text-align: center;
-}
-
-#loginPage form {
-    display: inline-block;
-    margin-left: auto;
-    margin-right: auto;
-    text-align: left;
-}
-
-#loginPage #loginAdvertisementHeader {
-    margin-top: 40px;
-    margin-bottom: 0px;
-}
-
-#loginPage #loginAdvertisementText {
-    text-align: center;
-}
-
-#loginPage #schottLogo {
-    display: block;
-    margin: auto;
-    margin-top: 60px;
-    width: 50%;
-}
-
-#loginSuccessPage #loginSuccessContinue {
-    width: 180px;
-    height: 80px;
-    font-size: 20px;
-    margin: auto;
-    margin-top: 40px;
-    display: block;
-}
 
 #functionalitiesMenu div {
     display: flex;

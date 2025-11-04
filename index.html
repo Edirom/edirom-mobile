@@ -5,16 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smartphone Client</title>
-    <script src="smartphone_client.js" defer></script>
+    <script src="main.js" defer></script>
     <script src="html5-qrcode.min.js" type="text/javascript"></script>
-    <link rel="stylesheet" href="smartphone_client.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 
 
 <body>
     <header>
-        <img id="header-logo" src="img/ewk_logo.png">
-        <span id="header-title">Edirom-Mobile</span>
+        <div id="header-burger-menu"><span class="svg-container"></span></div>
+        <span id="header-edition-name">Edirom-Mobile</span>
         <span id="header-connection-status" data-connection-status="disconnected"></span>
     </header>
     <div id="content-container">
@@ -23,7 +23,6 @@
         </div>
     </div>
     <footer id="footer">
-        <div id="footer-burger-menu"><span class="svg-container">menu</span></div>
         <div id="context-container">
             <div id="footer-arrow-left"><span class="svg-container">keyboard_arrow_left</span></div>
             <div id="current-context">Robin Hood S. <span id="current-context-pages">X-Y</span></div>
@@ -43,28 +42,6 @@
         <div class="reader-container">
             <div id="page-reader" class="reader"></div>
         </div>
-    </div>
-    <!-- loginPage -->
-    <div class="page" id="loginPage">
-        <h1>Bitte einloggen:</h1>
-        <div class="formContainer">
-            <form>
-                <label for="loginName">Benutzername:</label><br>
-                <input type="text" id="loginName" name="name"><br>
-                <label for="loginPassword">Passwort:</label><br>
-                <input type="password" id="loginPassword" name="password">
-            </form>
-            <button id="loginPageSubmit">Login</button>
-        </div>
-        <h1 id="loginAdvertisementHeader">Noch kein Subskribent?</h1>
-        <p id="loginAdvertisementText"><a href="#">▶ Zugang beschaffen</a></p>
-        <img id="schottLogo" src="https://upload.wikimedia.org/wikipedia/de/thumb/a/a5/Schott_Music_logo.svg/1920px-Schott_Music_logo.svg.png" height="60px">
-    </div>
-    <!-- loginSuccessPage -->
-    <div class="page display-none" id="loginSuccessPage">
-        <h1>Willkommen</h1>
-        <h1>Sie haben sich erfolgreich eingeloggt.</h1>
-        <button id="loginSuccessContinue">Fortfahren</button>
     </div>
 </body>
 
