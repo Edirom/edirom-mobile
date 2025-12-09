@@ -1,16 +1,22 @@
-version: "3.7"
-
 services:
   edirom-mobile:
-    image: dennisfriedl/edirom-mobile:main
+    build: .
+    container_name: edirom-mobile
+    volumes:
+    - .:/usr/share/nginx/html
+    - "/Users/dennisfriedl/Documents/GitHub/edirom-concordance-navigator:/usr/share/nginx/html/resources/web-components/edirom-concordance-navigator"
+    - "/Users/dennisfriedl/Documents/GitHub/edirom-core-web-components:/usr/share/nginx/html/resources/web-components/edirom-core-web-components"
+
     ports:
       - "8082:80"
-    depends_on:
-      - ws-server
+    # depends_on:
+    #   - ws-server
     environment:
-      - SERVER_URL=ws://localhost:8081
-  ws-server:
-    image: dennisfriedl/edirom-ws-server:main
-    ports:
-      - "8081:3000"
+      - APP_BACKEND_URL=http://localhost:8082
+      - APP_WS_URL=ws://localhost:8081
+
+  # ws-server:
+  #   image: dennisfriedl/edirom-ws-server:main
+  #   ports:
+  #     - "8081:3000"
    

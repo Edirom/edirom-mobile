@@ -1,6 +1,7 @@
-BACKEND_URL = "http://localhost:8080"; //TODO: This should not be hardcoded
-EDITION_URI = "xmldb:exist:///db/apps/edirom/edition-example/content/ediromEditions/edirom_edition_example.xml"; //TODO: This should not be hardcoded
+const BACKEND_URL = window.config.APP_BACKEND_URL;
+const EDITION_URI = "xmldb:exist:///db/apps/edirom/edition-example/content/ediromEditions/edirom_edition_example.xml"; //TODO: This should not be hardcoded
 
+console.log("Backend URL:", BACKEND_URL);
 
 
 /**
