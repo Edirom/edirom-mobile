@@ -262,3 +262,6 @@ h2 {
     display: inline-block;
     vertical-align: text-bottom;
 }
+edirom-concordance-navigator {
+    width: 100%;
+}
