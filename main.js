@@ -1,8 +1,6 @@
 const BACKEND_URL = window.config.APP_BACKEND_URL;
 const EDITION_URI = "xmldb:exist:///db/apps/edirom/edition-example/content/ediromEditions/edirom_edition_example.xml"; //TODO: This should not be hardcoded
 
-console.log("Backend URL:", BACKEND_URL);
-
 
 /**
  * Fetches JSON data from a URL and returns it as a JavaScript object
@@ -40,8 +38,13 @@ async function fetchHtml(url) {
     }
 }
 
-async function getEdition() {
-    const editionData = await fetchJSON(`${BACKEND_URL}/exist/apps/Edirom-Online-Backend/data/xql/getEdition.xql?id=${encodeURIComponent(EDITION_URI)}`);
+async function getConcordances(editionId, workId) {
+    const concordanceData = await fetchJSON(`${BACKEND_URL}/exist/apps/Edirom-Online-Backend/data/xql/getConcordances.xql?workId=${encodeURIComponent(workId)}&id=${encodeURIComponent(editionId)}&edition=${encodeURIComponent(editionId)}`);
+    return concordanceData;
+}
+
+async function getEdition(edition_uri) {
+    const editionData = await fetchJSON(`${BACKEND_URL}/exist/apps/Edirom-Online-Backend/data/xql/getEdition.xql?id=${encodeURIComponent(edition_uri)}`);
     return editionData;
 }
 
@@ -126,8 +129,14 @@ async function initializeApp() {
     first_work = works[0]; //TODO: At the moment, all other works will be ignored
     setWorkTitle(first_work);
 
-    const navigatorConfig = await getNavigatorConfig(EDITION_URI, first_work.id);
-    buildNavigator(navigatorConfig);
+    const concordances = await getConcordances(EDITION_URI, first_work.id);
+    console.log(concordances);
+    document.querySelector("edirom-concordance-navigator").setAttribute("concordances-data", JSON.stringify(concordances));
+
+
+
+    // const navigatorConfig = await getNavigatorConfig(EDITION_URI, first_work.id);
+    // buildNavigator(navigatorConfig);
 }
 
 initializeApp();
