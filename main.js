@@ -33,6 +33,59 @@ function registerLayoutListeners() {
 
 registerLayoutListeners();
 
+function setupEditionNameTooltip() {
+    const editionNameEl = document.getElementById("header-edition-name");
+    const headerEl = document.querySelector("header");
+
+    if (!editionNameEl || !headerEl) {
+        return;
+    }
+
+    let tooltipEl = document.getElementById("header-edition-tooltip");
+
+    if (!tooltipEl) {
+        tooltipEl = document.createElement("div");
+        tooltipEl.id = "header-edition-tooltip";
+        tooltipEl.setAttribute("role", "status");
+        document.body.appendChild(tooltipEl);
+    }
+
+    const hideTooltip = () => {
+        tooltipEl.classList.remove("visible");
+    };
+
+    const positionTooltip = () => {
+        const headerRect = headerEl.getBoundingClientRect();
+        const top = headerRect.bottom + window.scrollY + 6;
+        tooltipEl.style.top = `${top}px`;
+    };
+
+    const showTooltip = () => {
+        tooltipEl.textContent = editionNameEl.textContent || "";
+        positionTooltip();
+        tooltipEl.classList.add("visible");
+    };
+
+    editionNameEl.addEventListener("click", () => {
+        if (tooltipEl.classList.contains("visible")) {
+            hideTooltip();
+        } else {
+            showTooltip();
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        if (editionNameEl.contains(event.target) || tooltipEl.contains(event.target)) {
+            return;
+        }
+
+        hideTooltip();
+    });
+
+    window.addEventListener("resize", hideTooltip);
+    window.addEventListener("orientationchange", hideTooltip);
+}
+
 
 /**
  * Fetches JSON data from a URL and returns it as a JavaScript object
@@ -539,8 +592,8 @@ async function initializeApp() {
 
 
 
-    // const navigatorConfig = await getNavigatorConfig(EDITION_URI, first_work.id);
-    // buildNavigator(navigatorConfig);
 }
+
+document.addEventListener("DOMContentLoaded", setupEditionNameTooltip);
 
 initializeApp();
