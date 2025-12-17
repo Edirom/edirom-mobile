@@ -9,6 +9,11 @@
     --ewk-viewport-height: 100dvh;
 }
 
+edirom-navigator {
+    --primary-color: var(--ewk-primary-color);
+    --secondary-color: var(--ewk-secondary-color);
+    --tertiary-color: var(--ewk-tertiary-color);
+}
 
 .display-none {
     display: none !important;
