@@ -4,6 +4,8 @@
     --ewk-primary-color: #232a44;
     --ewk-secondary-color: #e9d9af;
     --ewk-tertiary-color: #faf6f0;
+    --ewk-header-height: 55px;
+        --ewk-footer-height: 80px;
 }
 
 
@@ -253,8 +255,10 @@ h2 {
     /* for the blur transition */
     filter: blur(0px);
     /* Initial state: no blur */
+    box-sizing: border-box;
     padding: 10px;
-    padding-bottom: 68px;
+    height: calc(100vh - var(--ewk-header-height) - var(--ewk-footer-height));
+        overflow-y: auto;
 }
 
 .inline-music-character {

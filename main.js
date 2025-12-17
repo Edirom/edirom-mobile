@@ -1,6 +1,29 @@
 const BACKEND_URL = window.config.APP_BACKEND_URL;
 const EDITION_URI = "xmldb:exist:///db/apps/edirom/edition-example/content/ediromEditions/edirom_edition_example.xml"; //TODO: This should not be hardcoded
 
+function updateLayoutMetrics() {
+    const root = document.documentElement;
+    const header = document.querySelector("header");
+    const footer = document.querySelector("footer");
+
+    if (header) {
+        root.style.setProperty("--ewk-header-height", `${header.getBoundingClientRect().height}px`);
+    }
+
+    if (footer) {
+        root.style.setProperty("--ewk-footer-height", `${footer.getBoundingClientRect().height}px`);
+    }
+}
+
+function registerLayoutListeners() {
+    updateLayoutMetrics();
+    window.addEventListener("resize", updateLayoutMetrics);
+    window.addEventListener("orientationchange", updateLayoutMetrics);
+    window.addEventListener("load", updateLayoutMetrics);
+}
+
+registerLayoutListeners();
+
 
 /**
  * Fetches JSON data from a URL and returns it as a JavaScript object
