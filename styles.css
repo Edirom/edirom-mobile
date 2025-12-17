@@ -5,7 +5,8 @@
     --ewk-secondary-color: #e9d9af;
     --ewk-tertiary-color: #faf6f0;
     --ewk-header-height: 55px;
-        --ewk-footer-height: 80px;
+    --ewk-footer-height: 80px;
+    --ewk-viewport-height: 100dvh;
 }
 
 
@@ -251,13 +252,17 @@ h2 {
 
 
 #content-container {
+    display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
     transition: filter 0.4s ease;
-    /* for the blur transition */
     filter: blur(0px);
-    /* Initial state: no blur */
     box-sizing: border-box;
     padding: 10px;
-    height: calc(100vh - var(--ewk-header-height) - var(--ewk-footer-height));
+    padding-bottom: calc(var(--ewk-footer-height) + 16px);
+        height: calc(var(--ewk-viewport-height) - var(--ewk-header-height) - var(--ewk-footer-height));
+        min-height: calc(var(--ewk-viewport-height) - var(--ewk-header-height) - var(--ewk-footer-height));
         overflow-y: auto;
 }
 

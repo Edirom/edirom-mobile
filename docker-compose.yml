@@ -5,6 +5,7 @@ services:
     volumes:
     - .:/usr/share/nginx/html
     - "/Users/dennisfriedl/Documents/GitHub/edirom-concordance-navigator:/usr/share/nginx/html/resources/web-components/edirom-concordance-navigator"
+    - "/Users/dennisfriedl/Documents/GitHub/edirom-navigator:/usr/share/nginx/html/resources/web-components/edirom-navigator"
     - "/Users/dennisfriedl/Documents/GitHub/edirom-core-web-components:/usr/share/nginx/html/resources/web-components/edirom-core-web-components"
 
     ports:
