@@ -8,15 +8,15 @@ function updateLayoutMetrics() {
     const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
 
     if (viewportHeight) {
-        root.style.setProperty("--ewk-viewport-height", `${viewportHeight}px`);
+        root.style.setProperty("--viewport-height", `${viewportHeight}px`);
     }
 
     if (header) {
-        root.style.setProperty("--ewk-header-height", `${header.getBoundingClientRect().height}px`);
+        root.style.setProperty("--header-height", `${header.getBoundingClientRect().height}px`);
     }
 
     if (footer) {
-        root.style.setProperty("--ewk-footer-height", `${footer.getBoundingClientRect().height}px`);
+        root.style.setProperty("--footer-height", `${footer.getBoundingClientRect().height}px`);
     }
 }
 

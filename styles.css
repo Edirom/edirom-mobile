@@ -4,9 +4,9 @@
     --ewk-primary-color: #232a44;
     --ewk-secondary-color: #e9d9af;
     --ewk-tertiary-color: #faf6f0;
-    --ewk-header-height: 55px;
-    --ewk-footer-height: 80px;
-    --ewk-viewport-height: 100dvh;
+    --header-height: 55px;
+        --footer-height: 80px;
+        --viewport-height: 100dvh;
 }
 
 edirom-navigator {
@@ -265,9 +265,9 @@ h2 {
     filter: blur(0px);
     box-sizing: border-box;
     padding: 10px;
-    padding-bottom: calc(var(--ewk-footer-height) + 16px);
-        height: calc(var(--ewk-viewport-height) - var(--ewk-header-height) - var(--ewk-footer-height));
-        min-height: calc(var(--ewk-viewport-height) - var(--ewk-header-height) - var(--ewk-footer-height));
+    padding-bottom: calc(var(--footer-height) + 16px);
+        height: calc(var(--viewport-height) - var(--header-height) - var(--footer-height));
+        min-height: calc(var(--viewport-height) - var(--header-height) - var(--footer-height));
         overflow-y: auto;
 }
 
