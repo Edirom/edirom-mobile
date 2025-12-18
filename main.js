@@ -86,6 +86,62 @@ function setupEditionNameTooltip() {
     window.addEventListener("orientationchange", hideTooltip);
 }
 
+function setupHeaderMenu() {
+    const burger = document.getElementById("header-burger-menu");
+    const menu = document.getElementById("header-menu");
+
+    if (!burger || !menu) {
+        return;
+    }
+
+    burger.setAttribute("role", "button");
+    burger.setAttribute("aria-controls", "header-menu");
+    burger.setAttribute("aria-expanded", "false");
+
+    const closeMenu = () => {
+        if (!menu.classList.contains("open")) {
+            return;
+        }
+
+        menu.classList.remove("open");
+        menu.setAttribute("aria-hidden", "true");
+        burger.setAttribute("aria-expanded", "false");
+    };
+
+    const openMenu = () => {
+        menu.classList.add("open");
+        menu.setAttribute("aria-hidden", "false");
+        burger.setAttribute("aria-expanded", "true");
+    };
+
+    burger.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (menu.classList.contains("open")) {
+            closeMenu();
+        } else {
+            openMenu();
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        if (menu.contains(event.target) || burger.contains(event.target)) {
+            return;
+        }
+
+        closeMenu();
+    });
+
+    menu.addEventListener("click", (event) => {
+        const target = event.target instanceof Element ? event.target.closest("a") : null;
+        if (target) {
+            closeMenu();
+        }
+    });
+
+    window.addEventListener("resize", closeMenu);
+    window.addEventListener("orientationchange", closeMenu);
+}
+
 
 /**
  * Fetches JSON data from a URL and returns it as a JavaScript object
@@ -594,6 +650,9 @@ async function initializeApp() {
 
 }
 
-document.addEventListener("DOMContentLoaded", setupEditionNameTooltip);
+document.addEventListener("DOMContentLoaded", () => {
+    setupEditionNameTooltip();
+    setupHeaderMenu();
+});
 
 initializeApp();

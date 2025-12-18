@@ -71,6 +71,52 @@ header {
         align-items: center;
 }
 
+#header-burger-menu {
+    cursor: pointer;
+
+}
+
+.header-menu {
+    position: absolute;
+    top: 100%;
+    left: 0px;
+    background-color: var(--ewk-primary-color);
+    color: var(--ewk-secondary-color);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.25);
+    display: none;
+    width: max-content;
+    max-width: 80vw;
+    z-index: 1500;
+}
+
+.header-menu.open {
+    display: block;
+}
+
+.header-menu ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.header-menu li+li {
+    border-top: 1px solid rgba(35, 42, 68, 0.08);
+}
+
+.header-menu a {
+    display: block;
+    padding: 10px 16px;
+    text-decoration: none;
+    color: inherit;
+    font-weight: 500;
+}
+
+.header-menu a:hover,
+.header-menu a:focus-visible {
+    background-color: var(--ewk-secondary-color);
+    color: var(--ewk-primary-color);
+    outline: none;
+}
 footer {
     position: fixed;
     background-color: var(--ewk-primary-color);
