@@ -4,8 +4,11 @@
     --ewk-primary-color: #232a44;
     --ewk-secondary-color: #e9d9af;
     --ewk-tertiary-color: #faf6f0;
+    --primary-color: var(--ewk-primary-color);
+        --secondary-color: var(--ewk-secondary-color);
     --header-height: 55px;
-        --footer-height: 80px;
+    --view-header-height: 0px;
+    --footer-height: 80px;
         --viewport-height: 100dvh;
 }
 
@@ -71,6 +74,17 @@ header {
         align-items: center;
 }
 
+#view-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    background-color: var(--secondary-color);
+    color: var(--primary-color);
+    width: 100%;
+    padding: 6px 12px;
+    box-sizing: border-box;
+}
 #header-burger-menu {
     cursor: pointer;
 
@@ -350,8 +364,8 @@ h2 {
     transition: filter 0.4s ease;
     filter: blur(0px);
     box-sizing: border-box;
-        height: calc(var(--viewport-height) - var(--header-height) - var(--footer-height));
-        min-height: calc(var(--viewport-height) - var(--header-height) - var(--footer-height));
+        height: calc(var(--viewport-height) - var(--header-height) - var(--view-header-height) - var(--footer-height));
+            min-height: calc(var(--viewport-height) - var(--header-height) - var(--view-header-height) - var(--footer-height));
     overflow: hidden;
 }
 
