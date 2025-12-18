@@ -304,11 +304,9 @@ h2 {
     transition: filter 0.4s ease;
     filter: blur(0px);
     box-sizing: border-box;
-    padding: 10px;
-    padding-bottom: calc(var(--footer-height) + 16px);
         height: calc(var(--viewport-height) - var(--header-height) - var(--footer-height));
         min-height: calc(var(--viewport-height) - var(--header-height) - var(--footer-height));
-        overflow-y: auto;
+    overflow: hidden;
 }
 
 .inline-music-character {
