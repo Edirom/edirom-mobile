@@ -374,12 +374,10 @@ h2 {
   filter: blur(0px);
   box-sizing: border-box;
   height: calc(
-    var(--viewport-height) - var(--header-height) - var(--view-header-height) -
-      var(--footer-height)
+    var(--viewport-height) - var(--header-height) - var(--footer-height)
   );
   min-height: calc(
-    var(--viewport-height) - var(--header-height) - var(--view-header-height) -
-      var(--footer-height)
+    var(--viewport-height) - var(--header-height) - var(--footer-height)
   );
   overflow: hidden;
 }
@@ -387,6 +385,18 @@ h2 {
 #content-container > * {
   width: 100%;
 }
+
+#view-content {
+  height: calc(
+    var(--viewport-height) - var(--header-height) - var(--footer-height) -
+      var(--view-header-height)
+  );
+  min-height: calc(
+    var(--viewport-height) - var(--header-height) - var(--footer-height) -
+      var(--view-header-height)
+  );
+}
+
 .inline-music-character {
   height: 1em;
   display: inline-block;
