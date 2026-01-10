@@ -1,5 +1,5 @@
-import { VIEW_HEADER_ID, CURRENTLY_AVAILABLE_VIEWS } from "./constants.js";
 import { swapContentContainerContent } from "./main.js";
+import { getAnnotations } from "./api.js";
 
 export function loadViews(linkData, activeView = null) {
     let availableViews = reduceToAvailableViews(linkData.views);
@@ -28,9 +28,13 @@ function buildViewsContainer(linkData, activeView, availableViews) {
     return viewsContainer;
 }
 
-function buildAnnotationViewWebComponent() {
+async function buildAnnotationViewWebComponent(docUri) {
     const annotationViewComponent = document.createElement("edirom-annotation-view");
     annotationViewComponent.setAttribute("layout-mode", "mobile");
+    let annotationsData = await getAnnotations(document.EDITION_URI, docUri);
+    if (annotationsData) {
+        annotationViewComponent.setAttribute("annotations-data", JSON.stringify(annotationsData.annotations));
+    }
     return annotationViewComponent;
 }
 
@@ -39,7 +43,7 @@ function buildViewHeader(linkData, availableViews, activeView) {
     viewHeaderContainer.id = "view-header-container";
 
     const viewHeader = document.createElement("div");
-    viewHeader.id = VIEW_HEADER_ID;
+    viewHeader.id = document.VIEW_HEADER_ID;
 
     const selectContainer = document.createElement("div");
     selectContainer.classList.add("view-select-container");
@@ -74,11 +78,14 @@ function buildViewHeader(linkData, availableViews, activeView) {
 }
 
 function buildViewContent(linkData, newView) {
+    console.log("Link Data in buildViewContent:", linkData);
     let viewContent = document.createElement("div");
     viewContent.id = "view-content";
     switch (newView) {
         case "annotationView":
-            viewContent.appendChild(buildAnnotationViewWebComponent());
+            buildAnnotationViewWebComponent(linkData.doc).then(component => {
+                viewContent.appendChild(component);
+            });
             break;
         default:
             console.warn(`Unknown view type: ${newView}`);
@@ -89,7 +96,7 @@ function buildViewContent(linkData, newView) {
 function reduceToAvailableViews(views) {
     var availableViews = [];
     views.forEach(view => {
-        if (CURRENTLY_AVAILABLE_VIEWS.includes(view.type)) {
+        if (document.CURRENTLY_AVAILABLE_VIEWS.includes(view.type)) {
             availableViews.push(view);
         }
     });

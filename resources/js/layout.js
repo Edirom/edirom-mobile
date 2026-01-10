@@ -1,5 +1,3 @@
-import { VIEW_HEADER_ID } from "./constants.js";
-
 let viewHeaderResizeObserver;
 let viewHeaderAttributeObserver;
 let viewHeaderPresenceObserver;
@@ -7,7 +5,7 @@ let viewHeaderPresenceObserver;
 function updateLayoutMetrics() {
     const root = document.documentElement;
     const header = document.querySelector("header");
-    const viewHeader = document.getElementById(VIEW_HEADER_ID);
+    const viewHeader = document.getElementById(document.VIEW_HEADER_ID);
     const footer = document.querySelector("footer");
     const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
 
@@ -41,7 +39,7 @@ function connectViewHeaderObservers() {
         viewHeaderAttributeObserver = null;
     }
 
-    const viewHeader = document.getElementById(VIEW_HEADER_ID);
+    const viewHeader = document.getElementById(document.VIEW_HEADER_ID);
 
     if (!viewHeader) {
         return;
@@ -63,8 +61,8 @@ function watchViewHeaderPresence() {
 
     viewHeaderPresenceObserver = new MutationObserver((mutations) => {
         const viewHeaderMutated = mutations.some((mutation) => {
-            const added = Array.from(mutation.addedNodes).some((node) => node.id === VIEW_HEADER_ID || (node instanceof Element && node.querySelector && node.querySelector(`#${VIEW_HEADER_ID}`)));
-            const removed = Array.from(mutation.removedNodes).some((node) => node.id === VIEW_HEADER_ID || (node instanceof Element && node.querySelector && node.querySelector(`#${VIEW_HEADER_ID}`)));
+            const added = Array.from(mutation.addedNodes).some((node) => node.id === document.VIEW_HEADER_ID || (node instanceof Element && node.querySelector && node.querySelector(`#${document.VIEW_HEADER_ID}`)));
+            const removed = Array.from(mutation.removedNodes).some((node) => node.id === document.VIEW_HEADER_ID || (node instanceof Element && node.querySelector && node.querySelector(`#${document.VIEW_HEADER_ID}`)));
             return added || removed;
         });
 

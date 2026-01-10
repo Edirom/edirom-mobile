@@ -25,6 +25,8 @@ function setupEditionNameTooltip() {
         tooltipEl.style.top = `${top}px`;
     };
 
+    document.test2 = "test3";
+
     const showTooltip = () => {
         tooltipEl.textContent = editionNameEl.textContent || "";
         positionTooltip();

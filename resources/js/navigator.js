@@ -1,8 +1,7 @@
-import { VIEW_HEADER_ID, CURRENTLY_AVAILABLE_VIEWS } from "./constants.js";
 import { swapContentContainerContent, loadLink } from "./main.js";
 import { getNavigatorConfig } from "./api.js";
 
-export async function initializeNavigator(backend_url, edition_uri, work_id) {
+export async function initializeNavigator(edition_uri, work_id) {
     let data = await getNavigatorConfig(edition_uri, work_id, "de", edition_uri);
     updateNavigatorData(data);
 }
