@@ -382,6 +382,7 @@ h2 {
   overflow: hidden;
 }
 
+
 #content-container > * {
   width: 100%;
 }
@@ -395,6 +396,7 @@ h2 {
     var(--viewport-height) - var(--header-height) - var(--footer-height) -
       var(--view-header-height)
   );
+  overflow: hidden;
 }
 
 .inline-music-character {
