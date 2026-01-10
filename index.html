@@ -7,11 +7,11 @@
         <title>Smartphone Client</title>
     <!-- Config System -->
     <script src="env-config.js"></script>
-    <script src="main.js" defer></script>
+    <script src="resources/js/main.js" type="module"></script>
     <script defer src="resources/web-components/edirom-concordance-navigator/concordanceNavigatorElement.js" type="module"></script>
     <script defer src="resources/web-components/edirom-navigator/navigator.js" type="module"></script>
-    <script src="html5-qrcode.min.js" type="text/javascript"></script>
-    <link rel="stylesheet" href="styles.css">
+    <script src="resources/js/html5-qrcode.min.js" type="text/javascript"></script>
+    <link rel="stylesheet" href="resources/css/styles.css">
 </head>
 
 
@@ -32,15 +32,10 @@
             </ul>
         </nav>
     </header>
-    <div id="view-header">
-        <div>Settings</div>
-        <div>Bla</div>
-    </div>
     <div id="content-container">
-        <div id="alerts-container" class="display-none">
-            <p id="alert"></p>
-        </div>
-        <edirom-navigator layout-mode="mobile"></edirom-navigator>
+</div>
+    <div id="alerts-container" class="display-none">
+        <p id="alert"></p>
     </div>
     <footer id="footer">
         <edirom-concordance-navigator layout-mode="mobile"></edirom-concordance-navigator>

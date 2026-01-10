@@ -85,6 +85,19 @@ header {
     padding: 6px 12px;
     box-sizing: border-box;
 }
+#view-header .view-select-container select {
+    min-width: 120px;
+}
+
+#view-header .view-title {
+    margin-left: auto;
+    text-align: right;
+    min-width: 0;
+    flex: 1 1 auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 #header-burger-menu {
     cursor: pointer;
 
