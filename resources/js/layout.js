@@ -7,7 +7,7 @@ function updateLayoutMetrics() {
     const header = document.querySelector("header");
     const viewHeader = document.getElementById(document.VIEW_HEADER_ID);
     const footer = document.querySelector("footer");
-    const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    const viewportHeight = window.innerHeight;
 
     if (viewportHeight) {
         root.style.setProperty("--viewport-height", `${viewportHeight}px`);
