@@ -39,6 +39,16 @@ export async function getAnnotations(edition, uri) {
     return annotationsData;
 }
 
+export async function getAnnotationText(edition, uri, lang) {
+    const annotationText = await fetchHtml(`${document.BACKEND_URL}/exist/apps/Edirom-Online-Backend/data/xql/getAnnotationText.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(lang)}`);
+    return annotationText;
+}
+
+export async function getAnnotationPreviews(edition, uri, lang) {
+    const annotationPreviews = await fetchJSON(`${document.BACKEND_URL}/exist/apps/Edirom-Online-Backend/data/xql/getAnnotationPreviews.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(lang)}`);
+    return annotationPreviews;
+}
+
 export async function getConcordances(editionId, workId) {
     const concordanceData = await fetchJSON(`${document.BACKEND_URL}/exist/apps/Edirom-Online-Backend/data/xql/getConcordances.xql?workId=${encodeURIComponent(workId)}&id=${encodeURIComponent(editionId)}&edition=${encodeURIComponent(editionId)}`);
     return concordanceData;

@@ -1,5 +1,5 @@
 import { swapContentContainerContent } from "./main.js";
-import { getAnnotations } from "./api.js";
+import { getAnnotations, getAnnotationText, getAnnotationPreviews } from "./api.js";
 
 export function loadViews(linkData, activeView = null) {
     let availableViews = reduceToAvailableViews(linkData.views);
@@ -35,7 +35,31 @@ async function buildAnnotationViewWebComponent(docUri) {
     if (annotationsData) {
         annotationViewComponent.setAttribute("annotations-data", JSON.stringify(annotationsData.annotations));
     }
+    annotationViewComponent.addEventListener("annotation-selected", async (event) => {
+        // TODO: The Event Listener has to be reattached if docUri changes
+        let annotationData = await composeAnnotationData(event.detail.annotationData, docUri);
+        console.log("Annotation Data to be set:", annotationData);
+        annotationViewComponent.setAttribute("annotation-data", JSON.stringify(annotationData));
+    });
     return annotationViewComponent;
+}
+
+async function composeAnnotationData(annotationData, docUri) {
+    let uri = docUri + "#" + annotationData.id;
+
+    // Annotation Text
+    let annotationTextFull = await getAnnotationText(document.EDITION_URI, uri, document.LANGUAGE);
+    let parser = new DOMParser();
+    let doc = parser.parseFromString(annotationTextFull, 'text/html');
+    let annotationTextSnippet = doc.querySelector('p')?.innerHTML;
+    annotationTextSnippet = annotationTextSnippet.trim();
+    annotationData.text = annotationTextSnippet;
+
+    // Annotation Previews
+    let annotationPreviewsData = await getAnnotationPreviews(document.EDITION_URI, uri, document.LANGUAGE);
+    annotationData.previews = annotationPreviewsData.participants;
+
+    return annotationData;
 }
 
 function buildViewHeader(linkData, availableViews, activeView) {
