@@ -88,6 +88,13 @@ header > div:last-child {
 
 #view-header .view-select-container select {
   min-width: 120px;
+  background-color: var(--tertiary-color);
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  padding: 4px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 14px;
 }
 
 #view-header .view-title {
