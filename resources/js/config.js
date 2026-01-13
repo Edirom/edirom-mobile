@@ -10,6 +10,8 @@ export const appConfig = {
 };
 
 export const appState = {
+    currentPage: "",
     editionUri: DEFAULT_EDITION_URI,
+    workId: "",
     language: DEFAULT_LANGUAGE,
 };

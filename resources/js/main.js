@@ -1,9 +1,10 @@
 import { appState } from "./config.js";
 import { loadViews } from "./views.js";
-import { initializeNavigator } from "./navigator.js";
+import { buildNavigator, initializeNavigator } from "./navigator.js";
 import { getWorks, getConcordances, getLinkTarget } from "./api.js";
 import { setupHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
+import { switchPage } from "./pages.js";
 
 let WORK = "";
 let WORK_ID = "";
@@ -25,15 +26,15 @@ export function loadLink(target, options = {}) {
 async function initializeApp() {
     const works = await getWorks(appState.editionUri);
     WORK = works[0]; //TODO: At the moment, all other works will be ignored
-    WORK_ID = WORK.id;
+    appState.workId = WORK.id;
     setWorkTitle(WORK);
 
-    const concordances = await getConcordances(appState.editionUri, WORK_ID);
+    const concordances = await getConcordances(appState.editionUri, appState.workId);
     document.querySelector("edirom-concordance-navigator").setAttribute("concordances-data", JSON.stringify(concordances));
 
     setupHeaderMenu();
 
-    initializeNavigator(appState.editionUri, WORK_ID);
+    switchPage("navigator", await buildNavigator());
 
     registerLayoutListeners();
 
