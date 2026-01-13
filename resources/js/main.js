@@ -44,14 +44,17 @@ async function initializeApp() {
     const concordances = await getConcordances(document.EDITION_URI, WORK_ID);
     document.querySelector("edirom-concordance-navigator").setAttribute("concordances-data", JSON.stringify(concordances));
 
+    setupHeaderMenu();
+    setupNavigator();
+
     initializeNavigator(document.EDITION_URI, WORK_ID);
+
+    registerLayoutListeners();
 
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    setupHeaderMenu();
-    setupNavigator();
+    initializeApp();
 });
 
-initializeApp();
-registerLayoutListeners();
+
