@@ -1,3 +1,4 @@
+import { appConfig, appState } from "./config.js";
 import { switchPage } from "./pages.js";
 import { getAnnotations, getAnnotationText, getAnnotationPreviews } from "./api.js";
 
@@ -31,7 +32,7 @@ function buildViewsContainer(linkData, activeView, availableViews) {
 async function buildAnnotationViewWebComponent(docUri) {
     const annotationViewComponent = document.createElement("edirom-annotation-view");
     annotationViewComponent.setAttribute("layout-mode", "mobile");
-    let annotationsData = await getAnnotations(document.EDITION_URI, docUri);
+    let annotationsData = await getAnnotations(appState.editionUri, docUri);
     if (annotationsData) {
         annotationViewComponent.setAttribute("annotations-data", JSON.stringify(annotationsData.annotations));
     }
@@ -48,7 +49,7 @@ async function composeAnnotationData(annotationData, docUri) {
     let uri = docUri + "#" + annotationData.id;
 
     // Annotation Text
-    let annotationTextFull = await getAnnotationText(document.EDITION_URI, uri, document.LANGUAGE);
+    let annotationTextFull = await getAnnotationText(appState.editionUri, uri, appState.language);
     let parser = new DOMParser();
     let doc = parser.parseFromString(annotationTextFull, 'text/html');
     let annotationTextSnippet = doc.querySelector('p')?.innerHTML;
@@ -56,7 +57,7 @@ async function composeAnnotationData(annotationData, docUri) {
     annotationData.text = annotationTextSnippet;
 
     // Annotation Previews
-    let annotationPreviewsData = await getAnnotationPreviews(document.EDITION_URI, uri, document.LANGUAGE);
+    let annotationPreviewsData = await getAnnotationPreviews(appState.editionUri, uri, appState.language);
     annotationData.previews = annotationPreviewsData.participants;
 
     return annotationData;
@@ -67,7 +68,7 @@ function buildViewHeader(linkData, availableViews, activeView) {
     viewHeaderContainer.id = "view-header-container";
 
     const viewHeader = document.createElement("div");
-    viewHeader.id = document.VIEW_HEADER_ID;
+    viewHeader.id = appConfig.viewHeaderId;
 
     const selectContainer = document.createElement("div");
     selectContainer.classList.add("view-select-container");
@@ -120,7 +121,7 @@ function buildViewContent(linkData, newView) {
 function reduceToAvailableViews(views) {
     var availableViews = [];
     views.forEach(view => {
-        if (document.CURRENTLY_AVAILABLE_VIEWS.includes(view.type)) {
+        if (appConfig.availableViews.includes(view.type)) {
             availableViews.push(view);
         }
     });
