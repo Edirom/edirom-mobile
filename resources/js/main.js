@@ -1,5 +1,5 @@
 import { loadViews } from "./views.js";
-import { initializeNavigator, setupNavigator } from "./navigator.js";
+import { initializeNavigator } from "./navigator.js";
 import { getWorks, getConcordances, getLinkTarget } from "./api.js";
 import { setupHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
@@ -29,11 +29,6 @@ export function loadLink(target, options = {}) {
     });
 }
 
-export function swapContentContainerContent(newContent) {
-    const contentContainer = document.getElementById("content-container");
-    contentContainer.innerHTML = ""; // Clear previous content
-    contentContainer.appendChild(newContent);
-}
 
 async function initializeApp() {
     const works = await getWorks(document.EDITION_URI);
@@ -45,7 +40,6 @@ async function initializeApp() {
     document.querySelector("edirom-concordance-navigator").setAttribute("concordances-data", JSON.stringify(concordances));
 
     setupHeaderMenu();
-    setupNavigator();
 
     initializeNavigator(document.EDITION_URI, WORK_ID);
 

@@ -1,4 +1,4 @@
-import { swapContentContainerContent } from "./main.js";
+import { switchPage } from "./pages.js";
 import { getAnnotations, getAnnotationText, getAnnotationPreviews } from "./api.js";
 
 export function loadViews(linkData, activeView = null) {
@@ -16,7 +16,7 @@ export function loadViews(linkData, activeView = null) {
             }
         });
     }
-    swapContentContainerContent(buildViewsContainer(linkData, activeView, availableViews));
+    switchPage("views", buildViewsContainer(linkData, activeView, availableViews));
 }
 
 function buildViewsContainer(linkData, activeView, availableViews) {
