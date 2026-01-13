@@ -1,3 +1,5 @@
+import { switchPage, buildAboutEdiromMobilePage } from "./pages.js";
+
 function setupEditionNameTooltip() {
     const editionNameEl = document.getElementById("header-edition-name");
     const headerEl = document.querySelector("header");
@@ -51,6 +53,46 @@ function setupEditionNameTooltip() {
     window.addEventListener("orientationchange", hideTooltip);
 }
 
+const HEADER_MENU_ITEMS = [
+    { label: "Über Edirom Mobile", id: "about-edirom-mobile" },
+    { label: "Aktuelles", href: "https://korngold-werkausgabe.de" },
+    { label: "Sammlung", href: "https://korngold-werkausgabe.de" },
+    { label: "Werkzeuge", href: "https://korngold-werkausgabe.de" },
+    { label: "Kontakt", href: "https://korngold-werkausgabe.de" },
+];
+
+function renderHeaderMenu(menu) {
+    menu.innerHTML = "";
+
+    const listEl = document.createElement("ul");
+
+    HEADER_MENU_ITEMS.forEach(({ label, href, id = null }) => {
+        const listItem = document.createElement("li");
+        const link = document.createElement("a");
+
+        if (id === "about-edirom-mobile") {
+            link.addEventListener("click", (event) => {
+                switchPage("about-edirom-mobile", buildAboutEdiromMobilePage());
+            });
+        }
+
+        link.textContent = label;
+
+        if (href) {
+            link.setAttribute("href", href);
+            link.setAttribute("target", "_blank");
+        } else {
+            link.setAttribute("role", "button");
+            link.setAttribute("tabindex", "0");
+        }
+
+        listItem.appendChild(link);
+        listEl.appendChild(listItem);
+    });
+
+    menu.appendChild(listEl);
+}
+
 export function setupHeaderMenu() {
     const burger = document.getElementById("header-burger-menu");
     const menu = document.getElementById("header-menu");
@@ -58,6 +100,8 @@ export function setupHeaderMenu() {
     if (!burger || !menu) {
         return;
     }
+
+    renderHeaderMenu(menu);
 
     burger.setAttribute("role", "button");
     burger.setAttribute("aria-controls", "header-menu");

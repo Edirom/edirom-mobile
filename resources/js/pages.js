@@ -31,6 +31,21 @@ export async function switchPage(pageName, newContent) {
     window.history.pushState(appState, "");
 }
 
+export function buildAboutEdiromMobilePage() {
+    const aboutPageContainer = document.createElement("div");
+    aboutPageContainer.id = "about-edirom-mobile-page";
+
+    const heading = document.createElement("h1");
+    heading.textContent = "Über Edirom Mobile";
+    aboutPageContainer.appendChild(heading);
+
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "Edirom Mobile ist eine mobile Anwendung zur Anzeige und Navigation von digitalen Editionen.";
+    aboutPageContainer.appendChild(paragraph);
+
+    return aboutPageContainer;
+}
+
 window.addEventListener("popstate", async (event) => {
     if (event.state?.currentPage) {
         let pageToRestore = event.state.currentPage;

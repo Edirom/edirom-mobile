@@ -134,6 +134,10 @@ header > div:last-child {
   padding: 0;
 }
 
+.header-menu li {
+  cursor: pointer;
+}
+
 .header-menu li + li {
   border-top: 1px solid rgba(35, 42, 68, 0.08);
 }
