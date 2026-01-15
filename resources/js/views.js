@@ -36,12 +36,14 @@ async function buildAnnotationViewWebComponent(docUri) {
     let annotationsData = await getAnnotations(appState.editionUri, docUri);
     if (annotationsData) {
         annotationViewComponent.setAttribute("annotations-data", JSON.stringify(annotationsData.annotations));
+        annotationViewComponent.setAttribute("current-page", "annotations");
     }
     annotationViewComponent.addEventListener("annotation-selected", async (event) => {
         // TODO: The Event Listener has to be reattached if docUri changes
         let annotationData = await composeAnnotationData(event.detail.annotationData, docUri);
         console.log("Annotation Data to be set:", annotationData);
         annotationViewComponent.setAttribute("annotation-data", JSON.stringify(annotationData));
+        annotationViewComponent.setAttribute("current-page", "annotation");
     });
     return annotationViewComponent;
 }
