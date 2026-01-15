@@ -11,6 +11,7 @@ function handleBeforeUnload(event) {
 
 // Ask the active component (if any) to handle back navigation first.
 function requestComponentsBackHandling() {
+    // TODO: Find out if popovers are open and close them first
     const contentContainer = document.getElementById("content-container");
     if (!contentContainer) return false;
 
