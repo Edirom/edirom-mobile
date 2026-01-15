@@ -23,6 +23,7 @@ export async function buildNavigator(navigatorData = null) {
     }
 
     const navigatorElement = document.createElement("edirom-navigator");
+    navigatorElement.classList.add("web-component");
     navigatorElement.setAttribute("layout-mode", "mobile");
     updateNavigatorData(navigatorData, navigatorElement);
     navigatorElement.addEventListener("load-link-request", (event) => {

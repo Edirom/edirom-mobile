@@ -9,6 +9,34 @@ function handleBeforeUnload(event) {
     return '';
 }
 
+// Ask the active component (if any) to handle back navigation first.
+function requestComponentsBackHandling() {
+    const contentContainer = document.getElementById("content-container");
+    if (!contentContainer) return false;
+
+    const targets = contentContainer.querySelectorAll(".web-component");
+    console.log("targets for back handling:", targets);
+    if (!targets || targets.length === 0) return false;
+
+    let handled = false;
+    targets.forEach(target => {
+        if (handled) return; // short-circuit once handled
+
+        const backRequestEvent = new CustomEvent("back-request", {
+            cancelable: true,
+            bubbles: true,
+            composed: true
+        });
+
+        target.dispatchEvent(backRequestEvent);
+        if (backRequestEvent.defaultPrevented) {
+            handled = true;
+        }
+    });
+
+    return handled;
+}
+
 export async function switchPage(pageName, newContent) {
     // Resolve content in case an async builder returns a Promise
     const resolvedContent = await newContent;
@@ -49,7 +77,16 @@ export function buildAboutEdiromMobilePage() {
 window.addEventListener("popstate", async (event) => {
     if (event.state?.currentPage) {
         let pageToRestore = event.state.currentPage;
-        console.log("Page to restore:", pageToRestore);
+
+        const handledByComponent = requestComponentsBackHandling();
+        console.log("handledByComponent?:", handledByComponent);
+        if (handledByComponent) {
+            console.log("Component handled back navigation.");
+            // Component consumed the back request; re-arm state to keep SPA navigation alive
+            window.history.pushState(appState, "");
+            return;
+        }
+        console.log("Not handled by Component. Restoring page:", pageToRestore);
 
         if (pageToRestore === "views") {
             // We do not have enough information (especially if the concordance was switched) to restore the views page properly

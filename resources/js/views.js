@@ -31,6 +31,7 @@ function buildViewsContainer(linkData, activeView, availableViews) {
 
 async function buildAnnotationViewWebComponent(docUri) {
     const annotationViewComponent = document.createElement("edirom-annotation-view");
+    annotationViewComponent.classList.add("web-component");
     annotationViewComponent.setAttribute("layout-mode", "mobile");
     let annotationsData = await getAnnotations(appState.editionUri, docUri);
     if (annotationsData) {
