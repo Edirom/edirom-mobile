@@ -1,6 +1,9 @@
 import { appState } from "./config.js";
 import { buildNavigator } from "./navigator.js";
 
+// Flag to skip the next popstate event (used when we call history.go(1) ourselves)
+let skipNextPopstate = false;
+
 // Handler for beforeunload event - shows browser's native "Leave site?" dialog
 function handleBeforeUnload(event) {
     event.preventDefault();
@@ -38,7 +41,7 @@ function requestComponentsBackHandling() {
     return handled;
 }
 
-export async function switchPage(pageName, newContent) {
+export async function switchPage(pageName, newContent, { pushState = true, replaceState = false } = {}) {
     // Resolve content in case an async builder returns a Promise
     const resolvedContent = await newContent;
 
@@ -56,8 +59,14 @@ export async function switchPage(pageName, newContent) {
         window.removeEventListener("beforeunload", handleBeforeUnload);
     }
 
-    // add to history stack
-    window.history.pushState(appState, "");
+    // Manage history stack
+    if (replaceState) {
+        // Use replaceState for initial page load to claim the browser's initial history entry
+        window.history.replaceState({ ...appState }, "");
+    } else if (pushState) {
+        // Use pushState for normal navigation (skip when restoring from popstate)
+        window.history.pushState({ ...appState }, "");
+    }
 }
 
 export function buildAboutEdiromMobilePage() {
@@ -76,6 +85,23 @@ export function buildAboutEdiromMobilePage() {
 }
 
 window.addEventListener("popstate", async (event) => {
+    console.log("popstate event:", event);
+    console.log("history.length:", window.history.length);
+
+    // Skip this popstate if it was triggered by our own history.go(1) call
+    if (skipNextPopstate) {
+        console.log("Skipping popstate (triggered by history.go(1))");
+        skipNextPopstate = false;
+        return;
+    }
+
+    // Handle null state (shouldn't happen with replaceState on init, but just in case)
+    if (!event.state) {
+        console.log("popstate with null state - restoring navigator");
+        await switchPage("navigator", buildNavigator(), { replaceState: true });
+        return;
+    }
+
     if (event.state?.currentPage) {
         let pageToRestore = event.state.currentPage;
 
@@ -83,18 +109,24 @@ window.addEventListener("popstate", async (event) => {
         console.log("handledByComponent?:", handledByComponent);
         if (handledByComponent) {
             console.log("Component handled back navigation.");
-            // Component consumed the back request; re-arm state to keep SPA navigation alive
-            window.history.pushState(appState, "");
+            // Component consumed the back request; navigate forward to stay on current page.
+            // Using history.go(1) instead of pushState to avoid Chrome's 
+            // "History Manipulation Intervention" which marks entries as skippable
+            // when pushState is called during popstate without user activation.
+            // See: https://chromium.googlesource.com/chromium/src/+/eef521b43a410cb55d4e5b27eec28f826484bfea
+            skipNextPopstate = true; // Prevent the next popstate from being processed
+            window.history.go(1);
             return;
         }
         console.log("Not handled by Component. Restoring page:", pageToRestore);
 
         if (pageToRestore === "views") {
             // We do not have enough information (especially if the concordance was switched) to restore the views page properly
-            await switchPage("navigator", buildNavigator());
-        }
-        if (pageToRestore === "navigator") {
-            await switchPage("navigator", buildNavigator());
+            // Use pushState: false to avoid creating duplicate history entries during popstate restoration
+            await switchPage("navigator", buildNavigator(), { pushState: false });
+        } else if (pageToRestore === "navigator") {
+            // Use pushState: false to avoid creating duplicate history entries during popstate restoration
+            await switchPage("navigator", buildNavigator(), { pushState: false });
         }
     }
 });

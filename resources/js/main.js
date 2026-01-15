@@ -34,7 +34,9 @@ async function initializeApp() {
 
     setupHeaderMenu();
 
-    switchPage("navigator", await buildNavigator());
+    // Use replaceState for initial load to claim the browser's initial history entry
+    // This ensures we don't lose a history slot to a null-state entry
+    switchPage("navigator", await buildNavigator(), { replaceState: true });
 
     registerLayoutListeners();
 
