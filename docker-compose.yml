@@ -14,7 +14,8 @@ services:
     # depends_on:
     #   - ws-server
     environment:
-      - APP_BACKEND_URL=http://localhost:8080
+      # Use semicolon to separate multiple backend URLs, e.g.: http://localhost:8080;http://localhost:8081
+      - APP_BACKEND_URLS=http://localhost:8080
       - APP_WS_URL=ws://localhost:8081
 
   # ws-server:

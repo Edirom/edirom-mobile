@@ -1,4 +1,4 @@
-import { appState } from "./config.js";
+import { appConfig, appState } from "./config.js";
 import { loadViews } from "./views.js";
 import { buildNavigator, initializeNavigator } from "./navigator.js";
 import { getWorks, getConcordances, getLinkTarget } from "./api.js";
@@ -52,6 +52,7 @@ function initEdition(edition, backendUrl = null) {
 }
 
 async function initializeApp() {
+    console.log("App config on init:", appConfig);
     parseUrl();
     console.log("App state on init:", appState);
     // console.log("Initializing app with config:", appConfig);
