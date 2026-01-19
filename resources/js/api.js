@@ -36,45 +36,45 @@ async function fetchHtml(url) {
     }
 }
 
-export async function getAnnotations(edition, uri) {
-    const annotationsData = await fetchJSON(`${appConfig.backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getAnnotations.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(appState.language)}`);
+export async function getAnnotations(edition, uri, backendUrl = appConfig.backendUrl) {
+    const annotationsData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getAnnotations.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(appState.language)}`);
     return annotationsData;
 }
 
-export async function getAnnotationText(edition, uri, lang) {
-    const annotationText = await fetchHtml(`${appConfig.backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getAnnotationText.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(lang)}`);
+export async function getAnnotationText(edition, uri, lang, backendUrl = appConfig.backendUrl) {
+    const annotationText = await fetchHtml(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getAnnotationText.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(lang)}`);
     return annotationText;
 }
 
-export async function getAnnotationPreviews(edition, uri, lang) {
-    const annotationPreviews = await fetchJSON(`${appConfig.backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getAnnotationPreviews.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(lang)}`);
+export async function getAnnotationPreviews(edition, uri, lang, backendUrl = appConfig.backendUrl) {
+    const annotationPreviews = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getAnnotationPreviews.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(lang)}`);
     return annotationPreviews;
 }
 
-export async function getConcordances(editionId, workId) {
-    const concordanceData = await fetchJSON(`${appConfig.backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getConcordances.xql?workId=${encodeURIComponent(workId)}&id=${encodeURIComponent(editionId)}&edition=${encodeURIComponent(editionId)}`);
+export async function getConcordances(editionId, workId, backendUrl = appConfig.backendUrl) {
+    const concordanceData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getConcordances.xql?workId=${encodeURIComponent(workId)}&id=${encodeURIComponent(editionId)}&edition=${encodeURIComponent(editionId)}`);
     return concordanceData;
 }
 
-export async function getEdition(edition_uri) {
-    const editionData = await fetchJSON(`${appConfig.backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getEdition.xql?id=${encodeURIComponent(edition_uri)}`);
+export async function getEdition(edition_uri, backendUrl = appConfig.backendUrl) {
+    const editionData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getEdition.xql?id=${encodeURIComponent(edition_uri)}`);
     return editionData;
 }
 
-export async function getWorks(editionId) {
-    const worksData = await fetchJSON(`${appConfig.backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getWorks.xql?editionId=${encodeURIComponent(editionId)}`);
+export async function getWorks(editionId, backendUrl = appConfig.backendUrl) {
+    const worksData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getWorks.xql?editionId=${encodeURIComponent(editionId)}`);
     return worksData;
 }
 
 
-export async function getNavigatorConfig(editionId, workId, lang, edition) {
+export async function getNavigatorConfig(editionId, workId, lang, edition, backendUrl = appConfig.backendUrl) {
     console.log("editionId", editionId);
-    const navigatorConfig = await fetchJSON(`${appConfig.backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getNavigatorConfig.xql?editionId=${encodeURIComponent(editionId)}&workId=${encodeURIComponent(workId)}&lang=${encodeURIComponent(lang)}&edition=${encodeURIComponent(edition)}`);
+    const navigatorConfig = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getNavigatorConfig.xql?editionId=${encodeURIComponent(editionId)}&workId=${encodeURIComponent(workId)}&lang=${encodeURIComponent(lang)}&edition=${encodeURIComponent(edition)}`);
     return navigatorConfig;
 }
 
-export function getLinkTarget(uri, lang, edition) {
-    var url = new URL(`${appConfig.backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getLinkTarget.xql`);
+export function getLinkTarget(uri, lang, edition, backendUrl = appConfig.backendUrl) {
+    var url = new URL(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getLinkTarget.xql`);
     url.searchParams.append("uri", uri);
     url.searchParams.append("lang", lang);
     url.searchParams.append("edition", edition);
