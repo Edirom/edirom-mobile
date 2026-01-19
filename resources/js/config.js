@@ -7,6 +7,7 @@ export const appConfig = {
     backendUrl: window?.config?.APP_BACKEND_URL ?? "",
     viewHeaderId: DEFAULT_VIEW_HEADER_ID,
     availableViews: [...DEFAULT_AVAILABLE_VIEWS],
+    info: window?.config?.APP_BACKEND_INFO ?? {}
 };
 
 export const appState = {

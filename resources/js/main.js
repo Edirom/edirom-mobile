@@ -1,4 +1,4 @@
-import { appState } from "./config.js";
+import { appState, appConfig } from "./config.js";
 import { loadViews } from "./views.js";
 import { buildNavigator, initializeNavigator } from "./navigator.js";
 import { getWorks, getConcordances, getLinkTarget } from "./api.js";
@@ -24,6 +24,7 @@ export function loadLink(target, options = {}) {
 
 
 async function initializeApp() {
+    console.log("Initializing app with config:", appConfig);
     const works = await getWorks(appState.editionUri);
     WORK = works[0]; //TODO: At the moment, all other works will be ignored
     appState.workId = WORK.id;
