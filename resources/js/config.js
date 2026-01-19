@@ -26,8 +26,9 @@ export const appConfig = {
 export const appState = {
     page: "",
     backendUrl: "",
-    edition: "",
+    editionId: "",
     editionUri: DEFAULT_EDITION_URI,
+    allEditions: [],
     workId: "",
     language: DEFAULT_LANGUAGE,
 };
