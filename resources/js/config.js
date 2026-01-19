@@ -6,12 +6,13 @@ const DEFAULT_VIEW_HEADER_ID = "view-header";
 export const appConfig = {
     backendUrl: window?.config?.APP_BACKEND_URL ?? "",
     viewHeaderId: DEFAULT_VIEW_HEADER_ID,
-    availableViews: [...DEFAULT_AVAILABLE_VIEWS],
-    info: window?.config?.APP_BACKEND_INFO ?? {}
+    availableViews: [...DEFAULT_AVAILABLE_VIEWS]
 };
 
 export const appState = {
-    currentPage: "",
+    page: "",
+    backendUrl: "",
+    edition: "",
     editionUri: DEFAULT_EDITION_URI,
     workId: "",
     language: DEFAULT_LANGUAGE,

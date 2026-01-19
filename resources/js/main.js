@@ -22,24 +22,54 @@ export function loadLink(target, options = {}) {
     });
 }
 
+function parseUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    console.log("URL Parameters:", urlParams.toString());
+    const edition = urlParams.get("edition");
+
+    if (edition) {
+        initEdition(edition, backendUrl = null);
+    }
+}
+
+function initEdition(edition, backendUrl = null) {
+    appState.edition = "";
+    appState.backendUrl = "";
+
+    if (!backendUrl) {
+        // ask all backend Urls if this edition is available
+    }
+    else {
+        // Frage backendUrl, ob es edition da gibt
+    }
+
+    if (appState.edition == "" || appState.backendUrl == "") {
+        // Edition nicht gefunden, öffne Editionsauswahlseite.
+    }
+
+    // initHeaderTitle();
+    // initConcordanceNavigator();
+}
 
 async function initializeApp() {
-    console.log("Initializing app with config:", appConfig);
-    const works = await getWorks(appState.editionUri);
-    WORK = works[0]; //TODO: At the moment, all other works will be ignored
-    appState.workId = WORK.id;
-    setWorkTitle(WORK);
+    parseUrl();
+    console.log("App state on init:", appState);
+    // console.log("Initializing app with config:", appConfig);
+    // const works = await getWorks(appState.editionUri);
+    // WORK = works[0]; //TODO: At the moment, all other works will be ignored
+    // appState.workId = WORK.id;
+    // setWorkTitle(WORK);
 
-    const concordances = await getConcordances(appState.editionUri, appState.workId);
-    document.querySelector("edirom-concordance-navigator").setAttribute("concordances-data", JSON.stringify(concordances));
+    // const concordances = await getConcordances(appState.editionUri, appState.workId);
+    // document.querySelector("edirom-concordance-navigator").setAttribute("concordances-data", JSON.stringify(concordances));
 
-    setupHeaderMenu();
+    // setupHeaderMenu();
 
-    // Use replaceState for initial load to claim the browser's initial history entry
-    // This ensures we don't lose a history slot to a null-state entry
-    switchPage("navigator", await buildNavigator(), { replaceState: true });
+    // // Use replaceState for initial load to claim the browser's initial history entry
+    // // This ensures we don't lose a history slot to a null-state entry
+    // switchPage("navigator", await buildNavigator(), { replaceState: true });
 
-    registerLayoutListeners();
+    // registerLayoutListeners();
 
 }
 

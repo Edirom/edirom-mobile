@@ -51,7 +51,7 @@ export async function switchPage(pageName, newContent, { pushState = true, repla
     const contentContainer = document.getElementById("content-container");
     contentContainer.innerHTML = "";
     contentContainer.appendChild(resolvedContent);
-    appState.currentPage = pageName;
+    appState.page = pageName;
 
     // Warn user before leaving when on the main navigator page
     if (pageName === "navigator") {
@@ -109,7 +109,7 @@ window.addEventListener("popstate", async (event) => {
         return;
     }
 
-    if (event.state?.currentPage) {
+    if (event.state?.page) {
         // Let components handle internal back navigation first
         if (requestComponentsBackHandling()) {
             // Component handled it - navigate forward to stay on current page
