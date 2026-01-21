@@ -1,10 +1,10 @@
 import { appConfig, appState } from "./config.js";
 import { loadViews } from "./views.js";
 import { buildNavigator, initializeNavigator } from "./navigator.js";
-import { getEditions, getEdition, getWorks, getConcordances, getLinkTarget } from "./api.js";
+import { getEditions, getEdition, getAllEditions, getWorks, getConcordances, getLinkTarget } from "./api.js";
 import { setupHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
-import { switchPage } from "./pages.js";
+import { switchPage, buildEditionSelectionPage } from "./pages.js";
 
 let WORK = "";
 let WORK_ID = "";
@@ -47,19 +47,7 @@ async function findBackendForEdition(editionId) {
 
 
 
-async function getAllEditions() {
-    const editionPromises = appConfig.backendUrls.map(async (url) => {
-        try {
-            const editions = await getEditions(url);
-            return { backendUrl: url, data: editions };
-        } catch (error) {
-            console.warn(`Failed to fetch editions from ${url}:`, error);
-            return { backendUrl: url, data: null };
-        }
-    });
 
-    appState.allEditions = await Promise.all(editionPromises);
-}
 
 async function initEdition({ editionId = null, backendUrl = null, workId = null } = {}) {
     appState.editionId = "";
@@ -81,10 +69,12 @@ async function initEdition({ editionId = null, backendUrl = null, workId = null 
         }
     }
     else {
-        if (!appState.allEditions) {
+        if (!appState.allEditions || appState.allEditions.length === 0) {
+            console.log("a");
             await getAllEditions();
         }
         if (appState.allEditions.length === 1) {
+            console.log("b");
             const singleEdition = appState.allEditions[0];
             appState.editionId = singleEdition.id;
             appState.backendUrl = singleEdition.backendUrl;
@@ -93,9 +83,6 @@ async function initEdition({ editionId = null, backendUrl = null, workId = null 
 
     if (appState.editionId == "" || appState.backendUrl == "") {
         // Edition nicht gefunden, öffne Editionsauswahlseite.
-        if (!appState.allEditions) {
-            await getAllEditions();
-        }
         switchPage("edition-selection", buildEditionSelectionPage());
         return;
     }

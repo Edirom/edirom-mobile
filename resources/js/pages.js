@@ -1,5 +1,6 @@
 import { appState } from "./config.js";
 import { buildNavigator } from "./navigator.js";
+import { getAllEditions } from "./api.js";
 
 // Flag to skip the next popstate event (set when we call history.go(1) ourselves)
 let skipNextPopstate = false;
@@ -83,6 +84,34 @@ export function buildAboutEdiromMobilePage() {
     aboutPageContainer.appendChild(paragraph);
 
     return aboutPageContainer;
+}
+
+export async function buildEditionSelectionPage() {
+
+    if (!appState.allEditions || appState.allEditions.length === 0) {
+        await getAllEditions();
+    }
+
+
+    const editionSelectionContainer = document.createElement("div");
+    editionSelectionContainer.id = "edition-selection-page";
+
+    const heading = document.createElement("h1");
+    heading.textContent = "Edition auswählen";
+    editionSelectionContainer.appendChild(heading);
+
+    const editionList = document.createElement("ul");
+    appState.allEditions.forEach(edition => {
+        const listItem = document.createElement("li");
+        const editionLink = document.createElement("a");
+        editionLink.textContent = edition.name;
+        editionLink.href = `?editionId=${encodeURIComponent(edition.id)}&backendUrl=${encodeURIComponent(edition.backendUrl)}`;
+        listItem.appendChild(editionLink);
+        editionList.appendChild(listItem);
+    });
+    editionSelectionContainer.appendChild(editionList);
+
+    return editionSelectionContainer;
 }
 
 /**

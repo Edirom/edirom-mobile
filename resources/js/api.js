@@ -1,4 +1,4 @@
-import { appState } from "./config.js";
+import { appConfig, appState } from "./config.js";
 
 /**
  * Fetches JSON data from a URL and returns it as a JavaScript object
@@ -93,6 +93,29 @@ export async function getEditions(backendUrl = appState.backendUrl) {
     }
     return editionsData;
 
+}
+
+export async function getAllEditions() {
+    const editionPromises = appConfig.backendUrls.map(async (url) => {
+        try {
+            const editions = await getEditions(url);
+            return { backendUrl: url, data: editions };
+        } catch (error) {
+            console.warn(`Failed to fetch editions from ${url}:`, error);
+            return { backendUrl: url, data: null };
+        }
+    });
+
+    const editionResults = await Promise.all(editionPromises);
+    const flattened = editionResults.flatMap(({ backendUrl, data }) => {
+        if (!data) return [];
+        const list = Array.isArray(data) ? data : [data];
+        return list.map((edition) => ({ ...edition, backendUrl }));
+    });
+
+    appState.allEditions = flattened;
+    console.log("Fetched all editions:", appState.allEditions);
+    return appState.allEditions;
 }
 
 export async function getWorks(editionId, backendUrl = appState.backendUrl) {

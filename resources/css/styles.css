@@ -184,6 +184,10 @@ footer {
   gap: 12px;
 }
 
+#edition-selection-page li {
+  margin: 12px;
+}
+
 #current-context {
   width: 140px;
   text-align: center;
