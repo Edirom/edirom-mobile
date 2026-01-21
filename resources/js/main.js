@@ -44,60 +44,86 @@ async function findBackendForEdition(editionId) {
     return found ? found.url : null;
 }
 
+function isWorkAvailableInEdition(workId) {
+    let workFound = appState.worksInEdition.find((work) => work.id === workId);
+    return workFound !== undefined;
+}
 
 
 
 
 
-async function initEdition({ editionId = null, backendUrl = null, workId = null } = {}) {
-    appState.editionId = "";
-    appState.backendUrl = "";
+
+export async function initEdition({ editionId = null, backendUrl = null, workId = null } = {}) {
+    let foundEditionId = "";
+    appState.edition = {};
 
     if (editionId) {
         if (!backendUrl) {
             const foundUrl = await findBackendForEdition(editionId);
             if (foundUrl) {
-                appState.editionId = editionId;
-                appState.backendUrl = foundUrl;
+                foundEditionId = editionId;
             }
         }
         else {
             if (await isEditionAvailableInBackend(editionId, backendUrl)) {
-                appState.editionId = editionId;
-                appState.backendUrl = backendUrl;
+                foundEditionId = editionId;
             }
         }
     }
     else {
         if (!appState.allEditions || appState.allEditions.length === 0) {
-            console.log("a");
             await getAllEditions();
         }
         if (appState.allEditions.length === 1) {
-            console.log("b");
-            const singleEdition = appState.allEditions[0];
-            appState.editionId = singleEdition.id;
-            appState.backendUrl = singleEdition.backendUrl;
+            foundEditionId = appState.allEditions[0].id;
         }
     }
 
-    if (appState.editionId == "" || appState.backendUrl == "") {
+    if (foundEditionId == "") {
         // Edition nicht gefunden, öffne Editionsauswahlseite.
         switchPage("edition-selection", buildEditionSelectionPage());
         return;
     }
 
-    // initWork(work);
+    // find the foundEditionId in in all Editions to set it as the current edition
+    let editionData = appState.allEditions.find((edition) => edition.id === foundEditionId);
+    appState.edition = editionData;
+
+    appState.worksInEdition = await getWorks(appState.edition.doc, appState.edition.backendUrl);
+
+    initWork(workId);
 }
 
-function initWork(work = null) {
-    // initHeaderTitle();
-    // initConcordanceNavigator();
-    return;
+async function initWork(workId = null) {
+    console.log("Initializing work");
+    let foundWorkId = "";
+    appState.work = {};
+
+    if (workId) {
+        if (isWorkAvailableInEdition(workId)) {
+            foundWorkId = workId;
+        }
+    }
+    appState.work = appState.worksInEdition.find((work) => work.id === (foundWorkId));
+    if (appState.work == null || appState.work == undefined) {
+        if (appState.worksInEdition.length > 0) {
+            appState.work = appState.worksInEdition[0];
+        }
+        else {
+            console.error("No works found for edition", appState.edition.id);
+            return;
+        }
+    }
+
+    console.log("Set work to", appState.work);
 }
 
-async function initializeApp() {
+async function initApp() {
+    console.log("Initializing Edirom Mobile App");
     const urlParams = new URLSearchParams(window.location.search);
+
+    setupHeaderMenu();
     initEdition({
         editionId: urlParams.get("editionId"),
         backendUrl: urlParams.get("backendUrl"),
@@ -126,7 +152,7 @@ async function initializeApp() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    initializeApp();
+    initApp();
 });
 
 

@@ -1,4 +1,3 @@
-const DEFAULT_EDITION_URI = "xmldb:exist:///db/apps/edirom/edition-example/content/ediromEditions/edirom_edition_example.xml"; // TODO: This should not be hardcoded
 const DEFAULT_LANGUAGE = "de";
 const DEFAULT_AVAILABLE_VIEWS = ["annotationView"];
 const DEFAULT_VIEW_HEADER_ID = "view-header";
@@ -25,10 +24,9 @@ export const appConfig = {
 
 export const appState = {
     page: "",
-    backendUrl: "",
-    editionId: "",
-    editionUri: DEFAULT_EDITION_URI,
-    allEditions: [],
-    workId: "",
+    allEditions: [], // List of all editions from all backends
+    edition: {},
+    worksInEdition: [],
+    work: {},
     language: DEFAULT_LANGUAGE,
 };

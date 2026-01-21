@@ -55,15 +55,13 @@ function setupEditionNameTooltip() {
 
 const HEADER_MENU_ITEMS = [
     { label: "Über Edirom Mobile", id: "about-edirom-mobile" },
-    { label: "Aktuelles", href: "https://korngold-werkausgabe.de" },
+    { label: "Einstellungen", href: "https://korngold-werkausgabe.de" },
     { label: "Sammlung", href: "https://korngold-werkausgabe.de" },
     { label: "Werkzeuge", href: "https://korngold-werkausgabe.de" },
     { label: "Kontakt", href: "https://korngold-werkausgabe.de" },
 ];
 
-function renderHeaderMenu(menu) {
-    menu.innerHTML = "";
-
+function buildHeaderMenu() {
     const listEl = document.createElement("ul");
 
     HEADER_MENU_ITEMS.forEach(({ label, href, id = null }) => {
@@ -90,7 +88,7 @@ function renderHeaderMenu(menu) {
         listEl.appendChild(listItem);
     });
 
-    menu.appendChild(listEl);
+    return listEl;
 }
 
 export function setupHeaderMenu() {
@@ -101,7 +99,9 @@ export function setupHeaderMenu() {
         return;
     }
 
-    renderHeaderMenu(menu);
+    menu.innerHTML = "";
+    const listEl = buildHeaderMenu();
+    menu.appendChild(listEl);
 
     burger.setAttribute("role", "button");
     burger.setAttribute("aria-controls", "header-menu");
@@ -149,7 +149,7 @@ export function setupHeaderMenu() {
 
     window.addEventListener("resize", closeMenu);
     window.addEventListener("orientationchange", closeMenu);
-    setupEditionNameTooltip();
+    // setupEditionNameTooltip();
 }
 
 export function setWorkTitle(workData) {

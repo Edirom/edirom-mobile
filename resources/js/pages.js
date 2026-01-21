@@ -1,6 +1,7 @@
 import { appState } from "./config.js";
 import { buildNavigator } from "./navigator.js";
 import { getAllEditions } from "./api.js";
+import { initEdition } from "./main.js";
 
 // Flag to skip the next popstate event (set when we call history.go(1) ourselves)
 let skipNextPopstate = false;
@@ -103,9 +104,15 @@ export async function buildEditionSelectionPage() {
     const editionList = document.createElement("ul");
     appState.allEditions.forEach(edition => {
         const listItem = document.createElement("li");
-        const editionLink = document.createElement("a");
+        const editionLink = document.createElement("span");
         editionLink.textContent = edition.name;
-        editionLink.href = `?editionId=${encodeURIComponent(edition.id)}&backendUrl=${encodeURIComponent(edition.backendUrl)}`;
+        editionLink.addEventListener("click", () => {
+            console.log("Selected edition:", edition);
+            initEdition({
+                editionId: edition.id,
+                backendUrl: edition.backendUrl
+            });
+        });
         listItem.appendChild(editionLink);
         editionList.appendChild(listItem);
     });
