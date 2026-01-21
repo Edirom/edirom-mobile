@@ -95,7 +95,7 @@ export async function initEdition({ editionId = null, backendUrl = null, workId 
     initWork(workId);
 }
 
-async function initWork(workId = null) {
+export async function initWork(workId = null) {
     console.log("Initializing work");
     let foundWorkId = "";
     appState.work = {};
@@ -115,6 +115,8 @@ async function initWork(workId = null) {
             return;
         }
     }
+
+    setWorkTitle();
 
     console.log("Set work to", appState.work);
 }
