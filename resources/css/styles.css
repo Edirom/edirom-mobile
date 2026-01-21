@@ -109,6 +109,8 @@ header > div:last-child {
 
 #header-burger-menu {
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .header-menu {
@@ -136,6 +138,8 @@ header > div:last-child {
 
 .header-menu li {
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .header-menu li + li {
@@ -186,6 +190,8 @@ footer {
 
 #edition-selection-page li {
   margin: 12px;
+  user-select: none;
+  -webkit-user-select: none;
   text-decoration: underline;
   cursor: pointer;
 }
@@ -205,6 +211,8 @@ footer {
 
 button {
   background-color: var(--ewk-primary-color);
+  user-select: none;
+  -webkit-user-select: none;
   color: var(--ewk-secondary-color);
   cursor: pointer;
 }
@@ -243,6 +251,8 @@ h2 {
   border: none;
   font-size: inherit;
   font-weight: inherit;
+  user-select: none;
+  -webkit-user-select: none;
   font-family: inherit;
   text-align: center;
   text-align-last: center;
