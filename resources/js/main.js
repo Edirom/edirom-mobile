@@ -139,6 +139,7 @@ async function initConcordanceNavigator() {
     concordanceNavigatorElement.addEventListener("concordance-navigator-disabled", (event) => {
         onConcordanceNavigatorDisabled();
     });
+    footerElement.innerHTML = ""; // Clear previous content
     footerElement.appendChild(concordanceNavigatorElement);
 }
 

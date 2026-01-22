@@ -1,38 +1,65 @@
-import { switchPage, buildAboutEdiromMobilePage } from "./pages.js";
+import { switchPage, buildAboutEdiromMobilePage, buildEditionSelectionPage } from "./pages.js";
 import { appState } from "./config.js";
 import { initWork } from "./main.js";
 
-const HEADER_MENU_ITEMS = [
-    { label: "Über Edirom Mobile", id: "about-edirom-mobile" },
-    { label: "Einstellungen", href: "https://korngold-werkausgabe.de" },
-    { label: "Sammlung", href: "https://korngold-werkausgabe.de" },
-    { label: "Werkzeuge", href: "https://korngold-werkausgabe.de" },
-    { label: "Kontakt", href: "https://korngold-werkausgabe.de" },
+const HEADER_MENU_URLS = [
+    { label: "Korngold Werkausgabe", href: "https://korngold-werkausgabe.de" }
 ];
 
 function buildHeaderMenu() {
     const listEl = document.createElement("ul");
 
-    HEADER_MENU_ITEMS.forEach(({ label, href, id = null }) => {
+    const editionsLi = document.createElement("li");
+    const editionsLink = document.createElement("a");
+    const editionsIcon = document.createElement("edirom-icon");
+    editionsIcon.setAttribute("name", "newsstand");
+    editionsLink.appendChild(editionsIcon);
+    editionsLink.appendChild(document.createTextNode("Editionen"));
+    editionsLink.setAttribute("role", "button");
+    editionsLink.setAttribute("tabindex", "0");
+    editionsLink.addEventListener("click", (event) => {
+        switchPage("edition-selection", buildEditionSelectionPage());
+    });
+    editionsLi.appendChild(editionsLink);
+    listEl.appendChild(editionsLi);
+
+    const settingsLi = document.createElement("li");
+    const settingsLink = document.createElement("a");
+    const settingsIcon = document.createElement("edirom-icon");
+    settingsIcon.setAttribute("name", "settings");
+    settingsLink.appendChild(settingsIcon);
+    settingsLink.appendChild(document.createTextNode("Einstellungen"));
+    settingsLink.setAttribute("role", "button");
+    settingsLink.setAttribute("tabindex", "0");
+    settingsLink.addEventListener("click", (event) => {
+        switchPage("settings", buildSettingsPage());
+    });
+    settingsLi.appendChild(settingsLink);
+    listEl.appendChild(settingsLi);
+
+    const aboutLi = document.createElement("li");
+    const aboutLink = document.createElement("a");
+    const aboutIcon = document.createElement("edirom-icon");
+    aboutIcon.setAttribute("name", "info");
+    aboutLink.appendChild(aboutIcon);
+    aboutLink.appendChild(document.createTextNode("Über Edirom Mobile"));
+    aboutLink.setAttribute("role", "button");
+    aboutLink.setAttribute("tabindex", "0");
+    aboutLink.addEventListener("click", (event) => {
+        switchPage("about-edirom-mobile", buildAboutEdiromMobilePage());
+    });
+    aboutLi.appendChild(aboutLink);
+    listEl.appendChild(aboutLi);
+
+    HEADER_MENU_URLS.forEach(({ label, href }) => {
         const listItem = document.createElement("li");
         const link = document.createElement("a");
-
-        if (id === "about-edirom-mobile") {
-            link.addEventListener("click", (event) => {
-                switchPage("about-edirom-mobile", buildAboutEdiromMobilePage());
-            });
-        }
-
-        link.textContent = label;
-
-        if (href) {
-            link.setAttribute("href", href);
-            link.setAttribute("target", "_blank");
-        } else {
-            link.setAttribute("role", "button");
-            link.setAttribute("tabindex", "0");
-        }
-
+        const linkIcon = document.createElement("edirom-icon");
+        linkIcon.setAttribute("name", "open_in_new");
+        link.appendChild(linkIcon);
+        link.appendChild(document.createTextNode(label));
+        link.setAttribute("href", href);
+        link.setAttribute("target", "_blank");
         listItem.appendChild(link);
         listEl.appendChild(listItem);
     });
