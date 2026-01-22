@@ -15,13 +15,7 @@ function updateNavigatorData(data, navigatorElement = null) {
     navigatorElement.setAttribute("navigator-data", JSON.stringify(data));
 }
 
-export async function buildNavigator(navigatorData = null) {
-    // Get Navigator Data if not provided
-    if (!navigatorData) {
-        // TODO: Entweder Navigator aus Konkordanz laden oder Navigator aus Navigatorconfig laden, je nachdem was bei Konkordanznavigator ausgewählt ist.
-        navigatorData = await getNavigatorConfig(appState.editionUri, appState.workId, appState.language, appState.editionUri);
-    }
-
+export async function buildNavigator(navigatorData = appState.navigatorData) {
     const navigatorElement = document.createElement("edirom-navigator");
     navigatorElement.classList.add("web-component");
     navigatorElement.setAttribute("layout-mode", "mobile");

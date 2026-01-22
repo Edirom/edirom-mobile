@@ -162,10 +162,11 @@ header > div:last-child {
 }
 
 footer {
+  min-height: 65px;
   position: fixed;
   background-color: var(--ewk-primary-color);
   color: var(--ewk-secondary-color);
-  padding: 10px;
+  padding: 5px;
   left: 0;
   right: 0;
   bottom: 0;

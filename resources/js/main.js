@@ -1,7 +1,7 @@
 import { appConfig, appState } from "./config.js";
 import { loadViews } from "./views.js";
 import { buildNavigator, initializeNavigator } from "./navigator.js";
-import { getEditions, getEdition, getAllEditions, getWorks, getConcordances, getLinkTarget } from "./api.js";
+import { getEditions, getEdition, getAllEditions, getWorks, getConcordances, getLinkTarget, getNavigatorConfig } from "./api.js";
 import { setupHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
 import { switchPage, buildEditionSelectionPage } from "./pages.js";
@@ -117,8 +117,45 @@ export async function initWork(workId = null) {
     }
 
     setWorkTitle();
+    switchPage("navigator", buildNavigator());
+    initConcordanceNavigator();
+
 
     console.log("Set work to", appState.work);
+}
+
+async function initConcordanceNavigator() {
+    const concordances = await getConcordances(appState.edition.doc, appState.work.id, appState.edition.backendUrl);
+    const footerElement = document.getElementById("footer");
+    const concordanceNavigatorElement = document.createElement("edirom-concordance-navigator");
+    concordanceNavigatorElement.setAttribute("layout-mode", "mobile");
+    concordanceNavigatorElement.setAttribute("concordances-data", JSON.stringify(concordances));
+    concordanceNavigatorElement.setAttribute("inject-disabled-concordance", "Freies Erkunden");
+    concordanceNavigatorElement.addEventListener("load-link", (event) => {
+        const target = event.detail.target;
+        // loadLink(target, { source: "concordance-navigator" });
+        console.log("Concordance navigator load-link event:", target);
+    });
+    concordanceNavigatorElement.addEventListener("concordance-navigator-disabled", (event) => {
+        onConcordanceNavigatorDisabled();
+    });
+    footerElement.appendChild(concordanceNavigatorElement);
+}
+
+async function onConcordanceNavigatorDisabled() {
+    console.log("Concordance navigator disabled");
+    appState.navigatorData = await getNavigatorConfig(appState.edition.doc, appState.work.id, appState.language, appState.edition.doc, appState.edition.backendUrl);
+
+    onNavigatorDataChanged();
+}
+
+function onNavigatorDataChanged() {
+    if (appState.page === "navigator") {
+        const navigatorElement = document.querySelector("edirom-navigator");
+        if (navigatorElement) {
+            navigatorElement.setAttribute("navigator-data", JSON.stringify(appState.navigatorData));
+        }
+    }
 }
 
 async function initApp() {

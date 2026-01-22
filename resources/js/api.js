@@ -69,8 +69,8 @@ export async function getAnnotationPreviews(edition, uri, lang, backendUrl = app
     return annotationPreviews;
 }
 
-export async function getConcordances(editionId, workId, backendUrl = appState.edition.backendUrl) {
-    const concordanceData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getConcordances.xql?workId=${encodeURIComponent(workId)}&id=${encodeURIComponent(editionId)}&edition=${encodeURIComponent(editionId)}`);
+export async function getConcordances(editionUri, workId, backendUrl = appState.edition.backendUrl) {
+    const concordanceData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getConcordances.xql?workId=${encodeURIComponent(workId)}&id=${encodeURIComponent(editionUri)}&edition=${encodeURIComponent(editionUri)}`);
     return concordanceData;
 }
 

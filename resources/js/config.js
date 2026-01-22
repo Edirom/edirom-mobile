@@ -29,4 +29,5 @@ export const appState = {
     worksInEdition: [],
     work: {},
     language: DEFAULT_LANGUAGE,
+    navigatorData: {}
 };
