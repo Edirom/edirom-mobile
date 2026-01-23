@@ -131,10 +131,8 @@ async function initConcordanceNavigator() {
     concordanceNavigatorElement.setAttribute("layout-mode", "mobile");
     concordanceNavigatorElement.setAttribute("concordances-data", JSON.stringify(concordances));
     concordanceNavigatorElement.setAttribute("inject-disabled-concordance", "Freies Erkunden");
-    concordanceNavigatorElement.addEventListener("load-link", (event) => {
-        const target = event.detail.target;
-        // loadLink(target, { source: "concordance-navigator" });
-        console.log("Concordance navigator load-link event:", target);
+    concordanceNavigatorElement.addEventListener("show-connection-request", (event) => {
+        loadLinks(event.detail.plist);
     });
     concordanceNavigatorElement.addEventListener("concordance-navigator-disabled", (event) => {
         onConcordanceNavigatorDisabled();
@@ -145,8 +143,13 @@ async function initConcordanceNavigator() {
 
 async function onConcordanceNavigatorDisabled() {
     console.log("Concordance navigator disabled");
-    appState.navigatorData = await getNavigatorConfig(appState.edition.doc, appState.work.id, appState.language, appState.edition.doc, appState.edition.backendUrl);
+    setNavigatorData(await getNavigatorConfig(appState.edition.doc, appState.work.id, appState.language, appState.edition.doc, appState.edition.backendUrl));
 
+    // TODO: Break Views from restriction
+}
+
+function setNavigatorData(data) {
+    appState.navigatorData = data;
     onNavigatorDataChanged();
 }
 
@@ -157,6 +160,86 @@ function onNavigatorDataChanged() {
             navigatorElement.setAttribute("navigator-data", JSON.stringify(appState.navigatorData));
         }
     }
+}
+
+/**
+ * Extracts parameters enclosed in brackets from the end of a URI.
+ * Example: "http://example.com[key:value]" -> { cleanUri: "http://example.com", parameters: { key: "value" } }
+ * @param {string} uri - The URI string to parse.
+ * @returns {Object} An object containing the clean URI and the extracted parameters (or null).
+ */
+function extractUriParameters(uri) {
+    let cleanUri = uri;
+    let parameters = null;
+
+    const paramMatch = cleanUri.match(/\[(.*?)\]$/);
+    if (paramMatch) {
+        const paramContent = paramMatch[1];
+        const colonIndex = paramContent.indexOf(':');
+        if (colonIndex !== -1) {
+            const key = paramContent.substring(0, colonIndex);
+            const value = decodeURIComponent(paramContent.substring(colonIndex + 1));
+            parameters = { [key]: value };
+        }
+        cleanUri = cleanUri.substring(0, paramMatch.index);
+    }
+    return { cleanUri, parameters };
+}
+
+/**
+ * Processes a list of URIs to extract document links.
+ * Groups URIs by document path and parameters, collecting XML IDs.
+ * @param {string[]} uris - Array of URI strings.
+ * @returns {Object[]} Array of document objects with doc path, xmlIds, and parameters.
+ */
+function processDocUris(uris) {
+    return uris.filter((entry) => entry.startsWith("xmldb:exist")).reduce((acc, uri) => {
+        const { cleanUri, parameters } = extractUriParameters(uri);
+
+        const [doc, xmlId] = cleanUri.split('#');
+        const existing = acc.find(item => item.doc === doc && JSON.stringify(item.parameters) === JSON.stringify(parameters));
+
+        if (existing) {
+            if (xmlId) existing.xmlIds.push(xmlId);
+        } else {
+            const newItem = { doc: doc, xmlIds: xmlId ? [xmlId] : [], parameters: parameters };
+            acc.push(newItem);
+        }
+        return acc;
+    }, []);
+}
+
+/**
+ * Processes a list of URIs to extract external links.
+ * Extracts parameters and returns structured objects.
+ * @param {string[]} uris - Array of URI strings.
+ * @returns {Object[]} Array of external link objects with url and parameters.
+ */
+function processExternalLinkUris(uris) {
+    return uris.filter((entry) => entry.startsWith("http") || entry.startsWith("www")).map(uri => {
+        const { cleanUri, parameters } = extractUriParameters(uri);
+        const obj = { url: cleanUri, parameters: parameters };
+        return obj;
+    });
+}
+
+function loadLinks(plist) {
+    var plistMasked = plist.replace(/\s|;/g, '\uC280'); // Replace spaces and semicolons with a private use character
+    var uris = plistMasked.split('\uC280'); // Split by the private use character
+    uris = uris.map(uri => uri.trim()).filter(uri => uri.length > 0);
+
+    let urisData = {
+        "docs": processDocUris(uris),
+        "externalLinks": processExternalLinkUris(uris)
+    };
+
+    setNavigatorData(buildNavigatorDataFromUrisData(urisData));
+}
+
+function buildNavigatorDataFromUrisData(urisData) {
+    console.log("Building navigator data from urisData", urisData);
+
+
 }
 
 async function initApp() {
