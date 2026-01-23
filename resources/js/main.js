@@ -223,7 +223,7 @@ function processExternalLinkUris(uris) {
     });
 }
 
-function loadLinks(plist) {
+async function loadLinks(plist) {
     var plistMasked = plist.replace(/\s|;/g, '\uC280'); // Replace spaces and semicolons with a private use character
     var uris = plistMasked.split('\uC280'); // Split by the private use character
     uris = uris.map(uri => uri.trim()).filter(uri => uri.length > 0);
@@ -233,13 +233,113 @@ function loadLinks(plist) {
         "externalLinks": processExternalLinkUris(uris)
     };
 
-    setNavigatorData(buildNavigatorDataFromUrisData(urisData));
+    setNavigatorData(await buildNavigatorDataFromUrisData(urisData));
 }
 
-function buildNavigatorDataFromUrisData(urisData) {
+async function buildNavigatorDataFromUrisData(urisData) {
     console.log("Building navigator data from urisData", urisData);
 
+    let navigatorDefinition = [];
+    let categoryIndex = 0;
 
+    if (urisData.docs && urisData.docs.length > 0) {
+        const itemPromises = urisData.docs.map(async (doc, index) => {
+            let name = "";
+            let parameterName = null;
+
+            if (doc.parameters && doc.parameters["name"]) {
+                parameterName = doc.parameters["name"];
+            }
+
+            if (parameterName && parameterName !== "") {
+                name = parameterName;
+            } else {
+                try {
+                    let linkTarget = await getLinkTarget(doc.doc, appState.language, appState.editionUri);
+                    if (linkTarget && linkTarget.title) {
+                        name = linkTarget.title;
+                    } else {
+                        name = "Dokument";
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch link target title", error);
+                    name = "Dokument";
+                }
+            }
+
+            let target = doc.doc;
+            if (doc.xmlIds && doc.xmlIds.length > 0) {
+                target += "#" + doc.xmlIds.join("#");
+            }
+            if (doc.parameters) {
+                for (const key in doc.parameters) {
+                    if (key !== "name") {
+                        target += `[${key}:${doc.parameters[key]}]`;
+                    }
+                }
+            }
+
+            return {
+                type: "navigatorItem",
+                id: `navItem-${categoryIndex}-${index + 1}`,
+                sortNo: String(index + 1),
+                name: name,
+                targets: target,
+                target: target
+            };
+        });
+
+        const items = await Promise.all(itemPromises);
+
+        navigatorDefinition.push({
+            type: "navigatorCategory",
+            id: `navCategory-${categoryIndex}`,
+            sortNo: String(categoryIndex + 1),
+            name: "Dokumente",
+            items: items
+        });
+        categoryIndex++;
+    }
+
+    if (urisData.externalLinks && urisData.externalLinks.length > 0) {
+        let items = [];
+        let sortNoItem = 1;
+
+        for (const link of urisData.externalLinks) {
+            let name = "";
+            let parameterName = null;
+
+            if (link.parameters && link.parameters["name"]) {
+                parameterName = link.parameters["name"];
+            }
+
+            if (parameterName && parameterName !== "") {
+                name = parameterName;
+            } else {
+                name = link.url;
+            }
+
+            items.push({
+                type: "navigatorItem",
+                id: `navItem-${categoryIndex}-${sortNoItem}`,
+                sortNo: String(sortNoItem),
+                name: name,
+                targets: link.url,
+                target: link.url
+            });
+            sortNoItem++;
+        }
+
+        navigatorDefinition.push({
+            type: "navigatorCategory",
+            id: `navCategory-${categoryIndex}`,
+            sortNo: String(categoryIndex + 1),
+            name: "Externe Ressourcen",
+            items: items
+        });
+    }
+
+    return { navigatorDefinition: navigatorDefinition };
 }
 
 async function initApp() {
