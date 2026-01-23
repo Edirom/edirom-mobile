@@ -168,7 +168,6 @@ header > div:last-child {
 }
 
 footer {
-  min-height: 65px;
   position: fixed;
   background-color: var(--ewk-primary-color);
   color: var(--ewk-secondary-color);
@@ -177,7 +176,7 @@ footer {
   right: 0;
   bottom: 0;
   display: flex;
-  align-items: center;
+  align-items: end;
   z-index: 1000;
 }
 
