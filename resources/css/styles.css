@@ -8,7 +8,7 @@
   --secondary-color: var(--ewk-secondary-color);
   --header-height: 55px;
   --view-header-height: 0px;
-  --footer-height: 80px;
+  --footer-height: 59px;
   --viewport-height: 100dvh;
 }
 
@@ -169,6 +169,7 @@ header > div:last-child {
 
 footer {
   position: fixed;
+  min-height: calc(var(--footer-height) - 10px);
   background-color: var(--ewk-primary-color);
   color: var(--ewk-secondary-color);
   padding: 5px;
