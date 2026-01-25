@@ -352,6 +352,7 @@ async function initApp() {
         backendUrl: urlParams.get("backendUrl"),
         workId: urlParams.get("workId")
     });
+    registerLayoutListeners();
 
 
 
