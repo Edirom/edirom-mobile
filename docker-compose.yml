@@ -8,6 +8,8 @@ services:
     - "/Users/dennisfriedl/Documents/GitHub/edirom-navigator:/usr/share/nginx/html/resources/web-components/edirom-navigator"
     - "/Users/dennisfriedl/Documents/GitHub/edirom-core-web-components:/usr/share/nginx/html/resources/web-components/edirom-core-web-components"
     - "/Users/dennisfriedl/Documents/GitHub/edirom-annotation-view:/usr/share/nginx/html/resources/web-components/edirom-annotation-view"
+    - "/Users/dennisfriedl/Documents/GitHub/edirom-image-viewer:/usr/share/nginx/html/resources/web-components/edirom-image-viewer"
+    - "/Users/dennisfriedl/Documents/GitHub/edirom-videoplayer:/usr/share/nginx/html/resources/web-components/edirom-videoplayer"
 
     ports:
       - "8082:80"
