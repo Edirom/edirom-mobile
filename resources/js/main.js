@@ -423,18 +423,31 @@ export async function loadLinks(plist) {
     }
 }
 
+const VIEW_TYPE_ICONS = {
+    textView: "text_fields",
+    verovioView: "music_node_2",
+    xmlView: "code_xml",
+    sourceView: "image",
+    videoView: "video_camera_back",
+    annotationView: "list",
+};
+
 /**
- * Enriches a navigator data object by resolving missing item names from the backend.
+ * Enriches a navigator data object by resolving missing item names and collecting
+ * available view icons from the backend.
  *
  * Recursively walks the full navigator data structure at any depth. For every node
- * of type `"navigatorItem"` that has a non-empty `targets` value but a missing or
- * empty `name`, the function resolves a title for each parsed target URI and injects
- * the result as the item's `name`.
+ * of type `"navigatorItem"` that has a non-empty `targets` value, the function:
+ *   - Resolves a title for each target URI and sets `item.name` if it is currently
+ *     missing or empty.
+ *   - Collects icon strings for each target's available views and appends any new
+ *     values to `item.icons` (duplicates are removed; existing entries are preserved).
  *
- * Title resolution per target URI:
- *   - URIs of type `"doc"` (`xmldb:exist://...`): the title is fetched from the backend
- *     via `getLinkTarget`. If the request fails, that target contributes `null` (skipped).
- *   - All other URI types (e.g. external links): the URI string itself is used as the title.
+ * Title/icon resolution per target URI:
+ *   - URIs of type `"doc"` (`xmldb:exist://...`): fetched from the backend via a
+ *     single `getLinkTarget` call that supplies both `title` and `views`.
+ *     If the request fails, the target contributes `null` title and no icons.
+ *   - URIs of type `"externalLink"`: title is the URI string itself; icon is `"open_in_new"`.
  *
  * All backend requests are fired in parallel via a single `Promise.all` call to
  * minimise total wait time.
@@ -442,22 +455,9 @@ export async function loadLinks(plist) {
  * If a `targets` value resolves to more than one URI, the titles of all URIs are
  * joined with ` & ` (e.g. `"Title A & Title B"`).
  *
- * Items that already carry a non-empty `name` are not modified. The input object
- * is mutated in place and also returned.
- *
  * @param {Object} navigatorData - The navigator data object, e.g. `{ navigatorDefinition: [...] }`.
  *   Categories and items may be nested arbitrarily deep.
- * @returns {Promise<Object>} The same `navigatorData` object with `name` fields filled in.
- *
- * @example
- * // Item with a single target whose name is resolved from the backend:
- * // Before: { type: "navigatorItem", targets: "xmldb:exist:///db/apps/foo.xml", name: "" }
- * // After:  { type: "navigatorItem", targets: "xmldb:exist:///db/apps/foo.xml", name: "Foo Document" }
- *
- * @example
- * // Item with multiple targets — titles are joined:
- * // Before: { type: "navigatorItem", targets: "xmldb:exist:///db/apps/a.xml xmldb:exist:///db/apps/b.xml", name: "" }
- * // After:  { type: "navigatorItem", targets: "...", name: "Title A & Title B" }
+ * @returns {Promise<Object>} The same `navigatorData` object with `name` and `icons` fields enriched.
  */
 async function enrichNavigatorData(navigatorData) {
     const tasks = [];
@@ -468,14 +468,17 @@ async function enrichNavigatorData(navigatorData) {
             node.forEach(collectItems);
             return;
         }
-        if (node.type === "navigatorItem" && node.targets && !node.name) {
+        if (node.type === "navigatorItem" && node.targets) {
             const parsedTargets = parseTargets(node.targets);
             const promises = parsedTargets.map(pt =>
                 getUriType(pt.target) === "doc"
                     ? getLinkTarget(pt.target, appState.language, appState.edition.doc)
-                        .then(data => data?.title || null)
-                        .catch(() => null)
-                    : Promise.resolve(pt.target)
+                        .then(data => ({
+                            title: data?.title || null,
+                            icons: (data?.views || []).map(v => VIEW_TYPE_ICONS[v.type]).filter(Boolean),
+                        }))
+                        .catch(() => ({ title: null, icons: [] }))
+                    : Promise.resolve({ title: pt.target, icons: ["open_in_new"] })
             );
             tasks.push({ item: node, promises });
         }
@@ -491,8 +494,16 @@ async function enrichNavigatorData(navigatorData) {
 
     let offset = 0;
     for (const { item, promises } of tasks) {
-        const titles = allResults.slice(offset, offset + promises.length).filter(Boolean);
-        item.name = titles.join(" & ");
+        const results = allResults.slice(offset, offset + promises.length);
+
+        if (!item.name) {
+            const titles = results.map(r => r.title).filter(Boolean);
+            item.name = titles.join(" & ");
+        }
+
+        const newIcons = results.flatMap(r => r.icons);
+        item.icons = [...new Set([...(item.icons ?? []), ...newIcons])];
+
         offset += promises.length;
     }
 
