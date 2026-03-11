@@ -416,17 +416,82 @@ export async function loadLinks(plist) {
     }
     else {
         let navigatorData = buildNavigatorDataFromParsedTargets(parsedTargets);
-        navigatorData = await enrichNavigatorData(navigatorData);
+        let enrichedNavigatorData = await enrichNavigatorData(navigatorData);
+        console.log("Enriched navigator data:", enrichedNavigatorData);
     }
 
 
     // legacy: setNavigatorData(await buildNavigatorDataFromUrisData(urisData));
 }
 
+/**
+ * Enriches a navigator data object by resolving missing item names from the backend.
+ *
+ * Recursively walks the full navigator data structure at any depth. For every node
+ * of type `"navigatorItem"` that has a non-empty `targets` value but a missing or
+ * empty `name`, the function fetches the title(s) from the backend and injects them
+ * as the item's `name`.
+ *
+ * All backend requests are fired in parallel via a single `Promise.all` call to
+ * minimise total wait time. Failed requests are silently ignored — the affected
+ * item's `name` is left as an empty string.
+ *
+ * If a `targets` value resolves to more than one URI, the titles of all URIs are
+ * joined with ` & ` (e.g. `"Title A & Title B"`).
+ *
+ * Items that already carry a non-empty `name` are not modified. The input object
+ * is mutated in place and also returned.
+ *
+ * @param {Object} navigatorData - The navigator data object, e.g. `{ navigatorDefinition: [...] }`.
+ *   Categories and items may be nested arbitrarily deep.
+ * @returns {Promise<Object>} The same `navigatorData` object with `name` fields filled in.
+ *
+ * @example
+ * // Item with a single target whose name is resolved from the backend:
+ * // Before: { type: "navigatorItem", targets: "xmldb:exist:///db/apps/foo.xml", name: "" }
+ * // After:  { type: "navigatorItem", targets: "xmldb:exist:///db/apps/foo.xml", name: "Foo Document" }
+ *
+ * @example
+ * // Item with multiple targets — titles are joined:
+ * // Before: { type: "navigatorItem", targets: "xmldb:exist:///db/apps/a.xml xmldb:exist:///db/apps/b.xml", name: "" }
+ * // After:  { type: "navigatorItem", targets: "...", name: "Title A & Title B" }
+ */
 async function enrichNavigatorData(navigatorData) {
-    // Placeholder for future enrichment logic
-    const enrichedNavigatorData = { ...navigatorData };
-    return enrichedNavigatorData;
+    const tasks = [];
+
+    function collectItems(node) {
+        if (!node || typeof node !== "object") return;
+        if (Array.isArray(node)) {
+            node.forEach(collectItems);
+            return;
+        }
+        if (node.type === "navigatorItem" && node.targets && !node.name) {
+            const parsedTargets = parseTargets(node.targets);
+            const promises = parsedTargets.map(pt =>
+                getLinkTarget(pt.target, appState.language, appState.edition.doc)
+                    .then(data => data?.title || null)
+                    .catch(() => null)
+            );
+            tasks.push({ item: node, promises });
+        }
+        Object.values(node).forEach(collectItems);
+    }
+
+    collectItems(navigatorData);
+
+    if (tasks.length === 0) return navigatorData;
+
+    const allPromises = tasks.flatMap(t => t.promises);
+    const allResults = await Promise.all(allPromises);
+
+    let offset = 0;
+    for (const { item, promises } of tasks) {
+        const titles = allResults.slice(offset, offset + promises.length).filter(Boolean);
+        item.name = titles.join(" & ");
+        offset += promises.length;
+    }
+
+    return navigatorData;
 }
 
 function buildNavigatorDataFromParsedTargets(parsedTargets) {
