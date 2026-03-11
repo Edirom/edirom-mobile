@@ -287,12 +287,12 @@ function buildTargetsStringWithConfig(target, config, excludeKeys = []) {
      * Parses a targets string into an array of target/config objects.
      * TODO: This function should be used centrally in the LinkController in the future
      *
-     * The targets string consists of one or more URIs separated by `sep`, with an
-     * optional single config block in square brackets attached to any one of them.
-     * The config block applies globally to all targets in the string.
-     * Config key-value pairs are separated by commas; keys and values are
-     * separated by `=` or `:`. The `sep` character is stripped from config keys
-     * and values to handle masked whitespace (e.g. a leading \uC280 before a key name).
+     * Spaces and semicolons in the input are masked internally with \uC280 so that
+     * they act as URI separators. The targets string consists of one or more URIs
+     * separated by whitespace or semicolons, with an optional single config block
+     * in square brackets attached to any one of them. The config block applies
+     * globally to all targets in the string. Config key-value pairs are separated
+     * by commas; keys and values are separated by `=` or `:`.
      *
      * Value types are inferred automatically:
      *   - Quoted values ('...' or "...") → string (quotes stripped)
@@ -304,33 +304,35 @@ function buildTargetsStringWithConfig(target, config, excludeKeys = []) {
      * Only the first config block is used; any further `[...]` occurrences are
      * stripped from the target string.
      *
-     * @param {string} targets - The raw targets attribute value, with targets separated by `sep`.
-     * @param {string} sep - The character used to separate individual target URIs.
+     * @param {string} targets - The raw targets attribute value, with URIs separated by whitespace or semicolons.
      * @returns {Array<{target: string, config: Object}>} Array of parsed target objects, each sharing the same config.
      *
      * @example
      * // Single URI, no config
-     * parseTargets('xmldb:exist:///db/apps/foo.xml', '\uC280')
+     * parseTargets('xmldb:exist:///db/apps/foo.xml')
      * // → [{ target: 'xmldb:exist:///db/apps/foo.xml', config: {} }]
      *
      * @example
      * // Multiple URIs, config on second (shared by all)
-     * parseTargets('foo.xml\uC280bar.xml[page=2,\uC280label=\'Intro\']', '\uC280')
+     * parseTargets('foo.xml bar.xml[page=2, label=\'Intro\']')
      * // → [{ target: 'foo.xml', config: { page: 2, label: 'Intro' } },
      * //    { target: 'bar.xml', config: { page: 2, label: 'Intro' } }]
      *
      * @example
      * // Type inference: boolean, number, string, array
-     * parseTargets('foo.xml[active=true,\uC280scale=1.25,\uC280mode=overview,\uC280ids=[a,b,c]]', '\uC280')
+     * parseTargets('foo.xml[active=true, scale=1.25, mode=overview, ids=[a,b,c]]')
      * // → [{ target: 'foo.xml', config: { active: true, scale: 1.25, mode: 'overview', ids: ['a','b','c'] } }]
      *
      * @example
      * // Array of numbers, colon separator in config
-     * parseTargets('foo.xml[counts:[1,2,3]]', '\uC280')
+     * parseTargets('foo.xml[counts:[1,2,3]]')
      * // → [{ target: 'foo.xml', config: { counts: [1, 2, 3] } }]
      */
-function parseTargets(targets, sep) {
+function parseTargets(targets) {
     if (!targets) return [];
+
+    var sep = '\uC280';
+    targets = targets.replace(/\s|;/g, sep); // Mask spaces and semicolons as URI separators
 
     // Splits a string on commas, but only at bracket depth 0 —
     // so commas inside array values like [a,b,c] are not treated as pair separators.
@@ -406,9 +408,7 @@ function parseTargets(targets, sep) {
 
 export async function loadLinks(plist) {
     console.log("Loading links from plist:", plist);
-    var plistMasked = plist.replace(/\s|;/g, '\uC280'); // Replace spaces and semicolons with a private use character
-
-    let parsedTargets = parseTargets(plistMasked, '\uC280')
+    let parsedTargets = parseTargets(plist)
     console.log("Parsed targets:", parsedTargets);
 
     if (parsedTargets.length === 1) {
@@ -421,6 +421,12 @@ export async function loadLinks(plist) {
 
 
     // legacy: setNavigatorData(await buildNavigatorDataFromUrisData(urisData));
+}
+
+async function enrichNavigatorData(navigatorData) {
+    // Placeholder for future enrichment logic
+    const enrichedNavigatorData = { ...navigatorData };
+    return enrichedNavigatorData;
 }
 
 function buildNavigatorDataFromParsedTargets(parsedTargets) {
