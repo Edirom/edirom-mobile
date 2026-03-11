@@ -425,7 +425,7 @@ export async function loadLinks(plist) {
 
 const VIEW_TYPE_ICONS = {
     textView: "text_fields",
-    verovioView: "music_node_2",
+    verovioView: "music_note_2",
     xmlView: "code_xml",
     sourceView: "image",
     videoView: "video_camera_back",
@@ -475,7 +475,7 @@ async function enrichNavigatorData(navigatorData) {
                     ? getLinkTarget(pt.target, appState.language, appState.edition.doc)
                         .then(data => ({
                             title: data?.title || null,
-                            icons: (data?.views || []).map(v => VIEW_TYPE_ICONS[v.type]).filter(Boolean),
+                            icons: (data?.views || []).filter(v => appConfig.availableViews.includes(v.type)).map(v => VIEW_TYPE_ICONS[v.type]).filter(Boolean),
                         }))
                         .catch(() => ({ title: null, icons: [] }))
                     : Promise.resolve({ title: pt.target, icons: ["open_in_new"] })
