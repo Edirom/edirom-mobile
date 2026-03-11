@@ -144,7 +144,7 @@ async function initConcordanceNavigator() {
 async function onConcordanceNavigatorDisabled() {
     console.log("Concordance navigator disabled");
     let navigatorData = await getNavigatorConfig(appState.edition.doc, appState.work.id, appState.language, appState.edition.doc, appState.edition.backendUrl);
-    let enrichedNavigatorData = await enrichNavigatorData(navigatorData);
+    let enrichedNavigatorData = await filterAndEnrichNavigatorData(navigatorData);
     setNavigatorData(enrichedNavigatorData);
 
     // TODO: Break Views from restriction
@@ -418,7 +418,7 @@ export async function loadLinks(plist) {
     }
     else {
         let navigatorData = buildNavigatorDataFromParsedTargets(parsedTargets);
-        let enrichedNavigatorData = await enrichNavigatorData(navigatorData);
+        let enrichedNavigatorData = await filterAndEnrichNavigatorData(navigatorData);
         setNavigatorData(enrichedNavigatorData);
     }
 }
@@ -459,7 +459,7 @@ const VIEW_TYPE_ICONS = {
  *   Categories and items may be nested arbitrarily deep.
  * @returns {Promise<Object>} The same `navigatorData` object with `name` and `icons` fields enriched.
  */
-async function enrichNavigatorData(navigatorData) {
+async function filterAndEnrichNavigatorData(navigatorData) {
     const tasks = [];
 
     function collectItems(node) {
@@ -480,7 +480,7 @@ async function enrichNavigatorData(navigatorData) {
                         .catch(() => ({ title: null, icons: [] }))
                     : Promise.resolve({ title: pt.target, icons: ["open_in_new"] })
             );
-            tasks.push({ item: node, promises });
+            tasks.push({ item: node, promises, parsedTargets });
         }
         Object.values(node).forEach(collectItems);
     }
@@ -492,19 +492,42 @@ async function enrichNavigatorData(navigatorData) {
     const allPromises = tasks.flatMap(t => t.promises);
     const allResults = await Promise.all(allPromises);
 
+    const itemsToRemove = new Set();
     let offset = 0;
-    for (const { item, promises } of tasks) {
+    for (const { item, promises, parsedTargets } of tasks) {
         const results = allResults.slice(offset, offset + promises.length);
 
-        if (!item.name) {
-            const titles = results.map(r => r.title).filter(Boolean);
-            item.name = titles.join(" & ");
+        const hasExternalLink = parsedTargets.some(pt => getUriType(pt.target) === "externalLink");
+        const hasDocWithViews = results.some((r, i) => getUriType(parsedTargets[i].target) === "doc" && r.icons.length > 0);
+
+        if (!hasExternalLink && !hasDocWithViews) {
+            itemsToRemove.add(item);
+        } else {
+            if (!item.name) {
+                const titles = results.map(r => r.title).filter(Boolean);
+                item.name = titles.join(" & ");
+            }
+
+            const newIcons = results.flatMap(r => r.icons);
+            item.icons = [...new Set([...(item.icons ?? []), ...newIcons])];
         }
 
-        const newIcons = results.flatMap(r => r.icons);
-        item.icons = [...new Set([...(item.icons ?? []), ...newIcons])];
-
         offset += promises.length;
+    }
+
+    function filterNode(node) {
+        if (node.type === "navigatorItem") {
+            return itemsToRemove.has(node) ? null : node;
+        }
+        if (node.type === "navigatorCategory") {
+            node.items = node.items.map(filterNode).filter(Boolean);
+            return node.items.length === 0 ? null : node;
+        }
+        return node;
+    }
+
+    if (navigatorData.navigatorDefinition) {
+        navigatorData.navigatorDefinition = navigatorData.navigatorDefinition.map(filterNode).filter(Boolean);
     }
 
     return navigatorData;
