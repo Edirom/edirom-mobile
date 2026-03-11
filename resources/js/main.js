@@ -186,6 +186,16 @@ function extractUriParameters(uri) {
     return { cleanUri, parameters };
 }
 
+function getUriType(uri) {
+    if (uri.startsWith("xmldb:exist")) {
+        return "doc";
+    }
+    else if (uri.startsWith("http") || uri.startsWith("www")) {
+        return "externalLink";
+    }
+    return "unknown";
+}
+
 /**
  * Processes a list of URIs to extract document links.
  * Groups URIs by document path and parameters, collecting XML IDs.
@@ -223,123 +233,237 @@ function processExternalLinkUris(uris) {
     });
 }
 
-async function loadLinks(plist) {
-    var plistMasked = plist.replace(/\s|;/g, '\uC280'); // Replace spaces and semicolons with a private use character
-    var uris = plistMasked.split('\uC280'); // Split by the private use character
-    uris = uris.map(uri => uri.trim()).filter(uri => uri.length > 0);
-
-    let urisData = {
-        "docs": processDocUris(uris),
-        "externalLinks": processExternalLinkUris(uris)
+/**
+ * Inverse of parseTargets. Builds a target string with an optional config block in brackets.
+ * Serializes the config object as key=value pairs joined by commas, appended to the target URI.
+ * Keys in excludeKeys are omitted from the config block.
+ * Keys with null or undefined values are also omitted.
+ *
+ * Value serialization mirrors the type inference in parseTargets:
+ *   - boolean  → true / false  (unquoted)
+ *   - number   → numeric string (unquoted)
+ *   - Array    → [item1,item2,...] (recursive; string items are single-quoted)
+ *   - string   → 'value' (always single-quoted for unambiguous round-trip)
+ *
+ * @param {string} target - The target URI.
+ * @param {Object} config - The config object.
+ * @param {string[]} excludeKeys - Keys to omit from the config block.
+ * @returns {string} The target URI with the config block appended, e.g. "uri[key=value,key=value]".
+ *
+ * @example
+ * buildTargetsStringWithConfig(
+ *   'xmldb:exist:///db/apps/foo.xml#measure1',
+ *   { width: 100, sort: 'sortHorizontally', name: 'test' },
+ *   ['name']
+ * )
+ * // → "xmldb:exist:///db/apps/foo.xml#measure1[width=100,sort='sortHorizontally']"
+ */
+function buildTargetsStringWithConfig(target, config, excludeKeys = []) {
+    var serializeValue = function (v) {
+        if (typeof v === 'boolean') return v ? 'true' : 'false';
+        if (typeof v === 'number') return String(v);
+        if (Array.isArray(v)) return '[' + v.map(serializeValue).join(',') + ']';
+        if (typeof v === 'string') return "'" + v + "'";
+        return null; // skip any other type (object, null, undefined, etc.)
     };
 
-    setNavigatorData(await buildNavigatorDataFromUrisData(urisData));
+    if (!config || typeof config !== 'object') return target;
+
+    var pairs = [];
+    for (var key in config) {
+        if (!Object.prototype.hasOwnProperty.call(config, key)) continue;
+        if (excludeKeys.indexOf(key) !== -1) continue;
+        var val = config[key];
+        if (val === null || val === undefined) continue;
+        var serialized = serializeValue(val);
+        if (serialized === null) continue;
+        pairs.push(key + '=' + serialized);
+    }
+
+    return pairs.length === 0 ? target : target + '[' + pairs.join(',') + ']';
 }
 
-async function buildNavigatorDataFromUrisData(urisData) {
+/**
+     * Parses a targets string into an array of target/config objects.
+     * TODO: This function should be used centrally in the LinkController in the future
+     *
+     * The targets string consists of one or more URIs separated by `sep`, with an
+     * optional single config block in square brackets attached to any one of them.
+     * The config block applies globally to all targets in the string.
+     * Config key-value pairs are separated by commas; keys and values are
+     * separated by `=` or `:`. The `sep` character is stripped from config keys
+     * and values to handle masked whitespace (e.g. a leading \uC280 before a key name).
+     *
+     * Value types are inferred automatically:
+     *   - Quoted values ('...' or "...") → string (quotes stripped)
+     *   - `true` / `false`               → boolean
+     *   - Numeric values (int or float)  → number
+     *   - `[item1, item2, ...]`          → array (items are also type-inferred)
+     *   - Anything else                  → string
+     *
+     * Only the first config block is used; any further `[...]` occurrences are
+     * stripped from the target string.
+     *
+     * @param {string} targets - The raw targets attribute value, with targets separated by `sep`.
+     * @param {string} sep - The character used to separate individual target URIs.
+     * @returns {Array<{target: string, config: Object}>} Array of parsed target objects, each sharing the same config.
+     *
+     * @example
+     * // Single URI, no config
+     * parseTargets('xmldb:exist:///db/apps/foo.xml', '\uC280')
+     * // → [{ target: 'xmldb:exist:///db/apps/foo.xml', config: {} }]
+     *
+     * @example
+     * // Multiple URIs, config on second (shared by all)
+     * parseTargets('foo.xml\uC280bar.xml[page=2,\uC280label=\'Intro\']', '\uC280')
+     * // → [{ target: 'foo.xml', config: { page: 2, label: 'Intro' } },
+     * //    { target: 'bar.xml', config: { page: 2, label: 'Intro' } }]
+     *
+     * @example
+     * // Type inference: boolean, number, string, array
+     * parseTargets('foo.xml[active=true,\uC280scale=1.25,\uC280mode=overview,\uC280ids=[a,b,c]]', '\uC280')
+     * // → [{ target: 'foo.xml', config: { active: true, scale: 1.25, mode: 'overview', ids: ['a','b','c'] } }]
+     *
+     * @example
+     * // Array of numbers, colon separator in config
+     * parseTargets('foo.xml[counts:[1,2,3]]', '\uC280')
+     * // → [{ target: 'foo.xml', config: { counts: [1, 2, 3] } }]
+     */
+function parseTargets(targets, sep) {
+    if (!targets) return [];
+
+    // Splits a string on commas, but only at bracket depth 0 —
+    // so commas inside array values like [a,b,c] are not treated as pair separators.
+    var splitAtDepthZero = function (s) {
+        var parts = [];
+        var depth = 0, current = '';
+        for (var i = 0; i < s.length; i++) {
+            var ch = s[i];
+            if (ch === '[') { depth++; current += ch; }
+            else if (ch === ']') { depth--; current += ch; }
+            else if (ch === ',' && depth === 0) { parts.push(current); current = ''; }
+            else { current += ch; }
+        }
+        if (current) parts.push(current); // push last segment (no trailing comma)
+        return parts;
+    };
+
+    // Infers the JS type of a single config value string.
+    var parseValue = function (v) {
+        if ((v.indexOf("'") === 0 && v.lastIndexOf("'") === v.length - 1) || (v.indexOf('"') === 0 && v.lastIndexOf('"') === v.length - 1))
+            return v.slice(1, -1);                              // quoted → string, strip quotes
+        if (v === 'true') return true;
+        if (v === 'false') return false;
+        if (v !== '' && !isNaN(v) && isFinite(v)) return Number(v); // v !== '' guards against isNaN('') === false
+        if (v.indexOf('[') === 0 && v.lastIndexOf(']') === v.length - 1)
+            return splitAtDepthZero(v.slice(1, -1)).map(function (item) { return parseValue(item.trim()); }); // recurse for arrays
+        return v;                                               // fallback: plain string
+    };
+
+    // Walk the string character-by-character to find the first outermost [...]
+    // (a simple regex can't handle nested brackets like [sort=[a,b,c]])
+    var configStart = -1, depth = 0, configEnd = -1;
+    for (var i = 0; i < targets.length; i++) {
+        if (targets[i] === '[') {
+            if (depth === 0) configStart = i; // record opening of outermost block
+            depth++;
+        } else if (targets[i] === ']') {
+            depth--;
+            if (depth === 0 && configStart !== -1) {
+                configEnd = i; // found the matching close bracket
+                break;
+            }
+        }
+    }
+
+    // Remove the config block from the URI string, split by sep, and filter empty strings.
+    var stripped = configStart === -1
+        ? targets
+        : targets.slice(0, configStart) + targets.slice(configEnd + 1);
+    var targetList = stripped.split(sep).map(function (t) { return t.trim(); }).filter(Boolean);
+
+    if (configStart === -1) return targetList.map(function (t) { return { target: t, config: {} }; });
+
+    var cfgString = targets.slice(configStart + 1, configEnd);
+    var configPairs = splitAtDepthZero(cfgString).map(function (pair) {
+        return pair.split(/[=:](.*)/).slice(0, 2);
+    });
+
+    var config = {};
+    for (var j = 0; j < configPairs.length; j++) {
+        var k = configPairs[j][0];
+        var v = configPairs[j][1];
+        // Strip sep chars from keys and values to handle masked whitespace (e.g. \uC280sort → sort)
+        var cleanK = sep ? k.split(sep).join('') : k;
+        var cleanV = sep && v ? v.split(sep).join('') : v;
+        if (cleanK && cleanK.trim()) {
+            config[cleanK.trim()] = parseValue((cleanV && cleanV.trim()) || '');
+        }
+    }
+
+    return targetList.map(function (t) { return { target: t, config: config }; });
+}
+
+export async function loadLinks(plist) {
+    console.log("Loading links from plist:", plist);
+    var plistMasked = plist.replace(/\s|;/g, '\uC280'); // Replace spaces and semicolons with a private use character
+
+    let parsedTargets = parseTargets(plistMasked, '\uC280')
+    console.log("Parsed targets:", parsedTargets);
+
+    if (parsedTargets.length === 1) {
+        loadLink(parsedTargets[0].target, parsedTargets[0].config);
+    }
+    else {
+        let navigatorData = buildNavigatorDataFromParsedTargets(parsedTargets);
+        navigatorData = await enrichNavigatorData(navigatorData);
+    }
+
+
+    // legacy: setNavigatorData(await buildNavigatorDataFromUrisData(urisData));
+}
+
+function buildNavigatorDataFromParsedTargets(parsedTargets) {
+    let urisData = {}
+    for (const { target, config } of parsedTargets) {
+        const type = getUriType(target);
+        if (type === "doc") {
+            if (!urisData.docs) urisData.docs = [];
+            urisData.docs.push({ target: target, config: config });
+        }
+        else if (type === "externalLink") {
+            if (!urisData.externalLinks) urisData.externalLinks = [];
+            urisData.externalLinks.push({ target: target, config: config });
+        }
+    }
+    return buildNavigatorDataFromUrisData(urisData);
+}
+
+function buildNavigatorDataFromUrisData(urisData) {
     console.log("Building navigator data from urisData", urisData);
 
-    let navigatorDefinition = [];
-    let categoryIndex = 0;
+    const categories = [
+        { key: "docs", name: "Dokumente" },
+        { key: "externalLinks", name: "Externe Ressourcen" }
+    ];
 
-    if (urisData.docs && urisData.docs.length > 0) {
-        const itemPromises = urisData.docs.map(async (doc, index) => {
-            let name = "";
-            let parameterName = null;
-
-            if (doc.parameters && doc.parameters["name"]) {
-                parameterName = doc.parameters["name"];
-            }
-
-            if (parameterName && parameterName !== "") {
-                name = parameterName;
-            } else {
-                try {
-                    let linkTarget = await getLinkTarget(doc.doc, appState.language, appState.editionUri);
-                    if (linkTarget && linkTarget.title) {
-                        name = linkTarget.title;
-                    } else {
-                        name = "Dokument";
-                    }
-                } catch (error) {
-                    console.error("Failed to fetch link target title", error);
-                    name = "Dokument";
-                }
-            }
-
-            let target = doc.doc;
-            if (doc.xmlIds && doc.xmlIds.length > 0) {
-                target += "#" + doc.xmlIds.join("#");
-            }
-            if (doc.parameters) {
-                for (const key in doc.parameters) {
-                    if (key !== "name") {
-                        target += `[${key}:${doc.parameters[key]}]`;
-                    }
-                }
-            }
-
-            return {
+    const navigatorDefinition = categories
+        .filter(({ key }) => urisData[key]?.length > 0)
+        .map(({ key, name }, categoryIndex) => ({
+            type: "navigatorCategory",
+            id: `navCategory-${categoryIndex}`,
+            sortNo: String(categoryIndex + 1),
+            name: name,
+            items: urisData[key].map((entry, index) => ({
                 type: "navigatorItem",
                 id: `navItem-${categoryIndex}-${index + 1}`,
                 sortNo: String(index + 1),
-                name: name,
-                targets: target,
-                target: target
-            };
-        });
+                name: entry.config?.["name"] ?? "",
+                targets: buildTargetsStringWithConfig(entry.target, entry.config, ["name"])
+            }))
+        }));
 
-        const items = await Promise.all(itemPromises);
-
-        navigatorDefinition.push({
-            type: "navigatorCategory",
-            id: `navCategory-${categoryIndex}`,
-            sortNo: String(categoryIndex + 1),
-            name: "Dokumente",
-            items: items
-        });
-        categoryIndex++;
-    }
-
-    if (urisData.externalLinks && urisData.externalLinks.length > 0) {
-        let items = [];
-        let sortNoItem = 1;
-
-        for (const link of urisData.externalLinks) {
-            let name = "";
-            let parameterName = null;
-
-            if (link.parameters && link.parameters["name"]) {
-                parameterName = link.parameters["name"];
-            }
-
-            if (parameterName && parameterName !== "") {
-                name = parameterName;
-            } else {
-                name = link.url;
-            }
-
-            items.push({
-                type: "navigatorItem",
-                id: `navItem-${categoryIndex}-${sortNoItem}`,
-                sortNo: String(sortNoItem),
-                name: name,
-                targets: link.url,
-                target: link.url
-            });
-            sortNoItem++;
-        }
-
-        navigatorDefinition.push({
-            type: "navigatorCategory",
-            id: `navCategory-${categoryIndex}`,
-            sortNo: String(categoryIndex + 1),
-            name: "Externe Ressourcen",
-            items: items
-        });
-    }
-
-    return { navigatorDefinition: navigatorDefinition };
+    return { navigatorDefinition };
 }
 
 async function initApp() {

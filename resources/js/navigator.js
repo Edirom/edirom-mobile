@@ -1,4 +1,4 @@
-import { loadLink } from "./main.js";
+import { loadLinks } from "./main.js";
 import { switchPage } from "./pages.js";
 import { getNavigatorConfig } from "./api.js";
 import { appConfig, appState } from "./config.js";
@@ -20,8 +20,8 @@ export async function buildNavigator(navigatorData = appState.navigatorData) {
     navigatorElement.classList.add("web-component");
     navigatorElement.setAttribute("layout-mode", "mobile");
     updateNavigatorData(navigatorData, navigatorElement);
-    navigatorElement.addEventListener("load-link-request", (event) => {
-        loadLink(event.detail.target, event.detail.options);
+    navigatorElement.addEventListener("load-links-request", (event) => {
+        loadLinks(event.detail);
     });
     return navigatorElement;
 }
