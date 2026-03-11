@@ -143,7 +143,9 @@ async function initConcordanceNavigator() {
 
 async function onConcordanceNavigatorDisabled() {
     console.log("Concordance navigator disabled");
-    setNavigatorData(await getNavigatorConfig(appState.edition.doc, appState.work.id, appState.language, appState.edition.doc, appState.edition.backendUrl));
+    let navigatorData = await getNavigatorConfig(appState.edition.doc, appState.work.id, appState.language, appState.edition.doc, appState.edition.backendUrl);
+    let enrichedNavigatorData = await enrichNavigatorData(navigatorData);
+    setNavigatorData(enrichedNavigatorData);
 
     // TODO: Break Views from restriction
 }
@@ -417,11 +419,8 @@ export async function loadLinks(plist) {
     else {
         let navigatorData = buildNavigatorDataFromParsedTargets(parsedTargets);
         let enrichedNavigatorData = await enrichNavigatorData(navigatorData);
-        console.log("Enriched navigator data:", enrichedNavigatorData);
+        setNavigatorData(enrichedNavigatorData);
     }
-
-
-    // legacy: setNavigatorData(await buildNavigatorDataFromUrisData(urisData));
 }
 
 /**
@@ -429,12 +428,16 @@ export async function loadLinks(plist) {
  *
  * Recursively walks the full navigator data structure at any depth. For every node
  * of type `"navigatorItem"` that has a non-empty `targets` value but a missing or
- * empty `name`, the function fetches the title(s) from the backend and injects them
- * as the item's `name`.
+ * empty `name`, the function resolves a title for each parsed target URI and injects
+ * the result as the item's `name`.
+ *
+ * Title resolution per target URI:
+ *   - URIs of type `"doc"` (`xmldb:exist://...`): the title is fetched from the backend
+ *     via `getLinkTarget`. If the request fails, that target contributes `null` (skipped).
+ *   - All other URI types (e.g. external links): the URI string itself is used as the title.
  *
  * All backend requests are fired in parallel via a single `Promise.all` call to
- * minimise total wait time. Failed requests are silently ignored — the affected
- * item's `name` is left as an empty string.
+ * minimise total wait time.
  *
  * If a `targets` value resolves to more than one URI, the titles of all URIs are
  * joined with ` & ` (e.g. `"Title A & Title B"`).
@@ -468,9 +471,11 @@ async function enrichNavigatorData(navigatorData) {
         if (node.type === "navigatorItem" && node.targets && !node.name) {
             const parsedTargets = parseTargets(node.targets);
             const promises = parsedTargets.map(pt =>
-                getLinkTarget(pt.target, appState.language, appState.edition.doc)
-                    .then(data => data?.title || null)
-                    .catch(() => null)
+                getUriType(pt.target) === "doc"
+                    ? getLinkTarget(pt.target, appState.language, appState.edition.doc)
+                        .then(data => data?.title || null)
+                        .catch(() => null)
+                    : Promise.resolve(pt.target)
             );
             tasks.push({ item: node, promises });
         }
