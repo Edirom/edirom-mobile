@@ -13,7 +13,7 @@ let WORK_ID = "";
 
 export function loadLink(target, options = {}) {
     console.log("Load link requested:", target, options);
-    getLinkTarget(target, appState.language, appState.editionUri).then((linkData) => {
+    getLinkTarget(target, appState.language, appState.edition.doc).then((linkData) => {
         if (linkData.views) {
             loadViews(linkData);
         }
