@@ -19,6 +19,7 @@ export async function buildNavigator(navigatorData = appState.navigatorData) {
     const navigatorElement = document.createElement("edirom-navigator");
     navigatorElement.classList.add("web-component");
     navigatorElement.setAttribute("layout-mode", "mobile");
+    navigatorElement.setAttribute("no-content-message", "(Noch) keine Inhalte für diesen Kontext verfügbar.");
     updateNavigatorData(navigatorData, navigatorElement);
     navigatorElement.addEventListener("load-links-request", (event) => {
         loadLinks(event.detail);
