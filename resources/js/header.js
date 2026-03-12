@@ -6,6 +6,12 @@ const HEADER_MENU_URLS = [
     { label: "Korngold Werkausgabe", href: "https://korngold-werkausgabe.de" }
 ];
 
+/**
+ * Builds the header navigation menu as a `<ul>` element containing links for
+ * edition selection, settings, the about page, and any external URLs defined
+ * in `HEADER_MENU_URLS`.
+ * @returns {HTMLUListElement} The populated menu list element
+ */
 function buildHeaderMenu() {
     const listEl = document.createElement("ul");
 
@@ -67,6 +73,12 @@ function buildHeaderMenu() {
     return listEl;
 }
 
+/**
+ * Initializes the burger menu in the page header. Populates the menu with
+ * navigation links and wires up all toggle, close-on-outside-click, and
+ * close-on-resize event listeners.
+ * Does nothing if the burger or menu element is missing from the DOM.
+ */
 export function setupHeaderMenu() {
     const burger = document.getElementById("header-burger-menu");
     const menu = document.getElementById("header-menu");
@@ -127,6 +139,12 @@ export function setupHeaderMenu() {
     window.addEventListener("orientationchange", closeMenu);
 }
 
+/**
+ * Renders or updates the work selector in the header. Creates a `<select>` element
+ * inside `#header-edition-name` if it does not yet exist, then populates it with
+ * one option per work in the current edition. The currently active work is pre-selected.
+ * Also updates `document.title` to the active work's title.
+ */
 export function setWorkTitle() {
     let container = document.getElementById("header-edition-name");
 

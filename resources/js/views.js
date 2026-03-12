@@ -2,6 +2,13 @@ import { appConfig, appState } from "./config.js";
 import { switchPage } from "./pages.js";
 import { getAnnotations, getAnnotationText, getAnnotationPreviews } from "./api.js";
 
+/**
+ * Filters the available views from `linkData`, determines the active view, and
+ * switches the page to the views container. If `activeView` is not given or not
+ * available, the first available view (or the one marked as default) is used.
+ * @param {Object} linkData - Link target data including a `views` array
+ * @param {string|null} [activeView] - The view type to activate initially
+ */
 export function loadViews(linkData, activeView = null) {
     let availableViews = reduceToAvailableViews(linkData.views);
     if (availableViews.length === 0) {
@@ -20,6 +27,14 @@ export function loadViews(linkData, activeView = null) {
     switchPage("views", buildViewsContainer(linkData, activeView, availableViews));
 }
 
+/**
+ * Assembles the views page container with a view header (tab bar + title)
+ * and the current view content area.
+ * @param {Object} linkData - Link target data
+ * @param {string} activeView - The type of the view to display
+ * @param {Object[]} availableViews - The filtered list of views to show as tabs
+ * @returns {HTMLElement} The views container element
+ */
 function buildViewsContainer(linkData, activeView, availableViews) {
     let viewsContainer = document.createElement("div");
     viewsContainer.id = "views-container";
@@ -29,6 +44,13 @@ function buildViewsContainer(linkData, activeView, availableViews) {
     return viewsContainer;
 }
 
+/**
+ * Creates and returns an `<edirom-annotation-view>` web component for the given
+ * document URI. Fetches the annotations list immediately and registers a listener
+ * to load full annotation data when an annotation is selected.
+ * @param {string} docUri - The document URI to load annotations for
+ * @returns {Promise<HTMLElement>} The configured annotation view element
+ */
 async function buildAnnotationViewWebComponent(docUri) {
     const annotationViewComponent = document.createElement("edirom-annotation-view");
     annotationViewComponent.classList.add("web-component");
@@ -48,6 +70,13 @@ async function buildAnnotationViewWebComponent(docUri) {
     return annotationViewComponent;
 }
 
+/**
+ * Enriches an annotation data object with its full text and preview participants
+ * by fetching both from the backend.
+ * @param {Object} annotationData - The base annotation data object (mutated in place)
+ * @param {string} docUri - The document URI (used to construct the full annotation URI)
+ * @returns {Promise<Object>} The enriched annotation data object
+ */
 async function composeAnnotationData(annotationData, docUri) {
     let uri = docUri + "#" + annotationData.id;
 
@@ -66,6 +95,13 @@ async function composeAnnotationData(annotationData, docUri) {
     return annotationData;
 }
 
+/**
+ * Builds the view header element containing a view-type selector dropdown and a title.
+ * @param {Object} linkData - Link target data, used for the title
+ * @param {Object[]} availableViews - The views to show as options in the selector
+ * @param {string} activeView - The currently active view type
+ * @returns {HTMLElement} The view header container element
+ */
 function buildViewHeader(linkData, availableViews, activeView) {
     const viewHeaderContainer = document.createElement("div");
     viewHeaderContainer.id = "view-header-container";
@@ -105,6 +141,12 @@ function buildViewHeader(linkData, availableViews, activeView) {
     return viewHeaderContainer;
 }
 
+/**
+ * Builds the view content area for the given view type and link data.
+ * @param {Object} linkData - Link target data passed to the view component
+ * @param {string} newView - The view type to render (e.g. `"annotationView"`)
+ * @returns {HTMLElement} The view content container element
+ */
 function buildViewContent(linkData, newView) {
     console.log("Link Data in buildViewContent:", linkData);
     let viewContent = document.createElement("div");
@@ -121,6 +163,12 @@ function buildViewContent(linkData, newView) {
     return viewContent;
 }
 
+/**
+ * Filters a list of view objects to only those whose type is listed in
+ * `appConfig.availableViews`.
+ * @param {Object[]} views - All view objects from the link target data
+ * @returns {Object[]} The subset of views that are available in this app
+ */
 function reduceToAvailableViews(views) {
     var availableViews = [];
     views.forEach(view => {

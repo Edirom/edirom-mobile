@@ -7,6 +7,9 @@ import { initEdition } from "./main.js";
 let skipNextPopstate = false;
 
 // Handler for beforeunload event - shows browser's native "Leave site?" dialog
+/**
+ * Triggers the browser's native "Leave site?" dialog on page unload.
+ */
 function handleBeforeUnload(event) {
     event.preventDefault();
     event.returnValue = '';
@@ -72,6 +75,10 @@ export async function switchPage(pageName, newContent, { pushState = true, repla
     // When both are false, we're restoring from popstate - don't modify history
 }
 
+/**
+ * Builds and returns the "About Edirom Mobile" page element.
+ * @returns {HTMLElement} The page container element
+ */
 export function buildAboutEdiromMobilePage() {
     const aboutPageContainer = document.createElement("div");
     aboutPageContainer.id = "about-edirom-mobile-page";
@@ -87,6 +94,12 @@ export function buildAboutEdiromMobilePage() {
     return aboutPageContainer;
 }
 
+/**
+ * Builds and returns the edition selection page. If no editions have been loaded
+ * yet, fetches them first. Renders a list of all available editions; clicking one
+ * initiates the app with the selected edition.
+ * @returns {Promise<HTMLElement>} The page container element
+ */
 export async function buildEditionSelectionPage() {
 
     if (!appState.allEditions || appState.allEditions.length === 0) {

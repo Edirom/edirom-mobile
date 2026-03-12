@@ -4,6 +4,12 @@ let viewHeaderResizeObserver;
 let viewHeaderAttributeObserver;
 let viewHeaderPresenceObserver;
 
+/**
+ * Measures the heights of the header, view header, and footer and writes them
+ * to CSS custom properties (`--header-height`, `--view-header-height`,
+ * `--footer-height`, `--viewport-height`) on `:root`. Called on resize and
+ * whenever the view header changes.
+ */
 function updateLayoutMetrics() {
     const root = document.documentElement;
     const header = document.querySelector("header");
@@ -30,6 +36,11 @@ function updateLayoutMetrics() {
     }
 }
 
+/**
+ * Attaches a ResizeObserver and a MutationObserver to the view header element so
+ * that `updateLayoutMetrics` is called whenever its size or relevant attributes
+ * change. Disconnects any previously attached observers first.
+ */
 function connectViewHeaderObservers() {
     if (viewHeaderResizeObserver) {
         viewHeaderResizeObserver.disconnect();
@@ -56,6 +67,11 @@ function connectViewHeaderObservers() {
     viewHeaderAttributeObserver.observe(viewHeader, { attributes: true, attributeFilter: ["style", "class", "hidden", "aria-hidden"] });
 }
 
+/**
+ * Sets up a MutationObserver on `document.body` that detects when the view
+ * header element is added to or removed from the DOM. Re-connects the view
+ * header observers and recalculates layout metrics whenever it changes.
+ */
 function watchViewHeaderPresence() {
     if (viewHeaderPresenceObserver) {
         viewHeaderPresenceObserver.disconnect();
@@ -77,6 +93,11 @@ function watchViewHeaderPresence() {
     viewHeaderPresenceObserver.observe(document.body, { childList: true, subtree: true });
 }
 
+/**
+ * Registers all layout-related event listeners and observers. Performs an initial
+ * metrics calculation and attaches listeners for window resize, orientation change,
+ * page load, and — if available — the Visual Viewport API.
+ */
 export function registerLayoutListeners() {
     updateLayoutMetrics();
     window.addEventListener("resize", updateLayoutMetrics);
