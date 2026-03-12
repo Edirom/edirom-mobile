@@ -33,13 +33,24 @@ export async function loadLinks(plist) {
  */
 export function loadLink(target, options = {}) {
     console.log("Load link requested:", target, options);
-    getLinkTarget(target, appState.language, appState.edition.doc).then((linkData) => {
-        if (linkData.views) {
-            loadViews(linkData);
-        }
-    }).catch((error) => {
-        console.error("Error loading link target:", error);
-    });
+    const uriType = getUriType(target);
+    if (uriType === "unknown") {
+        console.warn("Unknown URI type for target:", target);
+        return;
+    }
+    else if (uriType === "externalLink") {
+        window.open(target, '_blank');
+        return;
+    }
+    else if (uriType === "doc") {
+        getLinkTarget(target, appState.language, appState.edition.doc).then((linkData) => {
+            if (linkData.views) {
+                loadViews(linkData);
+            }
+        }).catch((error) => {
+            console.error("Error loading link target:", error);
+        });
+    }
 }
 
 /**
