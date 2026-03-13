@@ -1,6 +1,6 @@
 import { appConfig, appState } from "./config.js";
 import { switchPage } from "./pages.js";
-import { getAnnotations, getAnnotationText, getAnnotationPreviews } from "./api.js";
+import { getAnnotations, getAnnotationText, getAnnotationPreviews, getLinkTarget } from "./api.js";
 
 /**
  * Filters the available views from `linkData`, determines the active view, and
@@ -9,7 +9,12 @@ import { getAnnotations, getAnnotationText, getAnnotationPreviews } from "./api.
  * @param {Object} linkData - Link target data including a `views` array
  * @param {string|null} [activeView] - The view type to activate initially
  */
-export function loadViews(linkData, activeView = null) {
+export async function loadViews(target, config = {}) {
+
+    let linkData = await getLinkTarget(target, appState.language, appState.edition.doc);
+
+    let activeView = null;
+
     let availableViews = reduceToAvailableViews(linkData.views);
     if (availableViews.length === 0) {
         console.warn("No available views to load.");
@@ -24,7 +29,7 @@ export function loadViews(linkData, activeView = null) {
             }
         });
     }
-    switchPage("views", buildViewsContainer(linkData, activeView, availableViews));
+    switchPage("views", buildViewsContainer(linkData, activeView, availableViews, target, config));
 }
 
 /**
@@ -35,13 +40,27 @@ export function loadViews(linkData, activeView = null) {
  * @param {Object[]} availableViews - The filtered list of views to show as tabs
  * @returns {HTMLElement} The views container element
  */
-function buildViewsContainer(linkData, activeView, availableViews) {
+function buildViewsContainer(linkData, activeView, availableViews, target, config = {}) {
     let viewsContainer = document.createElement("div");
     viewsContainer.id = "views-container";
 
     viewsContainer.appendChild(buildViewHeader(linkData, availableViews, activeView));
-    viewsContainer.appendChild(buildViewContent(linkData, activeView));
+
+    viewsContainer.addEventListener("switch-view-request", (event) => {
+        let newViewContent = buildViewContent(event.detail.newView, target, config);
+        viewContent.replaceWith(newViewContent);
+        viewContent = newViewContent;
+    });
+
+    let viewContent = buildViewContent(activeView, target, config);
+
+    viewsContainer.appendChild(viewContent);
     return viewsContainer;
+}
+
+function splitTargetIntoDocAndIds(target) {
+    let [doc, ...ids] = target.split("#");
+    return { doc, ids };
 }
 
 /**
@@ -51,18 +70,35 @@ function buildViewsContainer(linkData, activeView, availableViews) {
  * @param {string} docUri - The document URI to load annotations for
  * @returns {Promise<HTMLElement>} The configured annotation view element
  */
-async function buildAnnotationViewWebComponent(docUri) {
+async function buildAnnotationViewWebComponent(target, config = {}) {
+    console.log("Building annotation view for target:", target, config);
     const annotationViewComponent = document.createElement("edirom-annotation-view");
     annotationViewComponent.classList.add("web-component");
     annotationViewComponent.setAttribute("layout-mode", "mobile");
-    let annotationsData = await getAnnotations(appState.editionUri, docUri);
+
+    let { doc, ids } = splitTargetIntoDocAndIds(target);
+
+    let annotationsData = (await getAnnotations(appState.edition.doc, doc)).annotations;
+    console.log("Fetched annotations data:", annotationsData);
+
     if (annotationsData) {
-        annotationViewComponent.setAttribute("annotations-data", JSON.stringify(annotationsData.annotations));
+        annotationViewComponent.setAttribute("annotations-data", JSON.stringify(annotationsData));
         annotationViewComponent.setAttribute("current-page", "annotations");
+
+        if (ids.length > 0) {
+            let annotationsDataSubset = annotationsData.filter(annotation => ids.includes(annotation.id));
+            console.log("Filtered annotations data for IDs", ids, ":", annotationsDataSubset);
+            if (annotationsDataSubset.length > 0) {
+                annotationViewComponent.setAttribute("annotations-data-subset", JSON.stringify(annotationsDataSubset));
+                annotationViewComponent.setAttribute("subset-lock", "locked");
+            }
+        }
     }
+
+
     annotationViewComponent.addEventListener("annotation-selected", async (event) => {
-        // TODO: The Event Listener has to be reattached if docUri changes
-        let annotationData = await composeAnnotationData(event.detail.annotationData, docUri);
+        // TODO: The Event Listener has to be reattached if doc changes
+        let annotationData = await composeAnnotationData(event.detail.annotationData, doc);
         console.log("Annotation Data to be set:", annotationData);
         annotationViewComponent.setAttribute("annotation-data", JSON.stringify(annotationData));
         annotationViewComponent.setAttribute("current-page", "annotation");
@@ -81,7 +117,7 @@ async function composeAnnotationData(annotationData, docUri) {
     let uri = docUri + "#" + annotationData.id;
 
     // Annotation Text
-    let annotationTextFull = await getAnnotationText(appState.editionUri, uri, appState.language);
+    let annotationTextFull = await getAnnotationText(appState.edition.doc, uri, appState.language);
     let parser = new DOMParser();
     let doc = parser.parseFromString(annotationTextFull, 'text/html');
     let annotationTextSnippet = doc.querySelector('p')?.innerHTML;
@@ -89,7 +125,7 @@ async function composeAnnotationData(annotationData, docUri) {
     annotationData.text = annotationTextSnippet;
 
     // Annotation Previews
-    let annotationPreviewsData = await getAnnotationPreviews(appState.editionUri, uri, appState.language);
+    let annotationPreviewsData = await getAnnotationPreviews(appState.edition.doc, uri, appState.language);
     annotationData.previews = annotationPreviewsData.participants;
 
     return annotationData;
@@ -126,7 +162,10 @@ function buildViewHeader(linkData, availableViews, activeView) {
     viewSelect.addEventListener("change", (event) => {
         const selectedView = event.target.value;
         if (selectedView !== activeView) {
-            loadView(linkData, selectedView);
+            viewHeaderContainer.dispatchEvent(new CustomEvent("switch-view-request", {
+                detail: { newView: selectedView },
+                bubbles: true
+            }));
         }
     });
 
@@ -141,19 +180,22 @@ function buildViewHeader(linkData, availableViews, activeView) {
     return viewHeaderContainer;
 }
 
+function switchView(newView, target, config = {}) {
+    console.log(`Switching to view: ${newView} for target: ${target}`);
+}
+
 /**
  * Builds the view content area for the given view type and link data.
  * @param {Object} linkData - Link target data passed to the view component
  * @param {string} newView - The view type to render (e.g. `"annotationView"`)
  * @returns {HTMLElement} The view content container element
  */
-function buildViewContent(linkData, newView) {
-    console.log("Link Data in buildViewContent:", linkData);
+function buildViewContent(newView, target, config = {}) {
     let viewContent = document.createElement("div");
     viewContent.id = "view-content";
     switch (newView) {
         case "annotationView":
-            buildAnnotationViewWebComponent(linkData.doc).then(component => {
+            buildAnnotationViewWebComponent(target, config).then(component => {
                 viewContent.appendChild(component);
             });
             break;

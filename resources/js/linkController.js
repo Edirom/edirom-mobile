@@ -1,4 +1,3 @@
-import { getLinkTarget } from "./api.js";
 import { appState } from "./config.js";
 import { loadViews } from "./views.js";
 import { buildNavigatorDataFromParsedTargets, filterAndEnrichNavigatorData, setNavigatorData } from "./navigator.js";
@@ -29,10 +28,10 @@ export async function loadLinks(plist) {
 /**
  * Fetches link target metadata for a URI and opens it in the appropriate view.
  * @param {string} target - The target URI to load
- * @param {Object} [options] - Additional options (currently passed through, not used)
+ * @param {Object} [config] - Additional options (currently passed through, not used)
  */
-export function loadLink(target, options = {}) {
-    console.log("Load link requested:", target, options);
+export function loadLink(target, config = {}) {
+    console.log("Load link requested:", target, config);
     const uriType = getUriType(target);
     if (uriType === "unknown") {
         console.warn("Unknown URI type for target:", target);
@@ -43,13 +42,7 @@ export function loadLink(target, options = {}) {
         return;
     }
     else if (uriType === "doc") {
-        getLinkTarget(target, appState.language, appState.edition.doc).then((linkData) => {
-            if (linkData.views) {
-                loadViews(linkData);
-            }
-        }).catch((error) => {
-            console.error("Error loading link target:", error);
-        });
+        loadViews(target, config);
     }
 }
 
