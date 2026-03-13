@@ -3,6 +3,7 @@ import { appConfig } from "./config.js";
 let viewHeaderResizeObserver;
 let viewHeaderAttributeObserver;
 let viewHeaderPresenceObserver;
+let footerResizeObserver;
 
 /**
  * Measures the heights of the header, view header, and footer and writes them
@@ -105,6 +106,14 @@ export function registerLayoutListeners() {
     window.addEventListener("load", updateLayoutMetrics);
     connectViewHeaderObservers();
     watchViewHeaderPresence();
+
+    if (typeof ResizeObserver !== "undefined") {
+        const footer = document.querySelector("footer");
+        if (footer) {
+            footerResizeObserver = new ResizeObserver(updateLayoutMetrics);
+            footerResizeObserver.observe(footer);
+        }
+    }
 
     if (window.visualViewport) {
         window.visualViewport.addEventListener("resize", updateLayoutMetrics);
