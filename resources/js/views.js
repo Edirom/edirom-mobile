@@ -50,11 +50,18 @@ function buildViewsContainer(linkData, activeView, availableViews, target, confi
         let newViewContent = buildViewContent(event.detail.newView, target, config);
         viewContent.replaceWith(newViewContent);
         viewContent = newViewContent;
+
+        let newViewControlBar = buildViewControlBar(event.detail.newView);
+        viewControlBar.replaceWith(newViewControlBar);
+        viewControlBar = newViewControlBar;
     });
 
     let viewContent = buildViewContent(activeView, target, config);
-
     viewsContainer.appendChild(viewContent);
+
+    let viewControlBar = buildViewControlBar(activeView);
+    viewsContainer.appendChild(viewControlBar);
+
     return viewsContainer;
 }
 
@@ -204,6 +211,29 @@ function buildViewContent(newView, target, config = {}) {
     }
     return viewContent;
 }
+
+function buildViewControlBar(newView) {
+    let controlBarContainer = document.createElement("div");
+    controlBarContainer.id = "view-control-bar-container";
+    switch (newView) {
+        case "annotationView":
+            buildAnnotationViewControlBar().then(controlBar => {
+                controlBarContainer.appendChild(controlBar);
+            });
+            break;
+        default:
+            console.warn(`No control bar defined for view type: ${newView}`);
+    }
+    return controlBarContainer;
+}
+
+async function buildAnnotationViewControlBar() {
+    const controlBar = document.createElement("edirom-control-bar");
+    controlBar.classList.add("web-component");
+    controlBar.setAttribute("layout-mode", "mobile");
+    return controlBar;
+}
+
 
 /**
  * Filters a list of view objects to only those whose type is listed in

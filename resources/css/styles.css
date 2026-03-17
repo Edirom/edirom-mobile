@@ -8,6 +8,8 @@
   --secondary-color: var(--ewk-secondary-color);
   --header-height: 55px;
   --view-header-height: 0px;
+  --control-bar-height: 40px;
+  --active-control-bar-height: 0px;
   --footer-height: 59px;
   --viewport-height: 100dvh;
 }
@@ -467,13 +469,21 @@ h2 {
 #view-content {
   height: calc(
     var(--viewport-height) - var(--header-height) - var(--footer-height) -
-      var(--view-header-height)
+      var(--view-header-height) - var(--active-control-bar-height)
   );
   min-height: calc(
     var(--viewport-height) - var(--header-height) - var(--footer-height) -
-      var(--view-header-height)
+      var(--view-header-height) - var(--active-control-bar-height)
   );
   overflow: hidden;
+}
+
+#view-control-bar-container {
+  height: var(--control-bar-height);
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
 }
 
 .inline-music-character {

@@ -32,6 +32,9 @@ function updateLayoutMetrics() {
         root.style.setProperty("--view-header-height", "0px");
     }
 
+    const controlBar = document.getElementById("view-control-bar-container");
+    root.style.setProperty("--active-control-bar-height", controlBar ? "var(--control-bar-height)" : "0px");
+
     if (footer) {
         root.style.setProperty("--footer-height", `${footer.getBoundingClientRect().height}px`);
     }
@@ -82,7 +85,9 @@ function watchViewHeaderPresence() {
         const viewHeaderMutated = mutations.some((mutation) => {
             const added = Array.from(mutation.addedNodes).some((node) => node.id === appConfig.viewHeaderId || (node instanceof Element && node.querySelector && node.querySelector(`#${appConfig.viewHeaderId}`)));
             const removed = Array.from(mutation.removedNodes).some((node) => node.id === appConfig.viewHeaderId || (node instanceof Element && node.querySelector && node.querySelector(`#${appConfig.viewHeaderId}`)));
-            return added || removed;
+            const controlBarAdded = Array.from(mutation.addedNodes).some((node) => node.id === "view-control-bar-container" || (node instanceof Element && node.querySelector && node.querySelector("#view-control-bar-container")));
+            const controlBarRemoved = Array.from(mutation.removedNodes).some((node) => node.id === "view-control-bar-container" || (node instanceof Element && node.querySelector && node.querySelector("#view-control-bar-container")));
+            return added || removed || controlBarAdded || controlBarRemoved;
         });
 
         if (viewHeaderMutated) {
