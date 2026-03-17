@@ -231,6 +231,14 @@ async function buildAnnotationViewControlBar() {
     const controlBar = document.createElement("edirom-control-bar");
     controlBar.classList.add("web-component");
     controlBar.setAttribute("layout-mode", "mobile");
+
+    const spacer = document.createElement("edirom-spacer-widget");
+    controlBar.appendChild(spacer);
+
+    const button = document.createElement("edirom-button-widget");
+    button.setAttribute("icon-name", "lock");
+    controlBar.appendChild(button);
+
     return controlBar;
 }
 

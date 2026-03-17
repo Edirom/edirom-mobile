@@ -23,6 +23,7 @@ edirom-navigator {
 edirom-control-bar {
   --primary-color: var(--ewk-primary-color);
   --secondary-color: var(--ewk-secondary-color);
+  --control-bar-padding: 5px 13px;
 }
 
 .display-none {
@@ -485,10 +486,15 @@ h2 {
 
 #view-control-bar-container {
   height: var(--control-bar-height);
+  color: var(--ewk-primary-color);
   width: 100%;
   overflow: hidden;
   display: flex;
   align-items: center;
+}
+
+edirom-button-widget {
+  --secondary-color: color-mix(in oklch, var(--ewk-secondary-color) 95%, black);;
 }
 
 .inline-music-character {
