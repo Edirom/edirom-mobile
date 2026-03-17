@@ -20,6 +20,11 @@ edirom-navigator {
   --tertiary-color: var(--ewk-tertiary-color);
 }
 
+edirom-control-bar {
+  --primary-color: var(--ewk-primary-color);
+  --secondary-color: var(--ewk-secondary-color);
+}
+
 .display-none {
   display: none !important;
 }
