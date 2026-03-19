@@ -20,7 +20,9 @@ function updateNavigatorData(data, navigatorElement = null) {
 /**
  * Creates and returns an `<edirom-navigator>` web component pre-populated with
  * the given navigator data and a listener for `load-links-request` events.
- * @param {Object} [navigatorData] - The navigator data to display; defaults to `appState.navigatorData`
+ * @param {Object} [navigatorData] - The navigator data to display. Defaults to
+ *   the last entry in `appState.navigatorData.current`, or `appState.navigatorData.main`
+ *   if the current history is empty.
  * @returns {Promise<HTMLElement>} The configured navigator element
  */
 export async function buildNavigator(navigatorData = appState.navigatorData.current[appState.navigatorData.current.length - 1] || appState.navigatorData.main) {
@@ -40,6 +42,10 @@ export async function buildNavigator(navigatorData = appState.navigatorData.curr
  * Updates the navigator data in `appState` and triggers a live update of the
  * navigator component if the navigator page is currently active.
  * @param {Object} data - The new navigator data
+ * @param {boolean} [setAsNavigatorDataMain=false] - If true, sets `data` as the
+ *   main navigator data and resets the current navigation history to `[data]`.
+ * @param {boolean} [addToNavigatorDataCurrent=false] - If true, appends `data`
+ *   to the current navigation history stack (for "back" navigation).
  */
 export function setNavigatorData(data, setAsNavigatorDataMain = false, addToNavigatorDataCurrent = false) {
     if (setAsNavigatorDataMain) {
@@ -53,7 +59,8 @@ export function setNavigatorData(data, setAsNavigatorDataMain = false, addToNavi
 }
 
 /**
- * Pushes the current `appState.navigatorData` to the `<edirom-navigator>` DOM
+ * Pushes the most recent entry from `appState.navigatorData.current` (or
+ * `appState.navigatorData.main` as a fallback) to the `<edirom-navigator>` DOM
  * element if the navigator page is active. No-op otherwise.
  */
 function onNavigatorDataChanged() {
@@ -88,9 +95,17 @@ function onNavigatorDataChanged() {
  * If a `targets` value resolves to more than one URI, the titles of all URIs are
  * joined with ` & ` (e.g. `"Title A & Title B"`).
  *
+ * After enrichment, `item.targets` is rewritten using `buildTargetsStringWithConfig`
+ * so that the stored targets string carries the correct `behaviour` config
+ * (`"updateViewOrCreateViewWindowOrSwitchToNavigator"`). For multi-target items,
+ * `addToCurrentNavigation: true` is also injected. The `behaviour`,
+ * `setAsMainNavigation`, and `addToCurrentNavigation` keys from the original
+ * plist config are replaced in this process.
+ *
  * @param {Object} navigatorData - The navigator data object, e.g. `{ navigatorDefinition: [...] }`.
  *   Categories and items may be nested arbitrarily deep.
- * @returns {Promise<Object>} The same `navigatorData` object with `name` and `icons` fields enriched.
+ * @returns {Promise<Object>} The same `navigatorData` object with `name`, `icons`,
+ *   and `targets` fields enriched.
  */
 export async function filterAndEnrichNavigatorData(navigatorData) {
     const VIEW_TYPE_ICONS = {

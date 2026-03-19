@@ -4,11 +4,20 @@ import { buildNavigatorDataFromParsedTargets, filterAndEnrichNavigatorData, setN
 import { switchPage } from "./pages.js";
 
 /**
- * Resolves a plist targets string and handles the appropriate navigation.
- * If the string resolves to a single target, it is opened directly via `loadLink`.
- * If it resolves to multiple targets, a navigator data object is built, enriched,
- * and pushed to the navigator for display.
+ * Resolves a plist targets string and handles navigation based on the
+ * `behaviour` config key. Supported behaviours:
+ * - `"switchToNavigator"` – navigate to the navigator page.
+ * - `"updateView"` – update the existing view window in-place.
+ * - `"createViewWindow"` – always open a new view window.
+ * - `"updateViewOrSwitchToNavigator"` – update in-place; fall back to navigator.
+ * - `"updateViewOrCreateViewWindow"` – update in-place or open a new window.
+ * - `"updateViewOrCreateViewWindowOrSwitchToNavigator"` – update, create, or
+ *   fall back to the navigator.
+ * If `setAsMainNavigation` or `addToCurrentNavigation` is set in the config,
+ * the resolved targets are also pushed to the navigator data store.
  * @param {string} plist - A targets string as accepted by `parseTargets`
+ * @param {Object} [additionalConfig={}] - Extra key-value pairs merged into the
+ *   parsed config (existing plist keys take precedence)
  * @returns {Promise<void>}
  */
 export async function loadLinks(plist, additionalConfig = {}) {
@@ -78,10 +87,17 @@ export async function loadLinks(plist, additionalConfig = {}) {
 }
 
 /**
- * Fetches link target metadata for a URI and opens it in the appropriate view.
- * @param {Array} targets - The target URIs and their config objects
- * @param {boolean} [updateExistingViewWindow=true] - Whether to update the existing view window
- * @param {boolean} [createNewViewWindow=true] - Whether to create a new view window if no existing one can be updated
+ * Attempts to navigate to the given target(s) by updating an existing view
+ * window or opening a new one, depending on the flags. For a single target:
+ * unknown URI types return false, external links open in a new tab and return
+ * true, doc URIs open a new view window (if `createNewViewWindow` is true).
+ * For multiple targets, iterates until a doc URI matching the current view's
+ * document is found and updates it in-place (if `updateExistingViewWindow` is
+ * true).
+ * @param {Array<{target: string, config: Object}>} targets - Parsed target objects
+ * @param {boolean} [updateExistingViewWindow=true] - Update the view window in-place if possible
+ * @param {boolean} [createNewViewWindow=true] - Open a new view window if no in-place update was possible
+ * @returns {boolean} `true` if a view action was taken, `false` otherwise
  */
 export function loadLink(targets, updateExistingViewWindow = true, createNewViewWindow = true) {
     console.log("Load link:", targets, { updateExistingViewWindow, createNewViewWindow });

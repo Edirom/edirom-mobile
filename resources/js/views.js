@@ -3,11 +3,12 @@ import { switchPage } from "./pages.js";
 import { getAnnotations, getAnnotationText, getAnnotationPreviews, getLinkTarget } from "./api.js";
 
 /**
- * Filters the available views from `linkData`, determines the active view, and
- * switches the page to the views container. If `activeView` is not given or not
- * available, the first available view (or the one marked as default) is used.
- * @param {Object} linkData - Link target data including a `views` array
- * @param {string|null} [activeView] - The view type to activate initially
+ * Fetches view metadata for the given target URI, determines the active view,
+ * and switches the app to the views page. If no view is marked as default, the
+ * first available view is used.
+ * @param {string} target - The document URI to open (e.g. `xmldb:exist:///…#id`)
+ * @param {Object} [config={}] - Additional link config (passed through to view components)
+ * @returns {Promise<void>}
  */
 export async function createViewWindow(target, config = {}) {
 
@@ -33,11 +34,14 @@ export async function createViewWindow(target, config = {}) {
 }
 
 /**
- * Assembles the views page container with a view header (tab bar + title)
- * and the current view content area.
- * @param {Object} linkData - Link target data
- * @param {string} activeView - The type of the view to display
+ * Assembles the views page container with a view header (tab bar + title),
+ * an empty view content slot, and an empty control bar slot. Immediately calls
+ * `switchView` to populate both slots with the initial active view.
+ * @param {Object} linkData - Link target data (used for title and view list)
+ * @param {string} activeView - The type of the view to display initially
  * @param {Object[]} availableViews - The filtered list of views to show as tabs
+ * @param {string} target - The document URI for the displayed content
+ * @param {Object} [config={}] - Additional link config passed to view components
  * @returns {HTMLElement} The views container element
  */
 function buildViewsContainer(linkData, activeView, availableViews, target, config = {}) {
@@ -63,6 +67,11 @@ function buildViewsContainer(linkData, activeView, availableViews, target, confi
     return viewsContainer;
 }
 
+/**
+ * Splits a target URI into its document path and any fragment IDs.
+ * @param {string} target - A URI of the form `doc.xml` or `doc.xml#id1#id2`
+ * @returns {{ doc: string, ids: string[] }} The document path and an array of IDs
+ */
 export function splitTargetIntoDocAndIds(target) {
     let [doc, ...ids] = target.split("#");
     return { doc, ids };
@@ -70,10 +79,12 @@ export function splitTargetIntoDocAndIds(target) {
 
 /**
  * Creates and returns an `<edirom-annotation-view>` web component for the given
- * document URI. Fetches the annotations list immediately and registers a listener
- * to load full annotation data when an annotation is selected.
- * @param {string} docUri - The document URI to load annotations for
- * @returns {Promise<HTMLElement>} The configured annotation view element
+ * target URI. Registers an `annotation-selected` listener that fetches the full
+ * annotation data and switches the component to its detail page. The actual
+ * annotations list is loaded separately via `updateAnnotationViewWebComponent`.
+ * @param {string} target - The document URI (with optional `#id` fragment)
+ * @param {Object} [config={}] - Additional link config (currently unused)
+ * @returns {HTMLElement} The configured annotation view element
  */
 function buildAnnotationViewWebComponent(target, config = {}) {
     console.log("Building annotation view for target:", target, config);
@@ -92,6 +103,14 @@ function buildAnnotationViewWebComponent(target, config = {}) {
     return annotationViewComponent;
 }
 
+/**
+ * Fetches the annotations list for the given target URI and pushes it to the
+ * `<edirom-annotation-view>` element found inside `viewContentDiv`. If the
+ * target contains fragment IDs, the matching subset is also set and locked.
+ * @param {string} target - The document URI (with optional `#id` fragment)
+ * @param {HTMLElement} viewContentDiv - The container element holding the annotation view component
+ * @returns {Promise<void>}
+ */
 async function updateAnnotationViewWebComponent(target, viewContentDiv) {
     const annotationViewComponent = viewContentDiv.querySelector("edirom-annotation-view");
     let { doc, ids } = splitTargetIntoDocAndIds(target);
@@ -186,6 +205,15 @@ function buildViewHeader(linkData, availableViews, activeView) {
     return viewHeaderContainer;
 }
 
+/**
+ * Replaces the view content and control bar inside `viewsContainer` with
+ * newly built elements for `newView`, then updates `appState.viewWindow.view`
+ * and triggers a data load via `updateCurrentView`.
+ * @param {HTMLElement} viewsContainer - The views page container element
+ * @param {string} newView - The view type to switch to (e.g. `"annotationView"`)
+ * @param {string} target - The document URI for the new view
+ * @param {Object} [config={}] - Additional link config passed to view components
+ */
 function switchView(viewsContainer, newView, target, config = {}) {
     viewsContainer.querySelector("#view-content").replaceWith(buildViewContent(newView, target, config));
     viewsContainer.querySelector("#view-control-bar-container").replaceWith(buildViewControlBar(newView));
@@ -196,9 +224,11 @@ function switchView(viewsContainer, newView, target, config = {}) {
 }
 
 /**
- * Builds the view content area for the given view type and link data.
- * @param {Object} linkData - Link target data passed to the view component
+ * Builds the view content container (`#view-content`) for the given view type
+ * and populates it with the appropriate web component.
  * @param {string} newView - The view type to render (e.g. `"annotationView"`)
+ * @param {string} target - The document URI passed to the view component
+ * @param {Object} [config={}] - Additional link config passed to the view component
  * @returns {HTMLElement} The view content container element
  */
 function buildViewContent(newView, target, config = {}) {
@@ -214,6 +244,12 @@ function buildViewContent(newView, target, config = {}) {
     return viewContent;
 }
 
+/**
+ * Builds the control bar container (`#view-control-bar-container`) for the
+ * given view type and populates it with the appropriate control bar component.
+ * @param {string} newView - The view type to build a control bar for
+ * @returns {HTMLElement} The control bar container element
+ */
 function buildViewControlBar(newView) {
     let controlBarContainer = document.createElement("div");
     controlBarContainer.id = "view-control-bar-container";
@@ -228,6 +264,11 @@ function buildViewControlBar(newView) {
     return controlBarContainer;
 }
 
+/**
+ * Builds and returns the `<edirom-control-bar>` for the annotation view,
+ * containing a spacer and a lock-toggle button.
+ * @returns {HTMLElement} The configured control bar element
+ */
 function buildAnnotationViewControlBar() {
     const controlBar = document.createElement("edirom-control-bar");
     controlBar.classList.add("web-component");
@@ -244,6 +285,14 @@ function buildAnnotationViewControlBar() {
     return controlBar;
 }
 
+/**
+ * Updates the currently displayed view with new target data by dispatching to
+ * the appropriate view-specific update function. Also writes the new target to
+ * `appState.viewWindow.target`.
+ * @param {string} target - The document URI (with optional `#id` fragment) to load
+ * @param {HTMLElement} viewContentDiv - The container element holding the active view component
+ * @param {Object} [config={}] - Additional link config (currently unused)
+ */
 export function updateCurrentView(target, viewContentDiv, config = {}) {
     switch (appState.viewWindow.view) {
         case "annotationView":
