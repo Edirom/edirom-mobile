@@ -1,6 +1,7 @@
 import { appState } from "./config.js";
-import { loadViews } from "./views.js";
-import { buildNavigatorDataFromParsedTargets, filterAndEnrichNavigatorData, setNavigatorData } from "./navigator.js";
+import { createViewWindow, splitTargetIntoDocAndIds, updateCurrentView } from "./views.js";
+import { buildNavigatorDataFromParsedTargets, filterAndEnrichNavigatorData, setNavigatorData, buildNavigator } from "./navigator.js";
+import { switchPage } from "./pages.js";
 
 /**
  * Resolves a plist targets string and handles the appropriate navigation.
@@ -10,40 +11,156 @@ import { buildNavigatorDataFromParsedTargets, filterAndEnrichNavigatorData, setN
  * @param {string} plist - A targets string as accepted by `parseTargets`
  * @returns {Promise<void>}
  */
-export async function loadLinks(plist) {
+export async function loadLinks(plist, additionalConfig = {}) {
     console.log("Loading links from plist:", plist);
-    let parsedTargets = parseTargets(plist)
-    console.log("Parsed targets:", parsedTargets);
+    let parsedTargets = parseTargets(plist, additionalConfig);
 
-    if (parsedTargets.length === 1) {
-        loadLink(parsedTargets[0].target, parsedTargets[0].config);
+    let shouldSetNavigatorData = true;
+    let shouldSwitchToNavigator = false;
+
+    let setAsMainNavigation = parsedTargets[0]?.config?.setAsMainNavigation || false;
+    let addToCurrentNavigation = parsedTargets[0]?.config?.addToCurrentNavigation || false;
+
+    if (!setAsMainNavigation && !addToCurrentNavigation) {
+        shouldSetNavigatorData = false;
     }
-    else {
+
+    const configuredBehaviour = parsedTargets[0]?.config?.behaviour;
+    switch (configuredBehaviour) {
+        case "switchToNavigator":
+            if (appState.page !== "navigator")
+                shouldSwitchToNavigator = true;
+            break;
+        case "updateView":
+            loadLink(parsedTargets, true, false);
+            break;
+        case "createViewWindow":
+            loadLink(parsedTargets, false, true);
+            break;
+        case "updateViewOrSwitchToNavigator":
+            let success = loadLink(parsedTargets, true, false);
+            if (!success) {
+                shouldSwitchToNavigator = true;
+            }
+            break;
+        case "updateViewOrCreateViewWindow":
+            loadLink(parsedTargets, true, true);
+            break;
+        case "updateViewOrCreateViewWindowOrSwitchToNavigator":
+            let success2 = loadLink(parsedTargets, true, true);
+            if (!success2) {
+                shouldSwitchToNavigator = true;
+            }
+            break;
+        default:
+            console.warn("Behaviour not specified or unrecognized, defaulting to updating the navigator.");
+
+    }
+
+    if (shouldSetNavigatorData) {
         let navigatorData = buildNavigatorDataFromParsedTargets(parsedTargets);
-        let enrichedNavigatorData = await filterAndEnrichNavigatorData(navigatorData);
-        setNavigatorData(enrichedNavigatorData);
+        let filteredAndEnrichedNavigatorData = await filterAndEnrichNavigatorData(navigatorData);
+        setNavigatorData(filteredAndEnrichedNavigatorData, setAsMainNavigation, addToCurrentNavigation);
     }
+    if (shouldSwitchToNavigator) {
+        switchPage("navigator", buildNavigator());
+    }
+
+
+    // if (parsedTargets.length === 1) {
+    //     loadLink(parsedTargets[0].target, parsedTargets[0].config);
+    // }
+    // else {
+    //     let navigatorData = buildNavigatorDataFromParsedTargets(parsedTargets);
+    //     let filteredAndEnrichedNavigatorData = await filterAndEnrichNavigatorData(navigatorData);
+    //     setNavigatorData(filteredAndEnrichedNavigatorData);
+    // }
 }
 
 /**
  * Fetches link target metadata for a URI and opens it in the appropriate view.
- * @param {string} target - The target URI to load
- * @param {Object} [config] - Additional options (currently passed through, not used)
+ * @param {Array} targets - The target URIs and their config objects
+ * @param {boolean} [updateExistingViewWindow=true] - Whether to update the existing view window
+ * @param {boolean} [createNewViewWindow=true] - Whether to create a new view window if no existing one can be updated
  */
-export function loadLink(target, config = {}) {
-    console.log("Load link requested:", target, config);
-    const uriType = getUriType(target);
-    if (uriType === "unknown") {
-        console.warn("Unknown URI type for target:", target);
-        return;
+export function loadLink(targets, updateExistingViewWindow = true, createNewViewWindow = true) {
+    console.log("Load link:", targets, { updateExistingViewWindow, createNewViewWindow });
+
+    if (!Array.isArray(targets) || targets.length === 0) {
+        console.warn("Targets is not an Array or is empty.");
+        return false;
     }
-    else if (uriType === "externalLink") {
-        window.open(target, '_blank');
-        return;
+
+    if (targets.length === 1) {
+        let target = targets[0].target;
+        let config = targets[0].config || {};
+        let uriType = getUriType(target);
+        if (uriType === "unknown") {
+            console.warn("Unknown URI type for target:", target);
+            return false;
+        }
+        else if (uriType === "externalLink") {
+            window.open(target, '_blank');
+            return true;
+        }
+        else if (uriType === "doc") {
+            if (createNewViewWindow) {
+                createViewWindow(target, config);
+                return true;
+            }
+        }
     }
-    else if (uriType === "doc") {
-        loadViews(target, config);
+
+    for (let target of targets) {
+        let config = target.config || {};
+        let uriType = getUriType(target.target);
+        if (uriType !== "doc") {
+            continue;
+        }
+        else {
+            if (updateExistingViewWindow) {
+                if (appState.page === "views" && splitTargetIntoDocAndIds(appState.viewWindow.target).doc === splitTargetIntoDocAndIds(target.target).doc) {
+                    let viewContentDiv = document.querySelector("#view-content");
+                    updateCurrentView(target.target, viewContentDiv, config);
+                    return true;
+                }
+            }
+        }
     }
+    return false;
+
+    // let target, config;
+    // if (!Array.isArray(targets) || targets.length !== 1) {
+    //     return false;
+    // }
+    // else {
+    //     target = targets[0].target;
+    //     config = targets[0].config || {};
+    // }
+
+    // const uriType = getUriType(target);
+    // if (uriType === "unknown") {
+    //     console.warn("Unknown URI type for target:", target);
+    //     return false;
+    // }
+    // else if (uriType === "externalLink") {
+    //     window.open(target, '_blank');
+    //     return true;
+    // }
+    // else if (uriType === "doc") {
+    //     if (updateExistingViewWindow) {
+    //         if (appState.page === "view" && splitTargetIntoDocAndIds(appState.viewWindow.target).doc === splitTargetIntoDocAndIds(target).doc) {
+    //             let viewContentDiv = document.querySelector("#view-content");
+    //             updateCurrentView(target, viewContentDiv, config);
+    //             return true;
+    //         }
+    //     }
+    //     if (createNewViewWindow) {
+    //         createViewWindow(target, config); // legacy loadViews(target, config);
+    //         return true;
+    //     }
+    //     return false;
+    // }
 }
 
 /**
@@ -134,6 +251,8 @@ export function buildTargetsStringWithConfig(target, config, excludeKeys = []) {
  * stripped from the target string.
  *
  * @param {string} targets - The raw targets attribute value, with URIs separated by whitespace or semicolons.
+ * @param {Object} [additionalConfig={}] - Extra key-value pairs to merge into the parsed config. Keys already
+ *   present in the plist config block take precedence; `additionalConfig` only fills in missing keys.
  * @returns {Array<{target: string, config: Object}>} Array of parsed target objects, each sharing the same config.
  *
  * @example
@@ -157,7 +276,7 @@ export function buildTargetsStringWithConfig(target, config, excludeKeys = []) {
  * parseTargets('foo.xml[counts:[1,2,3]]')
  * // → [{ target: 'foo.xml', config: { counts: [1, 2, 3] } }]
  */
-export function parseTargets(targets) {
+export function parseTargets(targets, additionalConfig = {}) {
     if (!targets) return [];
 
     var sep = '\uC280';
@@ -213,14 +332,15 @@ export function parseTargets(targets) {
         : targets.slice(0, configStart) + targets.slice(configEnd + 1);
     var targetList = stripped.split(sep).map(function (t) { return t.trim(); }).filter(Boolean);
 
-    if (configStart === -1) return targetList.map(function (t) { return { target: t, config: {} }; });
+    var config = {};
+
+    if (configStart !== -1) {
 
     var cfgString = targets.slice(configStart + 1, configEnd);
     var configPairs = splitAtDepthZero(cfgString).map(function (pair) {
         return pair.split(/[=:](.*)/).slice(0, 2);
     });
 
-    var config = {};
     for (var j = 0; j < configPairs.length; j++) {
         var k = configPairs[j][0];
         var v = configPairs[j][1];
@@ -229,6 +349,16 @@ export function parseTargets(targets) {
         var cleanV = sep && v ? v.split(sep).join('') : v;
         if (cleanK && cleanK.trim()) {
             config[cleanK.trim()] = parseValue((cleanV && cleanV.trim()) || '');
+        }
+    }
+
+    } // end if (configStart !== -1)
+
+    // Merge additionalConfig: only fill in keys not already present in the plist config.
+    for (var key in additionalConfig) {
+        if (Object.prototype.hasOwnProperty.call(additionalConfig, key) &&
+            !Object.prototype.hasOwnProperty.call(config, key)) {
+            config[key] = additionalConfig[key];
         }
     }
 

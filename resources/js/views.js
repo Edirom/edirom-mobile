@@ -9,7 +9,7 @@ import { getAnnotations, getAnnotationText, getAnnotationPreviews, getLinkTarget
  * @param {Object} linkData - Link target data including a `views` array
  * @param {string|null} [activeView] - The view type to activate initially
  */
-export async function loadViews(target, config = {}) {
+export async function createViewWindow(target, config = {}) {
 
     let linkData = await getLinkTarget(target, appState.language, appState.edition.doc);
 
@@ -47,25 +47,23 @@ function buildViewsContainer(linkData, activeView, availableViews, target, confi
     viewsContainer.appendChild(buildViewHeader(linkData, availableViews, activeView));
 
     viewsContainer.addEventListener("switch-view-request", (event) => {
-        let newViewContent = buildViewContent(event.detail.newView, target, config);
-        viewContent.replaceWith(newViewContent);
-        viewContent = newViewContent;
-
-        let newViewControlBar = buildViewControlBar(event.detail.newView);
-        viewControlBar.replaceWith(newViewControlBar);
-        viewControlBar = newViewControlBar;
+        switchView(viewsContainer, event.detail.newView, target, config);
     });
 
-    let viewContent = buildViewContent(activeView, target, config);
+    const viewContent = document.createElement("div");
+    viewContent.id = "view-content";
     viewsContainer.appendChild(viewContent);
 
-    let viewControlBar = buildViewControlBar(activeView);
+    const viewControlBar = document.createElement("div");
+    viewControlBar.id = "view-control-bar-container";
     viewsContainer.appendChild(viewControlBar);
+
+    switchView(viewsContainer, activeView, target, config);
 
     return viewsContainer;
 }
 
-function splitTargetIntoDocAndIds(target) {
+export function splitTargetIntoDocAndIds(target) {
     let [doc, ...ids] = target.split("#");
     return { doc, ids };
 }
@@ -77,16 +75,28 @@ function splitTargetIntoDocAndIds(target) {
  * @param {string} docUri - The document URI to load annotations for
  * @returns {Promise<HTMLElement>} The configured annotation view element
  */
-async function buildAnnotationViewWebComponent(target, config = {}) {
+function buildAnnotationViewWebComponent(target, config = {}) {
     console.log("Building annotation view for target:", target, config);
     const annotationViewComponent = document.createElement("edirom-annotation-view");
     annotationViewComponent.classList.add("web-component");
     annotationViewComponent.setAttribute("layout-mode", "mobile");
 
+    annotationViewComponent.addEventListener("annotation-selected", async (event) => {
+        // TODO: The Event Listener has to be reattached if doc changes
+        let doc = splitTargetIntoDocAndIds(target).doc;
+        let annotationData = await composeAnnotationData(event.detail.annotationData, doc);
+        annotationViewComponent.setAttribute("annotation-data", JSON.stringify(annotationData));
+        annotationViewComponent.setAttribute("current-page", "annotation");
+    });
+
+    return annotationViewComponent;
+}
+
+async function updateAnnotationViewWebComponent(target, viewContentDiv) {
+    const annotationViewComponent = viewContentDiv.querySelector("edirom-annotation-view");
     let { doc, ids } = splitTargetIntoDocAndIds(target);
 
     let annotationsData = (await getAnnotations(appState.edition.doc, doc)).annotations;
-    console.log("Fetched annotations data:", annotationsData);
 
     if (annotationsData) {
         annotationViewComponent.setAttribute("annotations-data", JSON.stringify(annotationsData));
@@ -94,23 +104,12 @@ async function buildAnnotationViewWebComponent(target, config = {}) {
 
         if (ids.length > 0) {
             let annotationsDataSubset = annotationsData.filter(annotation => ids.includes(annotation.id));
-            console.log("Filtered annotations data for IDs", ids, ":", annotationsDataSubset);
             if (annotationsDataSubset.length > 0) {
                 annotationViewComponent.setAttribute("annotations-data-subset", JSON.stringify(annotationsDataSubset));
                 annotationViewComponent.setAttribute("subset-lock", "locked");
             }
         }
     }
-
-
-    annotationViewComponent.addEventListener("annotation-selected", async (event) => {
-        // TODO: The Event Listener has to be reattached if doc changes
-        let annotationData = await composeAnnotationData(event.detail.annotationData, doc);
-        console.log("Annotation Data to be set:", annotationData);
-        annotationViewComponent.setAttribute("annotation-data", JSON.stringify(annotationData));
-        annotationViewComponent.setAttribute("current-page", "annotation");
-    });
-    return annotationViewComponent;
 }
 
 /**
@@ -187,8 +186,13 @@ function buildViewHeader(linkData, availableViews, activeView) {
     return viewHeaderContainer;
 }
 
-function switchView(newView, target, config = {}) {
-    console.log(`Switching to view: ${newView} for target: ${target}`);
+function switchView(viewsContainer, newView, target, config = {}) {
+    viewsContainer.querySelector("#view-content").replaceWith(buildViewContent(newView, target, config));
+    viewsContainer.querySelector("#view-control-bar-container").replaceWith(buildViewControlBar(newView));
+
+    appState.viewWindow.view = newView;
+
+    updateCurrentView(target, viewsContainer, config);
 }
 
 /**
@@ -202,9 +206,7 @@ function buildViewContent(newView, target, config = {}) {
     viewContent.id = "view-content";
     switch (newView) {
         case "annotationView":
-            buildAnnotationViewWebComponent(target, config).then(component => {
-                viewContent.appendChild(component);
-            });
+            viewContent.appendChild(buildAnnotationViewWebComponent(target, config));
             break;
         default:
             console.warn(`Unknown view type: ${newView}`);
@@ -217,9 +219,8 @@ function buildViewControlBar(newView) {
     controlBarContainer.id = "view-control-bar-container";
     switch (newView) {
         case "annotationView":
-            buildAnnotationViewControlBar().then(controlBar => {
-                controlBarContainer.appendChild(controlBar);
-            });
+            const controlBar = buildAnnotationViewControlBar();
+            controlBarContainer.appendChild(controlBar);
             break;
         default:
             console.warn(`No control bar defined for view type: ${newView}`);
@@ -227,7 +228,7 @@ function buildViewControlBar(newView) {
     return controlBarContainer;
 }
 
-async function buildAnnotationViewControlBar() {
+function buildAnnotationViewControlBar() {
     const controlBar = document.createElement("edirom-control-bar");
     controlBar.classList.add("web-component");
     controlBar.setAttribute("layout-mode", "mobile");
@@ -236,10 +237,22 @@ async function buildAnnotationViewControlBar() {
     controlBar.appendChild(spacer);
 
     const button = document.createElement("edirom-button-widget");
+    button.id = "annotation-lock-button";
     button.setAttribute("icon-name", "lock");
     controlBar.appendChild(button);
 
     return controlBar;
+}
+
+export function updateCurrentView(target, viewContentDiv, config = {}) {
+    switch (appState.viewWindow.view) {
+        case "annotationView":
+            updateAnnotationViewWebComponent(target, viewContentDiv);
+            appState.viewWindow.target = target;
+            break;
+        default:
+            console.warn(`No update function defined for view type: ${appState.viewWindow.view}`);
+    }
 }
 
 

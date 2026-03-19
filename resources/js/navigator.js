@@ -23,14 +23,15 @@ function updateNavigatorData(data, navigatorElement = null) {
  * @param {Object} [navigatorData] - The navigator data to display; defaults to `appState.navigatorData`
  * @returns {Promise<HTMLElement>} The configured navigator element
  */
-export async function buildNavigator(navigatorData = appState.navigatorData) {
+export async function buildNavigator(navigatorData = appState.navigatorData.current[appState.navigatorData.current.length - 1] || appState.navigatorData.main) {
     const navigatorElement = document.createElement("edirom-navigator");
     navigatorElement.classList.add("web-component");
     navigatorElement.setAttribute("layout-mode", "mobile");
     navigatorElement.setAttribute("no-content-message", "(Noch) keine Inhalte für diesen Kontext verfügbar.");
     updateNavigatorData(navigatorData, navigatorElement);
     navigatorElement.addEventListener("load-links-request", (event) => {
-        loadLinks(event.detail);
+        loadLinks(event.detail, { "setAsMainNavigation": true, "behaviour": "updateViewOrSwitchToNavigator" });
+
     });
     return navigatorElement;
 }
@@ -40,8 +41,14 @@ export async function buildNavigator(navigatorData = appState.navigatorData) {
  * navigator component if the navigator page is currently active.
  * @param {Object} data - The new navigator data
  */
-export function setNavigatorData(data) {
-    appState.navigatorData = data;
+export function setNavigatorData(data, setAsNavigatorDataMain = false, addToNavigatorDataCurrent = false) {
+    if (setAsNavigatorDataMain) {
+        appState.navigatorData.main = data;
+        appState.navigatorData.current = [data];
+    }
+    else if (addToNavigatorDataCurrent) {
+        appState.navigatorData.current.push(data);
+    }
     onNavigatorDataChanged();
 }
 
@@ -53,7 +60,7 @@ function onNavigatorDataChanged() {
     if (appState.page === "navigator") {
         const navigatorElement = document.querySelector("edirom-navigator");
         if (navigatorElement) {
-            navigatorElement.setAttribute("navigator-data", JSON.stringify(appState.navigatorData));
+            navigatorElement.setAttribute("navigator-data", JSON.stringify(appState.navigatorData.current[appState.navigatorData.current.length - 1] || appState.navigatorData.main));
         }
     }
 }
@@ -144,6 +151,18 @@ export async function filterAndEnrichNavigatorData(navigatorData) {
 
             const newIcons = results.flatMap(r => r.icons);
             item.icons = [...new Set([...(item.icons ?? []), ...newIcons])];
+
+            const newConfig = { ...parsedTargets[0].config };
+            delete newConfig.behaviour;
+            delete newConfig.setAsMainNavigation;
+            delete newConfig.addToCurrentNavigation;
+            newConfig.behaviour = "updateViewOrCreateViewWindowOrSwitchToNavigator";
+            if (parsedTargets.length > 1) {
+                newConfig.addToCurrentNavigation = true;
+            }
+            const targetUris = parsedTargets.map(pt => pt.target);
+            item.targets = buildTargetsStringWithConfig(targetUris[0], newConfig) +
+                (targetUris.length > 1 ? " " + targetUris.slice(1).join(" ") : "");
         }
 
         offset += promises.length;

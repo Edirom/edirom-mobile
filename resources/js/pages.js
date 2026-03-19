@@ -51,6 +51,8 @@ function requestComponentsBackHandling() {
  * @param {boolean} options.replaceState - Whether to replace the current history entry (default: false)
  */
 export async function switchPage(pageName, newContent, { pushState = true, replaceState = false } = {}) {
+    console.log("Switching to page:", pageName, "with options:", { pushState, replaceState });
+
     const resolvedContent = await newContent;
 
     const contentContainer = document.getElementById("content-container");

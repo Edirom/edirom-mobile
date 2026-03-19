@@ -29,5 +29,12 @@ export const appState = {
     worksInEdition: [],
     work: {},
     language: DEFAULT_LANGUAGE,
-    navigatorData: {}
+    navigatorData: {
+        main: null,
+        current: [] // history of navigator data states for "back" navigation
+    },
+    viewWindow: {
+        view: null,
+        target: null
+    }
 };

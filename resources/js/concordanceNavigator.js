@@ -18,7 +18,7 @@ export async function initConcordanceNavigator() {
     concordanceNavigatorElement.setAttribute("concordances-data", JSON.stringify(concordances));
     concordanceNavigatorElement.setAttribute("inject-disabled-concordance", "Freies Erkunden");
     concordanceNavigatorElement.addEventListener("show-connection-request", (event) => {
-        loadLinks(event.detail.plist);
+        loadLinks(event.detail.plist, { "setAsMainNavigation": true, "behaviour": "updateViewOrSwitchToNavigator" });
     });
     concordanceNavigatorElement.addEventListener("concordance-navigator-disabled", (event) => {
         onConcordanceNavigatorDisabled();
@@ -35,8 +35,8 @@ export async function initConcordanceNavigator() {
 async function onConcordanceNavigatorDisabled() {
     console.log("Concordance navigator disabled");
     let navigatorData = await getNavigatorConfig(appState.edition.doc, appState.work.id, appState.language, appState.edition.doc, appState.edition.backendUrl);
-    let enrichedNavigatorData = await filterAndEnrichNavigatorData(navigatorData);
-    setNavigatorData(enrichedNavigatorData);
+    let filteredAndEnrichedNavigatorData = await filterAndEnrichNavigatorData(navigatorData);
+    setNavigatorData(filteredAndEnrichedNavigatorData, true, false);
 
     // TODO: Break Views from restriction
 }
