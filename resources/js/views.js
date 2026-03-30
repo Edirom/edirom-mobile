@@ -2,6 +2,9 @@ import { appConfig, appState } from "./config.js";
 import { switchPage } from "./pages.js";
 import { getAnnotations, getAnnotationText, getAnnotationPreviews, getLinkTarget } from "./api.js";
 
+/** @type {function|null} Update function for the currently active view (not stored on appState to avoid history.pushState serialization issues) */
+let currentViewUpdate = null;
+
 /**
  * Fetches view metadata for the given target URI, determines the active view,
  * and switches the app to the views page. If no view is marked as default, the
@@ -78,29 +81,112 @@ export function splitTargetIntoDocAndIds(target) {
 }
 
 /**
- * Creates and returns an `<edirom-annotation-view>` web component for the given
- * target URI. Registers an `annotation-selected` listener that fetches the full
- * annotation data and switches the component to its detail page. The actual
- * annotations list is loaded separately via `updateAnnotationViewWebComponent`.
+ * Dispatches to the appropriate view-type-specific builder. Each builder
+ * constructs the view web component, its control bar, wires up their
+ * bidirectional event listeners, and returns an update function for loading
+ * new data without rebuilding the DOM.
+ * @param {string} viewType - The view type to build (e.g. `"annotationView"`)
+ * @param {string} target - The document URI (with optional `#id` fragment)
+ * @param {Object} [config={}] - Additional link config passed to the view component
+ * @returns {{ content: HTMLElement, controlBar: HTMLElement, update: function }} The view content, control bar, and data-update function
+ */
+function buildView(viewType, target, config = {}) {
+    switch (viewType) {
+        case "annotationView":
+            return buildAnnotationView(target, config);
+        default:
+            console.warn(`Unknown view type: ${viewType}`);
+            return {
+                content: Object.assign(document.createElement("div"), { id: "view-content" }),
+                controlBar: Object.assign(document.createElement("div"), { id: "view-control-bar-container" }),
+                update: () => { }
+            };
+    }
+}
+
+/**
+ * Builds the annotation view web component and its control bar together,
+ * wiring up bidirectional event listeners via direct variable references.
+ * Returns the content container, control bar container, and an update
+ * function for loading annotation data without rebuilding the view.
  * @param {string} target - The document URI (with optional `#id` fragment)
  * @param {Object} [config={}] - Additional link config (currently unused)
- * @returns {HTMLElement} The configured annotation view element
+ * @returns {{ content: HTMLElement, controlBar: HTMLElement, update: function }}
  */
-function buildAnnotationViewWebComponent(target, config = {}) {
-    console.log("Building annotation view for target:", target, config);
+function buildAnnotationView(target, config = {}) {
     const annotationViewComponent = document.createElement("edirom-annotation-view");
     annotationViewComponent.classList.add("web-component");
     annotationViewComponent.setAttribute("layout-mode", "mobile");
 
     annotationViewComponent.addEventListener("annotation-selected", async (event) => {
-        // TODO: The Event Listener has to be reattached if doc changes
         let doc = splitTargetIntoDocAndIds(target).doc;
         let annotationData = await composeAnnotationData(event.detail.annotationData, doc);
         annotationViewComponent.setAttribute("annotation-data", JSON.stringify(annotationData));
         annotationViewComponent.setAttribute("current-page", "annotation");
     });
 
-    return annotationViewComponent;
+    const content = document.createElement("div");
+    content.id = "view-content";
+    content.appendChild(annotationViewComponent);
+
+    const controlBar = document.createElement("edirom-control-bar");
+    controlBar.classList.add("web-component");
+    controlBar.setAttribute("layout-mode", "mobile");
+
+    const spacer = document.createElement("edirom-spacer-widget");
+    controlBar.appendChild(spacer);
+
+    // LOCK BUTTON
+
+    const button = document.createElement("edirom-button-widget");
+    button.id = "annotation-lock-button";
+    let buttonStates = [
+        { name: "locked", iconName: "lock" },
+        { name: "unlocked", iconName: "lock_open_right" },
+    ];
+    button.setAttribute("states-data", JSON.stringify(buttonStates));
+
+    let lockButtonInitialState = annotationViewComponent.subsetLockState;
+    if (lockButtonInitialState) {
+        button.setAttribute("current-state", lockButtonInitialState);
+    }
+    else {
+        button.classList.add("hidden");
+    }
+
+    button.addEventListener("button-state-requested", (event) => {
+        const requestedState = event.detail.requestedState;
+        if (requestedState === "locked") {
+            annotationViewComponent.setAttribute("subset-lock", "locked");
+        } else if (requestedState === "unlocked") {
+            annotationViewComponent.setAttribute("subset-lock", "unlocked");
+        } else {
+            console.warn(`Unknown lock state requested: ${requestedState}`);
+        }
+    });
+    controlBar.appendChild(button);
+
+    annotationViewComponent.addEventListener("subset-lock-changed", (event) => {
+        if (["locked", "unlocked"].includes(event.detail.value)) {
+            button.classList.remove("hidden");
+        }
+        else if (event.detail.value === "none") {
+            button.classList.add("hidden");
+        }
+        button.setAttribute("current-state", event.detail.value);
+    });
+
+    const controlBarContainer = document.createElement("div");
+    controlBarContainer.id = "view-control-bar-container";
+    controlBarContainer.appendChild(controlBar);
+
+    return {
+        content,
+        controlBar: controlBarContainer,
+        update: (target, viewContentDiv) => {
+            updateAnnotationViewWebComponent(target, viewContentDiv);
+        }
+    };
 }
 
 /**
@@ -207,100 +293,39 @@ function buildViewHeader(linkData, availableViews, activeView) {
 
 /**
  * Replaces the view content and control bar inside `viewsContainer` with
- * newly built elements for `newView`, then updates `appState.viewWindow.view`
- * and triggers a data load via `updateCurrentView`.
+ * newly built elements for `newView`, stores the update function, and
+ * triggers an initial data load.
  * @param {HTMLElement} viewsContainer - The views page container element
  * @param {string} newView - The view type to switch to (e.g. `"annotationView"`)
  * @param {string} target - The document URI for the new view
  * @param {Object} [config={}] - Additional link config passed to view components
  */
 function switchView(viewsContainer, newView, target, config = {}) {
-    viewsContainer.querySelector("#view-content").replaceWith(buildViewContent(newView, target, config));
-    viewsContainer.querySelector("#view-control-bar-container").replaceWith(buildViewControlBar(newView));
+    const view = buildView(newView, target, config);
+
+    viewsContainer.querySelector("#view-content").replaceWith(view.content);
+    viewsContainer.querySelector("#view-control-bar-container").replaceWith(view.controlBar);
 
     appState.viewWindow.view = newView;
+    currentViewUpdate = view.update;
 
-    updateCurrentView(target, viewsContainer, config);
+    view.update(target, viewsContainer);
+    appState.viewWindow.target = target;
 }
 
 /**
- * Builds the view content container (`#view-content`) for the given view type
- * and populates it with the appropriate web component.
- * @param {string} newView - The view type to render (e.g. `"annotationView"`)
- * @param {string} target - The document URI passed to the view component
- * @param {Object} [config={}] - Additional link config passed to the view component
- * @returns {HTMLElement} The view content container element
- */
-function buildViewContent(newView, target, config = {}) {
-    let viewContent = document.createElement("div");
-    viewContent.id = "view-content";
-    switch (newView) {
-        case "annotationView":
-            viewContent.appendChild(buildAnnotationViewWebComponent(target, config));
-            break;
-        default:
-            console.warn(`Unknown view type: ${newView}`);
-    }
-    return viewContent;
-}
-
-/**
- * Builds the control bar container (`#view-control-bar-container`) for the
- * given view type and populates it with the appropriate control bar component.
- * @param {string} newView - The view type to build a control bar for
- * @returns {HTMLElement} The control bar container element
- */
-function buildViewControlBar(newView) {
-    let controlBarContainer = document.createElement("div");
-    controlBarContainer.id = "view-control-bar-container";
-    switch (newView) {
-        case "annotationView":
-            const controlBar = buildAnnotationViewControlBar();
-            controlBarContainer.appendChild(controlBar);
-            break;
-        default:
-            console.warn(`No control bar defined for view type: ${newView}`);
-    }
-    return controlBarContainer;
-}
-
-/**
- * Builds and returns the `<edirom-control-bar>` for the annotation view,
- * containing a spacer and a lock-toggle button.
- * @returns {HTMLElement} The configured control bar element
- */
-function buildAnnotationViewControlBar() {
-    const controlBar = document.createElement("edirom-control-bar");
-    controlBar.classList.add("web-component");
-    controlBar.setAttribute("layout-mode", "mobile");
-
-    const spacer = document.createElement("edirom-spacer-widget");
-    controlBar.appendChild(spacer);
-
-    const button = document.createElement("edirom-button-widget");
-    button.id = "annotation-lock-button";
-    button.setAttribute("icon-name", "lock");
-    controlBar.appendChild(button);
-
-    return controlBar;
-}
-
-/**
- * Updates the currently displayed view with new target data by dispatching to
- * the appropriate view-specific update function. Also writes the new target to
- * `appState.viewWindow.target`.
+ * Updates the currently displayed view with new target data using the stored
+ * update function. Also writes the new target to `appState.viewWindow.target`.
  * @param {string} target - The document URI (with optional `#id` fragment) to load
  * @param {HTMLElement} viewContentDiv - The container element holding the active view component
  * @param {Object} [config={}] - Additional link config (currently unused)
  */
 export function updateCurrentView(target, viewContentDiv, config = {}) {
-    switch (appState.viewWindow.view) {
-        case "annotationView":
-            updateAnnotationViewWebComponent(target, viewContentDiv);
-            appState.viewWindow.target = target;
-            break;
-        default:
-            console.warn(`No update function defined for view type: ${appState.viewWindow.view}`);
+    if (currentViewUpdate) {
+        currentViewUpdate(target, viewContentDiv);
+        appState.viewWindow.target = target;
+    } else {
+        console.warn(`No update function defined for view type: ${appState.viewWindow.view}`);
     }
 }
 
