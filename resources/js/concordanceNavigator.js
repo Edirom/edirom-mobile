@@ -2,6 +2,7 @@ import { getConcordances, getNavigatorConfig } from "./api.js";
 import { appState } from "./config.js";
 import { loadLinks } from "./linkController.js";
 import { filterAndEnrichNavigatorData, setNavigatorData } from "./navigator.js";
+import { removeCurrentViewSubset } from "./views.js";
 
 /**
  * Initializes the concordance navigator component in the page footer.
@@ -34,6 +35,7 @@ export async function initConcordanceNavigator() {
  */
 async function onConcordanceNavigatorDisabled() {
     console.log("Concordance navigator disabled");
+    removeCurrentViewSubset();
     let navigatorData = await getNavigatorConfig(appState.edition.doc, appState.work.id, appState.language, appState.edition.doc, appState.edition.backendUrl);
     let filteredAndEnrichedNavigatorData = await filterAndEnrichNavigatorData(navigatorData);
     setNavigatorData(filteredAndEnrichedNavigatorData, true, false);

@@ -5,6 +5,9 @@ import { getAnnotations, getAnnotationText, getAnnotationPreviews, getLinkTarget
 /** @type {function|null} Update function for the currently active view (not stored on appState to avoid history.pushState serialization issues) */
 let currentViewUpdate = null;
 
+/** @type {function|null} Removes subset data from the currently active view, causing it to fall back to its main data */
+let currentViewRemoveSubset = null;
+
 /**
  * Fetches view metadata for the given target URI, determines the active view,
  * and switches the app to the views page. If no view is marked as default, the
@@ -88,7 +91,7 @@ export function splitTargetIntoDocAndIds(target) {
  * @param {string} viewType - The view type to build (e.g. `"annotationView"`)
  * @param {string} target - The document URI (with optional `#id` fragment)
  * @param {Object} [config={}] - Additional link config passed to the view component
- * @returns {{ content: HTMLElement, controlBar: HTMLElement, update: function }} The view content, control bar, and data-update function
+ * @returns {{ content: HTMLElement, controlBar: HTMLElement, update: function, removeSubset: function }} The view content, control bar, data-update function, and subset-removal function
  */
 function buildView(viewType, target, config = {}) {
     switch (viewType) {
@@ -99,7 +102,8 @@ function buildView(viewType, target, config = {}) {
             return {
                 content: Object.assign(document.createElement("div"), { id: "view-content" }),
                 controlBar: Object.assign(document.createElement("div"), { id: "view-control-bar-container" }),
-                update: () => { }
+                update: () => { },
+                removeSubset: () => { }
             };
     }
 }
@@ -169,11 +173,11 @@ function buildAnnotationView(target, config = {}) {
     annotationViewComponent.addEventListener("subset-lock-changed", (event) => {
         if (["locked", "unlocked"].includes(event.detail.value)) {
             button.classList.remove("hidden");
+            button.setAttribute("current-state", event.detail.value);
         }
-        else if (event.detail.value === "none") {
+        else if (event.detail.value === null) {
             button.classList.add("hidden");
         }
-        button.setAttribute("current-state", event.detail.value);
     });
 
     const controlBarContainer = document.createElement("div");
@@ -185,6 +189,9 @@ function buildAnnotationView(target, config = {}) {
         controlBar: controlBarContainer,
         update: (target, viewContentDiv) => {
             updateAnnotationViewWebComponent(target, viewContentDiv);
+        },
+        removeSubset: () => {
+            annotationViewComponent.removeAttribute("annotations-data-subset");
         }
     };
 }
@@ -308,6 +315,7 @@ function switchView(viewsContainer, newView, target, config = {}) {
 
     appState.viewWindow.view = newView;
     currentViewUpdate = view.update;
+    currentViewRemoveSubset = view.removeSubset;
 
     view.update(target, viewsContainer);
     appState.viewWindow.target = target;
@@ -326,6 +334,16 @@ export function updateCurrentView(target, viewContentDiv, config = {}) {
         appState.viewWindow.target = target;
     } else {
         console.warn(`No update function defined for view type: ${appState.viewWindow.view}`);
+    }
+}
+
+/**
+ * Removes subset data from the currently active view, causing it to fall back
+ * to its main data. Only acts when a view is currently displayed.
+ */
+export function removeCurrentViewSubset() {
+    if (appState.page === "views" && currentViewRemoveSubset) {
+        currentViewRemoveSubset();
     }
 }
 
