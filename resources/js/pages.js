@@ -1,5 +1,5 @@
 import { appState } from "./config.js";
-import { buildNavigator } from "./navigator.js";
+import { buildNavigator, navigateBackInNavigator } from "./navigator.js";
 import { getAllEditions } from "./api.js";
 import { initEdition } from "./main.js";
 
@@ -170,7 +170,19 @@ window.addEventListener("popstate", async (event) => {
         }
 
         // No component handled it - restore the appropriate page
-        // Currently, we always fall back to navigator as we can't fully restore views state
+        if (appState.page === "navigator") {
+            // Navigate back through sub-navigator stack
+            if (navigateBackInNavigator()) {
+                // Popped a level - stay on navigator with updated data
+                return;
+            }
+            // Already at main navigator - block further back navigation
+            skipNextPopstate = true;
+            window.history.go(1);
+            return;
+        }
+
+        // From views or other pages, fall back to navigator
         await switchPage("navigator", buildNavigator(), { pushState: false });
     }
 });

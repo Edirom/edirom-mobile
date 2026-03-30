@@ -59,6 +59,22 @@ export function setNavigatorData(data, setAsNavigatorDataMain = false, addToNavi
 }
 
 /**
+ * Pops the last entry from `appState.navigatorData.current` to navigate back
+ * to the previous sub-navigator level. If the stack has more than one entry,
+ * pops the top and updates the navigator DOM. If only one entry remains (the
+ * main level), does nothing and returns `false`.
+ * @returns {boolean} `true` if a level was popped, `false` if already at main level
+ */
+export function navigateBackInNavigator() {
+    if (appState.navigatorData.current.length > 1) {
+        appState.navigatorData.current.pop();
+        onNavigatorDataChanged();
+        return true;
+    }
+    return false;
+}
+
+/**
  * Pushes the most recent entry from `appState.navigatorData.current` (or
  * `appState.navigatorData.main` as a fallback) to the `<edirom-navigator>` DOM
  * element if the navigator page is active. No-op otherwise.
