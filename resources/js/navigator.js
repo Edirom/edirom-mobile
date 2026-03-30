@@ -32,7 +32,7 @@ export async function buildNavigator(navigatorData = appState.navigatorData.curr
     navigatorElement.setAttribute("no-content-message", "(Noch) keine Inhalte für diesen Kontext verfügbar.");
     updateNavigatorData(navigatorData, navigatorElement);
     navigatorElement.addEventListener("load-links-request", (event) => {
-        loadLinks(event.detail, { "setAsMainNavigation": true, "behaviour": "updateViewOrSwitchToNavigator" });
+        loadLinks(event.detail, { "behaviour": "updateViewOrSwitchToNavigator" });
 
     });
     return navigatorElement;
