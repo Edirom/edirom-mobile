@@ -497,6 +497,11 @@ edirom-button-widget {
   --secondary-color: color-mix(in oklch, var(--ewk-secondary-color) 95%, black);;
 }
 
+edirom-spin-box-widget {
+  --spin-box-input-width: 4ch;
+  --spin-box-border-color: color-mix(in oklch, var(--ewk-secondary-color) 80%, black);
+}
+
 .inline-music-character {
   height: 1em;
   display: inline-block;

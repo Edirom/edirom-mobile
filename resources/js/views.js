@@ -122,13 +122,6 @@ function buildAnnotationView(target, config = {}) {
     annotationViewComponent.classList.add("web-component");
     annotationViewComponent.setAttribute("layout-mode", "mobile");
 
-    annotationViewComponent.addEventListener("annotation-selected", async (event) => {
-        let doc = splitTargetIntoDocAndIds(target).doc;
-        let annotationData = await composeAnnotationData(event.detail.annotationData, doc);
-        annotationViewComponent.setAttribute("annotation-data", JSON.stringify(annotationData));
-        annotationViewComponent.setAttribute("current-page", "annotation");
-    });
-
     const content = document.createElement("div");
     content.id = "view-content";
     content.appendChild(annotationViewComponent);
@@ -136,9 +129,72 @@ function buildAnnotationView(target, config = {}) {
     const controlBar = document.createElement("edirom-control-bar");
     controlBar.classList.add("web-component");
     controlBar.setAttribute("layout-mode", "mobile");
+    controlBar.setAttribute("gap", "10px");
 
     const spacer = document.createElement("edirom-spacer-widget");
     controlBar.appendChild(spacer);
+
+    // ANNOTATION STEP SPIN BOX
+
+    const spinBox = document.createElement("edirom-spin-box-widget");
+    spinBox.id = "annotation-step-spin-box";
+    spinBox.classList.add("hidden");
+
+    async function navigateToAnnotation(annotation) {
+        let doc = splitTargetIntoDocAndIds(target).doc;
+        let annotationData = await composeAnnotationData(annotation, doc);
+        annotationViewComponent.setAttribute("annotation-data", JSON.stringify(annotationData));
+        annotationViewComponent.setAttribute("current-page", "annotation");
+    }
+
+    annotationViewComponent.addEventListener("annotation-selected", (event) => {
+        navigateToAnnotation(event.detail.annotationData);
+    });
+
+    spinBox.addEventListener("spin-box-step-requested", (event) => {
+        const requestedPos = event.detail.requestedStep;
+        const effectiveData = annotationViewComponent.effectiveAnnotationsData;
+        const annotation = effectiveData.find(a => String(a.pos) === requestedPos);
+        if (!annotation) {
+            console.warn(`No annotation found with pos "${requestedPos}".`);
+            return;
+        }
+        navigateToAnnotation(annotation);
+    });
+    controlBar.appendChild(spinBox);
+
+    annotationViewComponent.addEventListener("annotation-data-changed", (event) => {
+        spinBox.setAttribute("current-step", String(event.detail.annotationData.pos));
+    });
+
+    annotationViewComponent.addEventListener("current-page-changed", (event) => {
+        if (event.detail.value === "annotation") {
+            const effectiveData = annotationViewComponent.effectiveAnnotationsData;
+            spinBox.setAttribute("steps-data", JSON.stringify(effectiveData.map(a => a.pos)));
+            spinBox.classList.remove("hidden");
+        } else {
+            spinBox.classList.add("hidden");
+        }
+    });
+
+    annotationViewComponent.addEventListener("effective-annotations-data-changed", (event) => {
+        if (annotationViewComponent.currentPage === "annotation") {
+            const newAnnotations = event.detail.annotations;
+            spinBox.setAttribute("steps-data", JSON.stringify(newAnnotations.map(a => a.pos)));
+
+            const currentAnnotationId = annotationViewComponent.annotationData?.id;
+            const currentStillValid = newAnnotations.some(a => a.id === currentAnnotationId);
+
+            if (currentStillValid) {
+                // Current annotation is still available: update spin box step
+                const currentAnnotation = newAnnotations.find(a => a.id === currentAnnotationId);
+                spinBox.setAttribute("current-step", String(currentAnnotation.pos));
+            } else {
+                // Current annotation is no longer in the effective data: switch to list
+                annotationViewComponent.setAttribute("current-page", "annotations");
+            }
+        }
+    });
 
     // LOCK BUTTON
 
@@ -212,7 +268,14 @@ async function updateAnnotationViewWebComponent(target, viewContentDiv) {
 
     if (annotationsData) {
         annotationViewComponent.setAttribute("annotations-data", JSON.stringify(annotationsData));
-        annotationViewComponent.setAttribute("current-page", "annotations");
+
+        // Only reset to the list page if not currently on the annotation detail page.
+        // When on the detail page, the effective-annotations-data-changed handler
+        // decides: stay if the current annotation is still in the new data, or
+        // switch to the list if it is not.
+        if (annotationViewComponent.currentPage !== "annotation") {
+            annotationViewComponent.setAttribute("current-page", "annotations");
+        }
 
         if (ids.length > 0) {
             let annotationsDataSubset = annotationsData.filter(annotation => ids.includes(annotation.id));
