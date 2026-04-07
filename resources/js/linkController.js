@@ -1,5 +1,6 @@
 import { appState } from "./config.js";
-import { createViewWindow, splitTargetIntoDocAndIds, updateCurrentView } from "./views.js";
+import { createViewWindow, updateCurrentView } from "./views.js";
+import { splitTargetIntoDocAndIds } from "./utils.js";
 import { buildNavigatorDataFromParsedTargets, filterAndEnrichNavigatorData, setNavigatorData, buildNavigator } from "./navigator.js";
 import { switchPage } from "./pages.js";
 
