@@ -5,11 +5,12 @@ import { splitTargetIntoDocAndIds } from "./utils.js";
 /**
  * Builds the annotation view web component and its control bar together,
  * wiring up bidirectional event listeners via direct variable references.
- * Returns the content container, control bar container, and an update
- * function for loading annotation data without rebuilding the view.
+ * Returns the content container, control bar container, the control bar widget
+ * element, an update function for fetching annotation data, and a setData
+ * function for pushing data to the component.
  * @param {string} target - The document URI (with optional `#id` fragment)
  * @param {Object} [config={}] - Additional link config (currently unused)
- * @returns {{ content: HTMLElement, controlBar: HTMLElement, update: function, removeSubset: function }}
+ * @returns {{ content: HTMLElement, controlBar: HTMLElement, controlBarWidget: HTMLElement, update: function, setData: function }}
  */
 export function buildAnnotationView(target, config = {}) {
     const annotationViewComponent = document.createElement("edirom-annotation-view");
@@ -19,6 +20,8 @@ export function buildAnnotationView(target, config = {}) {
     const content = document.createElement("div");
     content.id = "view-content";
     content.appendChild(annotationViewComponent);
+
+    let currentAnnotationsData = [];
 
     const controlBar = document.createElement("edirom-control-bar");
     controlBar.classList.add("web-component");
@@ -47,8 +50,7 @@ export function buildAnnotationView(target, config = {}) {
 
     spinBox.addEventListener("spin-box-step-requested", (event) => {
         const requestedPos = event.detail.requestedStep;
-        const effectiveData = annotationViewComponent.effectiveAnnotationsData;
-        const annotation = effectiveData.find(a => String(a.pos) === requestedPos);
+        const annotation = currentAnnotationsData.find(a => String(a.pos) === requestedPos);
         if (!annotation) {
             console.warn(`No annotation found with pos "${requestedPos}".`);
             return;
@@ -63,72 +65,33 @@ export function buildAnnotationView(target, config = {}) {
 
     annotationViewComponent.addEventListener("current-page-changed", (event) => {
         if (event.detail.value === "annotation") {
-            const effectiveData = annotationViewComponent.effectiveAnnotationsData;
-            spinBox.setAttribute("steps-data", JSON.stringify(effectiveData.map(a => a.pos)));
+            spinBox.setAttribute("steps-data", JSON.stringify(currentAnnotationsData.map(a => a.pos)));
             spinBox.classList.remove("hidden");
         } else {
             spinBox.classList.add("hidden");
         }
     });
 
-    annotationViewComponent.addEventListener("effective-annotations-data-changed", (event) => {
+    function setData(annotations) {
+        currentAnnotationsData = annotations;
+        annotationViewComponent.setAttribute("annotations-data", JSON.stringify(annotations));
+
         if (annotationViewComponent.currentPage === "annotation") {
-            const newAnnotations = event.detail.annotations;
-            spinBox.setAttribute("steps-data", JSON.stringify(newAnnotations.map(a => a.pos)));
+            spinBox.setAttribute("steps-data", JSON.stringify(annotations.map(a => a.pos)));
 
             const currentAnnotationId = annotationViewComponent.annotationData?.id;
-            const currentStillValid = newAnnotations.some(a => a.id === currentAnnotationId);
+            const currentStillValid = annotations.some(a => a.id === currentAnnotationId);
 
             if (currentStillValid) {
                 // Current annotation is still available: update spin box step
-                const currentAnnotation = newAnnotations.find(a => a.id === currentAnnotationId);
+                const currentAnnotation = annotations.find(a => a.id === currentAnnotationId);
                 spinBox.setAttribute("current-step", String(currentAnnotation.pos));
             } else {
-                // Current annotation is no longer in the effective data: switch to list
+                // Current annotation is no longer in the active data: switch to list
                 annotationViewComponent.setAttribute("current-page", "annotations");
             }
         }
-    });
-
-    // LOCK BUTTON
-
-    const button = document.createElement("edirom-button-widget");
-    button.id = "annotation-lock-button";
-    let buttonStates = [
-        { name: "locked", iconName: "lock" },
-        { name: "unlocked", iconName: "lock_open_right" },
-    ];
-    button.setAttribute("states-data", JSON.stringify(buttonStates));
-
-    let lockButtonInitialState = annotationViewComponent.subsetLockState;
-    if (lockButtonInitialState) {
-        button.setAttribute("current-state", lockButtonInitialState);
     }
-    else {
-        button.classList.add("hidden");
-    }
-
-    button.addEventListener("button-state-requested", (event) => {
-        const requestedState = event.detail.requestedState;
-        if (requestedState === "locked") {
-            annotationViewComponent.setAttribute("subset-lock", "locked");
-        } else if (requestedState === "unlocked") {
-            annotationViewComponent.setAttribute("subset-lock", "unlocked");
-        } else {
-            console.warn(`Unknown lock state requested: ${requestedState}`);
-        }
-    });
-    controlBar.appendChild(button);
-
-    annotationViewComponent.addEventListener("subset-lock-changed", (event) => {
-        if (["locked", "unlocked"].includes(event.detail.value)) {
-            button.classList.remove("hidden");
-            button.setAttribute("current-state", event.detail.value);
-        }
-        else if (event.detail.value === null) {
-            button.classList.add("hidden");
-        }
-    });
 
     const controlBarContainer = document.createElement("div");
     controlBarContainer.id = "view-control-bar-container";
@@ -137,48 +100,45 @@ export function buildAnnotationView(target, config = {}) {
     return {
         content,
         controlBar: controlBarContainer,
-        update: (target, viewContentDiv) => {
-            updateAnnotationViewWebComponent(target, viewContentDiv);
-        },
-        removeSubset: () => {
-            annotationViewComponent.removeAttribute("annotations-data-subset");
-        }
+        controlBarWidget: controlBar,
+        update: (target) => updateAnnotationViewWebComponent(target, annotationViewComponent),
+        setData
     };
 }
 
 /**
- * Fetches the annotations list for the given target URI and pushes it to the
- * `<edirom-annotation-view>` element found inside `viewContentDiv`. If the
- * target contains fragment IDs, the matching subset is also set and locked.
+ * Fetches the annotations list for the given target URI. If not currently on
+ * the annotation detail page, resets the view to the annotations list.
+ * Returns the full dataset and, if the target contains fragment IDs, the
+ * matching subset. Data is not written to the component; the caller is
+ * responsible for calling `setData` with the appropriate dataset.
  * @param {string} target - The document URI (with optional `#id` fragment)
- * @param {HTMLElement} viewContentDiv - The container element holding the annotation view component
- * @returns {Promise<void>}
+ * @param {HTMLElement} annotationViewComponent - The annotation view web component
+ * @returns {Promise<{ mainData: Object[]|null, subsetData: Object[]|null }>}
  */
-async function updateAnnotationViewWebComponent(target, viewContentDiv) {
-    const annotationViewComponent = viewContentDiv.querySelector("edirom-annotation-view");
+async function updateAnnotationViewWebComponent(target, annotationViewComponent) {
     let { doc, ids } = splitTargetIntoDocAndIds(target);
 
-    let annotationsData = (await getAnnotations(appState.edition.doc, doc)).annotations;
+    const annotationsData = (await getAnnotations(appState.edition.doc, doc)).annotations;
 
-    if (annotationsData) {
-        annotationViewComponent.setAttribute("annotations-data", JSON.stringify(annotationsData));
+    if (!annotationsData) return { mainData: null, subsetData: null };
 
-        // Only reset to the list page if not currently on the annotation detail page.
-        // When on the detail page, the effective-annotations-data-changed handler
-        // decides: stay if the current annotation is still in the new data, or
-        // switch to the list if it is not.
-        if (annotationViewComponent.currentPage !== "annotation") {
-            annotationViewComponent.setAttribute("current-page", "annotations");
-        }
+    // Only reset to the list page if not currently on the annotation detail page.
+    // When on the detail page, setData decides: stay if the current annotation
+    // is still in the new data, or switch to the list if it is not.
+    if (annotationViewComponent.currentPage !== "annotation") {
+        annotationViewComponent.setAttribute("current-page", "annotations");
+    }
 
-        if (ids.length > 0) {
-            let annotationsDataSubset = annotationsData.filter(annotation => ids.includes(annotation.id));
-            if (annotationsDataSubset.length > 0) {
-                annotationViewComponent.setAttribute("annotations-data-subset", JSON.stringify(annotationsDataSubset));
-                annotationViewComponent.setAttribute("subset-lock", "locked");
-            }
+    let subsetData = null;
+    if (ids.length > 0) {
+        const subset = annotationsData.filter(annotation => ids.includes(annotation.id));
+        if (subset.length > 0) {
+            subsetData = subset;
         }
     }
+
+    return { mainData: annotationsData, subsetData };
 }
 
 /**

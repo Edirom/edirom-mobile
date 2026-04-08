@@ -6,8 +6,20 @@ import { buildAnnotationView } from "./annotationView.js";
 /** @type {function|null} Update function for the currently active view (not stored on appState to avoid history.pushState serialization issues) */
 let currentViewUpdate = null;
 
-/** @type {function|null} Removes subset data from the currently active view, causing it to fall back to its main data */
-let currentViewRemoveSubset = null;
+/** @type {function|null} Writes a data array to the currently active view component */
+let currentViewSetData = null;
+
+/** @type {Object[]|null} The full dataset from the last update of the currently active view */
+let currentViewMainData = null;
+
+/** @type {Object[]|null} The filtered subset from the last update, or null if none */
+let currentViewSubsetData = null;
+
+/** @type {string|null} The current lock state: 'locked', 'unlocked', or null when no subset is present */
+let currentViewLockState = null;
+
+/** @type {HTMLElement|null} The lock button for the currently active view */
+let currentViewLockButton = null;
 
 /**
  * Fetches view metadata for the given target URI, determines the active view,
@@ -77,12 +89,12 @@ function buildViewsContainer(linkData, activeView, availableViews, target, confi
 /**
  * Dispatches to the appropriate view-type-specific builder. Each builder
  * constructs the view web component, its control bar, wires up their
- * bidirectional event listeners, and returns an update function for loading
- * new data without rebuilding the DOM.
+ * bidirectional event listeners, and returns an update function for fetching
+ * new data and a setData function for writing data to the component.
  * @param {string} viewType - The view type to build (e.g. `"annotationView"`)
  * @param {string} target - The document URI (with optional `#id` fragment)
  * @param {Object} [config={}] - Additional link config passed to the view component
- * @returns {{ content: HTMLElement, controlBar: HTMLElement, update: function, removeSubset: function }} The view content, control bar, data-update function, and subset-removal function
+ * @returns {{ content: HTMLElement, controlBar: HTMLElement, controlBarWidget: HTMLElement, update: function, setData: function }} The view content, control bar wrapper, control bar widget, data-fetch function, and data-write function
  */
 function buildView(viewType, target, config = {}) {
     switch (viewType) {
@@ -93,8 +105,9 @@ function buildView(viewType, target, config = {}) {
             return {
                 content: Object.assign(document.createElement("div"), { id: "view-content" }),
                 controlBar: Object.assign(document.createElement("div"), { id: "view-control-bar-container" }),
-                update: () => { },
-                removeSubset: () => { }
+                controlBarWidget: document.createElement("edirom-control-bar"),
+                update: async () => ({ mainData: null, subsetData: null }),
+                setData: () => { }
             };
     }
 }
@@ -149,6 +162,41 @@ function buildViewHeader(linkData, availableViews, activeView) {
 }
 
 /**
+ * Applies main and subset data to the currently active view, updating lock
+ * button visibility and pushing the effective dataset to the view component.
+ * Called after both initial data loads and subsequent updates.
+ * @param {Object[]|null} mainData - The full dataset fetched for the active target
+ * @param {Object[]|null} subsetData - The filtered subset, or null if none
+ */
+function applyViewData(mainData, subsetData) {
+    if (mainData === null) return;
+    currentViewMainData = mainData;
+    currentViewSubsetData = subsetData;
+    if (subsetData !== null) {
+        currentViewLockState = 'locked';
+        currentViewLockButton.setAttribute("current-state", "locked");
+        currentViewLockButton.classList.remove("hidden");
+        currentViewSetData(subsetData);
+    } else {
+        currentViewLockState = null;
+        currentViewLockButton.classList.add("hidden");
+        currentViewSetData(mainData);
+    }
+}
+
+/**
+ * Applies a new lock state to the currently active view: switches between
+ * main data and subset data and updates the lock button accordingly.
+ * @param {string} newLockState - Either `'locked'` or `'unlocked'`
+ */
+function applyCurrentViewLockState(newLockState) {
+    currentViewLockState = newLockState;
+    const effectiveData = newLockState === 'locked' ? currentViewSubsetData : currentViewMainData;
+    currentViewSetData(effectiveData);
+    currentViewLockButton.setAttribute("current-state", newLockState);
+}
+
+/**
  * Replaces the view content and control bar inside `viewsContainer` with
  * newly built elements for `newView`, stores the update function, and
  * triggers an initial data load.
@@ -157,17 +205,34 @@ function buildViewHeader(linkData, availableViews, activeView) {
  * @param {string} target - The document URI for the new view
  * @param {Object} [config={}] - Additional link config passed to view components
  */
-function switchView(viewsContainer, newView, target, config = {}) {
+async function switchView(viewsContainer, newView, target, config = {}) {
     const view = buildView(newView, target, config);
+
+    const lockButton = document.createElement("edirom-button-widget");
+    lockButton.id = "view-lock-button";
+    lockButton.setAttribute("states-data", JSON.stringify([
+        { name: "locked", iconName: "lock" },
+        { name: "unlocked", iconName: "lock_open_right" },
+    ]));
+    lockButton.classList.add("hidden");
+    lockButton.addEventListener("button-state-requested", (event) => {
+        applyCurrentViewLockState(event.detail.requestedState);
+    });
+    view.controlBarWidget.appendChild(lockButton);
 
     viewsContainer.querySelector("#view-content").replaceWith(view.content);
     viewsContainer.querySelector("#view-control-bar-container").replaceWith(view.controlBar);
 
     appState.viewWindow.view = newView;
     currentViewUpdate = view.update;
-    currentViewRemoveSubset = view.removeSubset;
+    currentViewSetData = view.setData;
+    currentViewLockButton = lockButton;
+    currentViewMainData = null;
+    currentViewSubsetData = null;
+    currentViewLockState = null;
 
-    view.update(target, viewsContainer);
+    const { mainData, subsetData } = await view.update(target, viewsContainer);
+    applyViewData(mainData, subsetData);
     appState.viewWindow.target = target;
 }
 
@@ -178,9 +243,10 @@ function switchView(viewsContainer, newView, target, config = {}) {
  * @param {HTMLElement} viewContentDiv - The container element holding the active view component
  * @param {Object} [config={}] - Additional link config (currently unused)
  */
-export function updateCurrentView(target, viewContentDiv, config = {}) {
+export async function updateCurrentView(target, viewContentDiv, config = {}) {
     if (currentViewUpdate) {
-        currentViewUpdate(target, viewContentDiv);
+        const { mainData, subsetData } = await currentViewUpdate(target, viewContentDiv);
+        applyViewData(mainData, subsetData);
         appState.viewWindow.target = target;
     } else {
         console.warn(`No update function defined for view type: ${appState.viewWindow.view}`);
@@ -188,13 +254,15 @@ export function updateCurrentView(target, viewContentDiv, config = {}) {
 }
 
 /**
- * Removes subset data from the currently active view, causing it to fall back
- * to its main data. Only acts when a view is currently displayed.
+ * Clears the subset from the currently active view, falling back to main data.
+ * Hides the lock button. Only acts when a view is currently displayed.
  */
 export function removeCurrentViewSubset() {
-    if (appState.page === "views" && currentViewRemoveSubset) {
-        currentViewRemoveSubset();
-    }
+    if (appState.page !== "views" || !currentViewSetData) return;
+    currentViewSubsetData = null;
+    currentViewLockState = null;
+    currentViewLockButton?.classList.add("hidden");
+    currentViewSetData(currentViewMainData);
 }
 
 
