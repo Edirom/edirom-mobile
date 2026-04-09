@@ -2,6 +2,7 @@ import { appConfig, appState } from "./config.js";
 import { switchPage } from "./pages.js";
 import { getLinkTarget } from "./api.js";
 import { buildAnnotationView } from "./annotationView.js";
+import { buildImageView } from "./imageView.js";
 
 /** @type {function|null} Update function for the currently active view (not stored on appState to avoid history.pushState serialization issues) */
 let currentViewUpdate = null;
@@ -100,6 +101,8 @@ function buildView(viewType, target, config = {}) {
     switch (viewType) {
         case "annotationView":
             return buildAnnotationView(target, config);
+        case "sourceView":
+            return buildImageView(target, config);
         default:
             console.warn(`Unknown view type: ${viewType}`);
             return {

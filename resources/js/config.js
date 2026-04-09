@@ -1,5 +1,5 @@
 const DEFAULT_LANGUAGE = "de";
-const DEFAULT_AVAILABLE_VIEWS = ["annotationView"];
+const DEFAULT_AVAILABLE_VIEWS = ["annotationView", "sourceView"];
 const DEFAULT_VIEW_HEADER_ID = "view-header";
 
 /**

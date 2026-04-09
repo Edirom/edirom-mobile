@@ -64,6 +64,11 @@ async function fetchText(url) {
     }
 }
 
+export async function getPages(uri, edition, backendUrl = appState.edition.backendUrl) {
+    const pagesData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getPages.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(appState.language)}`);
+    return pagesData;
+}
+
 /**
  * Fetches the annotations list for a given document URI within an edition.
  * @param {string} edition - The edition URI
