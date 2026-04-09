@@ -17,7 +17,8 @@ export function buildImageView(target, config = {}) {
     // Sequence mode: OSD shows one page at a time and only loads that page's
     // tiles – the same as the desktop viewer which calls showImage() once per page.
     imageViewComponent.setAttribute("sequencemode", "true");
-    imageViewComponent.setAttribute("showsequencecontrol", "true");
+    // Hide OSD's built-in sequence controls; the spin box handles step navigation.
+    imageViewComponent.setAttribute("showsequencecontrol", "false");
 
     const content = document.createElement("div");
     content.id = "view-content";
@@ -30,6 +31,22 @@ export function buildImageView(target, config = {}) {
 
     const spacer = document.createElement("edirom-spacer-widget");
     controlBar.appendChild(spacer);
+
+    // PAGE STEP SPIN BOX
+
+    const spinBox = document.createElement("edirom-spin-box-widget");
+    spinBox.id = "image-step-spin-box";
+    spinBox.setAttribute("label", "Seiten");
+
+    spinBox.addEventListener("spin-box-step-requested", (event) => {
+        imageViewComponent.setAttribute("current-step", event.detail.requestedStep);
+    });
+
+    imageViewComponent.addEventListener("step-changed", (event) => {
+        spinBox.setAttribute("current-step", String(event.detail.step.name));
+    });
+
+    controlBar.appendChild(spinBox);
 
     const controlBarContainer = document.createElement("div");
     controlBarContainer.id = "view-control-bar-container";
@@ -56,6 +73,14 @@ export function buildImageView(target, config = {}) {
             return page.path;
         });
         imageViewComponent.setAttribute("tilesources", JSON.stringify(tileSources));
+
+        // Build step sequence from pages (hardcoded zone for testing)
+        const sequenceData = pages.map((page, index) => ({
+            name: page.name,
+            page: index + 1,
+        }));
+        spinBox.setAttribute("steps-data", JSON.stringify(pages.map(p => p.name)));
+        imageViewComponent.setAttribute("sequence-data", JSON.stringify(sequenceData));
     }
 
     return {
