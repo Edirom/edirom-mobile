@@ -35,6 +35,7 @@ export function buildAnnotationView(target, config = {}) {
 
     const spinBox = document.createElement("edirom-spin-box-widget");
     spinBox.id = "annotation-step-spin-box";
+    spinBox.setAttribute("label", "Annotationen");
     spinBox.classList.add("hidden");
 
     async function navigateToAnnotation(annotation) {
