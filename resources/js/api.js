@@ -90,6 +90,19 @@ export async function getMeasuresOnPage(uri, pageId, edition, backendUrl = appSt
 }
 
 /**
+ * Fetches the rendered HTML text for a document URI within an edition.
+ * @param {string} uri - The document URI to fetch text for
+ * @param {string} edition - The edition URI
+ * @param {string} [idPrefix] - The ID prefix applied to elements in the rendered HTML
+ * @param {string} [backendUrl] - The backend URL (defaults to the current edition's backend)
+ * @returns {Promise<string|null>} The rendered HTML string, or null on error
+ */
+export async function getText(uri, edition, idPrefix = "textView_", backendUrl = appState.edition.backendUrl) {
+    const textData = await fetchHtml(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getText.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&idPrefix=${encodeURIComponent(idPrefix)}&lang=${encodeURIComponent(appState.language)}`);
+    return textData;
+}
+
+/**
  * Fetches the annotations list for a given document URI within an edition.
  * @param {string} edition - The edition URI
  * @param {string} uri - The document URI to fetch annotations for

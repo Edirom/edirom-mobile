@@ -3,6 +3,8 @@ import { switchPage } from "./pages.js";
 import { getLinkTarget } from "./api.js";
 import { buildAnnotationView } from "./annotationView.js";
 import { buildImageView } from "./imageView.js";
+import { buildTextView } from "./textView.js";
+import { splitTargetIntoDocAndIds } from "./utils.js";
 
 /** @type {function|null} Update function for the currently active view (not stored on appState to avoid history.pushState serialization issues) */
 let currentViewUpdate = null;
@@ -21,6 +23,27 @@ let currentViewLockState = null;
 
 /** @type {HTMLElement|null} The lock button for the currently active view */
 let currentViewLockButton = null;
+
+/** @type {Object[]} The available views for the currently open document (from getLinkTarget) */
+let currentViewAvailableViews = [];
+
+/**
+ * Resolves the view-specific URI for a given view type from the available views list.
+ * Each view in getLinkTarget may carry its own `uri` (e.g. a text document URI that
+ * differs from the main source document URI). If no match is found, the doc part of
+ * the original target is used as a fallback. Fragment IDs from the original target
+ * are always preserved.
+ * @param {string} viewType - The view type (e.g. `"textView"`)
+ * @param {string} target - The original target URI (with optional `#id` fragments)
+ * @param {Object[]} availableViews - The available views from getLinkTarget
+ * @returns {string} The view-specific target URI
+ */
+function resolveViewSpecificTarget(viewType, target, availableViews) {
+    const { doc, ids } = splitTargetIntoDocAndIds(target);
+    const viewEntry = availableViews.find(v => v.type === viewType);
+    const viewUri = viewEntry?.uri ?? doc;
+    return ids.length > 0 ? `${viewUri}#${ids.join('#')}` : viewUri;
+}
 
 /**
  * Fetches view metadata for the given target URI, determines the active view,
@@ -71,7 +94,7 @@ function buildViewsContainer(linkData, activeView, availableViews, target, confi
     viewsContainer.appendChild(buildViewHeader(linkData, availableViews, activeView));
 
     viewsContainer.addEventListener("switch-view-request", (event) => {
-        switchView(viewsContainer, event.detail.newView, target, config);
+        switchView(viewsContainer, event.detail.newView, target, config, availableViews);
     });
 
     const viewContent = document.createElement("div");
@@ -82,7 +105,7 @@ function buildViewsContainer(linkData, activeView, availableViews, target, confi
     viewControlBar.id = "view-control-bar-container";
     viewsContainer.appendChild(viewControlBar);
 
-    switchView(viewsContainer, activeView, target, config);
+    switchView(viewsContainer, activeView, target, config, availableViews);
 
     return viewsContainer;
 }
@@ -103,6 +126,8 @@ function buildView(viewType, target, config = {}) {
             return buildAnnotationView(target, config);
         case "sourceView":
             return buildImageView(target, config);
+        case "textView":
+            return buildTextView(target, config);
         default:
             console.warn(`Unknown view type: ${viewType}`);
             return {
@@ -207,9 +232,12 @@ function applyCurrentViewLockState(newLockState) {
  * @param {string} newView - The view type to switch to (e.g. `"annotationView"`)
  * @param {string} target - The document URI for the new view
  * @param {Object} [config={}] - Additional link config passed to view components
+ * @param {Object[]} [availableViews=[]] - The available views from getLinkTarget, used to resolve view-specific URIs
  */
-async function switchView(viewsContainer, newView, target, config = {}) {
-    const view = buildView(newView, target, config);
+async function switchView(viewsContainer, newView, target, config = {}, availableViews = []) {
+    currentViewAvailableViews = availableViews;
+    const viewSpecificTarget = resolveViewSpecificTarget(newView, target, availableViews);
+    const view = buildView(newView, viewSpecificTarget, config);
 
     const lockButton = document.createElement("edirom-button-widget");
     lockButton.id = "view-lock-button";
@@ -234,7 +262,7 @@ async function switchView(viewsContainer, newView, target, config = {}) {
     currentViewSubsetData = null;
     currentViewLockState = null;
 
-    const { mainData, subsetData } = await view.update(target, viewsContainer);
+    const { mainData, subsetData } = await view.update(viewSpecificTarget, viewsContainer);
     applyViewData(mainData, subsetData);
     appState.viewWindow.target = target;
 }
@@ -248,7 +276,8 @@ async function switchView(viewsContainer, newView, target, config = {}) {
  */
 export async function updateCurrentView(target, viewContentDiv, config = {}) {
     if (currentViewUpdate) {
-        const { mainData, subsetData } = await currentViewUpdate(target, viewContentDiv);
+        const viewSpecificTarget = resolveViewSpecificTarget(appState.viewWindow.view, target, currentViewAvailableViews);
+        const { mainData, subsetData } = await currentViewUpdate(viewSpecificTarget, viewContentDiv);
         applyViewData(mainData, subsetData);
         appState.viewWindow.target = target;
     } else {
