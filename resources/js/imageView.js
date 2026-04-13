@@ -55,6 +55,10 @@ export function buildImageView(target, config = {}) {
     let _movements = [];
     let _pageIdToIndex = new Map();   // pageId → 1-based OSD pageNumber
 
+    // Full data (set once in update, survives lock toggles)
+    let _fullPages = [];
+    let _fullMovements = [];
+
     // Page mode
     let _pageSequenceData = [];       // [{ type: "page", id: pageId }]
     let _pageLabels = [];
@@ -66,6 +70,9 @@ export function buildImageView(target, config = {}) {
     let _measurePageIdCache = new Map(); // measureXmlId → pageId
     let _pageMeasuresCache = new Map();  // pageId → getMeasuresOnPage response
 
+    // Subset state: primary measure IDs for the active subset, or null
+    let _activeMeasureSubsetIds = null;
+
     // Active sequence (points to page or measure)
     let _sequenceData = [];
     let _labels = [];
@@ -75,6 +82,15 @@ export function buildImageView(target, config = {}) {
     // Doc/edition for lazy API calls (set in update)
     let _doc = "";
     let _edition = "";
+
+    // --- getEffectiveMeasuresData ---
+    // Returns _measuresData filtered to the active subset, or the full array.
+    function getEffectiveMeasuresData() {
+        if (!_measuresData) return [];
+        if (!_activeMeasureSubsetIds) return _measuresData;
+        const subsetSet = new Set(_activeMeasureSubsetIds);
+        return _measuresData.filter(group => subsetSet.has(group.measures[0].id));
+    }
 
     const controlBar = document.createElement("edirom-control-bar");
     controlBar.classList.add("web-component");
@@ -193,7 +209,7 @@ export function buildImageView(target, config = {}) {
     }
 
     // --- activateMeasureView ---
-    async function activateMeasureView(targetMeasureIndex) {
+    async function activateMeasureView(targetMeasureIndex, targetMeasureId) {
         _viewMode = "measure-view";
 
         // Fetch measures once and cache
@@ -202,17 +218,27 @@ export function buildImageView(target, config = {}) {
         }
         if (!_measuresData || _measuresData.length === 0) return;
 
-        // Build measure sequence
-        _measureSequenceData = _measuresData.map(group => ({
+        // Build measure sequence from effective (possibly filtered) data
+        const effective = getEffectiveMeasuresData();
+        if (effective.length === 0) return;
+
+        _measureSequenceData = effective.map(group => ({
             type: "zone",
             id: group.measures[0].id
         }));
-        _measureLabels = _measuresData.map(group => group.name);
+        _measureLabels = effective.map(group => group.name);
 
         _sequenceData = _measureSequenceData;
         _labels = _measureLabels;
 
-        let idx = targetMeasureIndex != null ? targetMeasureIndex : 0;
+        // Resolve target index: prefer ID lookup, fall back to numeric index, then 0.
+        let idx = -1;
+        if (targetMeasureId) {
+            idx = _measureSequenceData.findIndex(s => s.id === targetMeasureId);
+        }
+        if (idx === -1 && targetMeasureIndex != null) {
+            idx = targetMeasureIndex;
+        }
         if (idx < 0 || idx >= _measureSequenceData.length) idx = 0;
         _currentSequenceIndex = idx;
 
@@ -265,11 +291,12 @@ export function buildImageView(target, config = {}) {
 
             // Build measure sequence if not yet built
             if (_measureSequenceData.length === 0) {
-                _measureSequenceData = _measuresData.map(group => ({
+                const effective = getEffectiveMeasuresData();
+                _measureSequenceData = effective.map(group => ({
                     type: "zone",
                     id: group.measures[0].id
                 }));
-                _measureLabels = _measuresData.map(group => group.name);
+                _measureLabels = effective.map(group => group.name);
             }
 
             // Single bulk fetch: get all measures on the current page
@@ -295,37 +322,24 @@ export function buildImageView(target, config = {}) {
     }
 
     // --- setData ---
-    function setData({ pages, movements }) {
+    // Called by views.js applyViewData / applyCurrentViewLockState with either
+    // mainData or subsetData.  Tile sources, zones-data, _pageIdToIndex, and
+    // measure caches are set once in update() and survive lock toggles.
+    function setData({ pages, movements, measureSubsetIds }) {
+        // Capture current state before rebuilding sequences
+        const wasInitialized = _sequenceData.length > 0;
+        const previousViewMode = _viewMode;
+        const previousStep = _sequenceData[_currentSequenceIndex] || null;
+
         _pages = pages;
         _movements = movements;
+        _activeMeasureSubsetIds = measureSubsetIds || null;
 
-        // Reset measure cache when data changes
-        _measuresData = null;
+        // Clear lazily-built measure sequences (rebuilt by activateMeasureView)
         _measureSequenceData = [];
         _measureLabels = [];
-        _measurePageIdCache = new Map();
-        _pageMeasuresCache = new Map();
 
-        // Build tile sources for OSD
-        let tileSources = pages.map(page => {
-            if (page.path && page.path.startsWith("http")) {
-                return {
-                    "@context": "http://iiif.io/api/image/2/context.json",
-                    "@id": page.path,
-                    "height": Number(page.height),
-                    "width": Number(page.width),
-                    "profile": ["http://iiif.io/api/image/2/level2.json"],
-                    "protocol": "http://iiif.io/api/image",
-                    "tiles": [{ "scaleFactors": [1, 2, 4, 8, 16, 32], "width": 1024 }]
-                };
-            }
-            return page.path;
-        });
-        imageViewComponent.setAttribute("tilesources", JSON.stringify(tileSources));
-        imageViewComponent.setAttribute("zones-data", "{}");
-
-        // Build page sequence
-        _pageIdToIndex = new Map(pages.map((page, index) => [page.id, index + 1]));
+        // Build page sequence from the (possibly filtered) pages
         _pageSequenceData = pages.map(page => ({ type: "page", id: page.id }));
         _pageLabels = pages.map(page => page.name);
 
@@ -336,39 +350,113 @@ export function buildImageView(target, config = {}) {
             viewModeButton.classList.add("hidden");
         }
 
-        // Always start in page view
-        activatePageView();
+        if (!wasInitialized) {
+            // First load: subset → measure view, no subset → page view.
+            if (_activeMeasureSubsetIds) {
+                activateMeasureView(0);
+            } else {
+                activatePageView();
+            }
+        } else {
+            // Lock toggle: preserve view mode, stay on current item if still valid.
+            if (previousViewMode === "measure-view") {
+                const targetId = previousStep && previousStep.type === "zone" ? previousStep.id : null;
+                activateMeasureView(null, targetId);
+            } else {
+                const targetPageId = previousStep && previousStep.type === "page" ? previousStep.id : null;
+                activatePageView(targetPageId);
+            }
+        }
     }
 
     return {
         content,
         controlBar: controlBarContainer,
         controlBarWidget: controlBar,
-        update: (target) => {
-            const { doc } = splitTargetIntoDocAndIds(target);
+        update: async (target) => {
+            const { doc, ids } = splitTargetIntoDocAndIds(target);
+            console.log("Updating image view with doc:", doc, "and ids:", ids);
             _doc = doc;
             _edition = appState.edition.doc;
-            return updateImageViewWebComponent(target, imageViewComponent);
+
+            // Reset all caches on each update (new data load)
+            _measuresData = null;
+            _measureSequenceData = [];
+            _measureLabels = [];
+            _measurePageIdCache = new Map();
+            _pageMeasuresCache = new Map();
+
+            const [pagesData, movementsData] = await Promise.all([
+                getPages(doc, _edition),
+                getMovements(doc, _edition)
+            ]);
+
+            if (!pagesData || pagesData.length === 0) return { mainData: null, subsetData: null };
+
+            const movements = movementsData || [];
+            _fullPages = pagesData;
+            _fullMovements = movements;
+
+            // Build _pageIdToIndex from ALL pages (needed for OSD page numbers)
+            _pageIdToIndex = new Map(pagesData.map((page, index) => [page.id, index + 1]));
+
+            // Build tile sources from ALL pages
+            let tileSources = pagesData.map(page => {
+                if (page.path && page.path.startsWith("http")) {
+                    return {
+                        "@context": "http://iiif.io/api/image/2/context.json",
+                        "@id": page.path,
+                        "height": Number(page.height),
+                        "width": Number(page.width),
+                        "profile": ["http://iiif.io/api/image/2/level2.json"],
+                        "protocol": "http://iiif.io/api/image",
+                        "tiles": [{ "scaleFactors": [1, 2, 4, 8, 16, 32], "width": 1024 }]
+                    };
+                }
+                return page.path;
+            });
+            imageViewComponent.setAttribute("tilesources", JSON.stringify(tileSources));
+            imageViewComponent.setAttribute("zones-data", "{}");
+
+            const mainData = { pages: pagesData, movements };
+
+            // --- Subset logic ---
+            let subsetData = null;
+            if (ids.length > 0 && movements.length > 0) {
+                // Eagerly fetch measures so we can match IDs
+                _measuresData = await getMeasures(doc, _edition, movements[0].id);
+                if (_measuresData && _measuresData.length > 0) {
+                    const idsSet = new Set(ids);
+                    // A group matches if any of its measures has an ID in the target
+                    const matchingGroups = _measuresData.filter(group =>
+                        group.measures.some(m => idsSet.has(m.id))
+                    );
+                    if (matchingGroups.length > 0) {
+                        const matchingPrimaryIds = matchingGroups.map(g => g.measures[0].id);
+
+                        // Determine which pages contain the matching measures
+                        const pageResults = await Promise.all(
+                            matchingPrimaryIds.map(mId => getMeasurePage(doc, _edition, mId))
+                        );
+                        const relevantPageIds = new Set();
+                        for (let i = 0; i < pageResults.length; i++) {
+                            const data = pageResults[i];
+                            if (data && data.length > 0) {
+                                _measurePageIdCache.set(matchingPrimaryIds[i], data[0].pageId);
+                                relevantPageIds.add(data[0].pageId);
+                            }
+                        }
+
+                        const filteredPages = pagesData.filter(p => relevantPageIds.has(p.id));
+                        if (filteredPages.length > 0) {
+                            subsetData = { pages: filteredPages, movements, measureSubsetIds: matchingPrimaryIds };
+                        }
+                    }
+                }
+            }
+
+            return { mainData, subsetData };
         },
         setData
     };
-}
-
-/**
- * Fetches pages and movements for the given target URI in parallel.
- * @param {string} target - The document URI (with optional `#id` fragment)
- * @param {HTMLElement} imageViewComponent - The image viewer web component
- * @returns {Promise<{ mainData: { pages: Object[], movements: Object[] }|null, subsetData: null }>}
- */
-async function updateImageViewWebComponent(target, imageViewComponent) {
-    const { doc } = splitTargetIntoDocAndIds(target);
-
-    const [pagesData, movementsData] = await Promise.all([
-        getPages(doc, appState.edition.doc),
-        getMovements(doc, appState.edition.doc)
-    ]);
-
-    if (!pagesData || pagesData.length === 0) return { mainData: null, subsetData: null };
-
-    return { mainData: { pages: pagesData, movements: movementsData || [] }, subsetData: null };
 }
