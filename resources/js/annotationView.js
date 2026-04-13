@@ -29,7 +29,6 @@ export function buildAnnotationView(target, config = {}) {
     controlBar.setAttribute("gap", "10px");
 
     const spacer = document.createElement("edirom-spacer-widget");
-    controlBar.appendChild(spacer);
 
     // ANNOTATION STEP SPIN BOX
 
@@ -58,7 +57,6 @@ export function buildAnnotationView(target, config = {}) {
         }
         navigateToAnnotation(annotation);
     });
-    controlBar.appendChild(spinBox);
 
     annotationViewComponent.addEventListener("annotation-data-changed", (event) => {
         spinBox.setAttribute("current-step", String(event.detail.annotationData.pos));
@@ -95,6 +93,11 @@ export function buildAnnotationView(target, config = {}) {
     }
 
     const controlBarContainer = document.createElement("div");
+    // --- Control bar layout ---
+    // [ spacer ] [ spinBox ]
+    controlBar.appendChild(spacer);
+    controlBar.appendChild(spinBox);
+
     controlBarContainer.id = "view-control-bar-container";
     controlBarContainer.appendChild(controlBar);
 

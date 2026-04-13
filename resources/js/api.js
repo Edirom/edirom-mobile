@@ -69,6 +69,26 @@ export async function getPages(uri, edition, backendUrl = appState.edition.backe
     return pagesData;
 }
 
+export async function getMovements(uri, edition, backendUrl = appState.edition.backendUrl) {
+    const movementsData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getMovements.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(appState.language)}`);
+    return movementsData;
+}
+
+export async function getMeasures(uri, edition, mdiv, backendUrl = appState.edition.backendUrl) {
+    const measuresData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getMeasures.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&mdiv=${encodeURIComponent(mdiv)}&lang=${encodeURIComponent(appState.language)}`);
+    return measuresData;
+}
+
+export async function getMeasurePage(id, edition, measure, measureCount = 1, backendUrl = appState.edition.backendUrl) {
+    const measurePageData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getMeasurePage.xql?edition=${encodeURIComponent(edition)}&id=${encodeURIComponent(id)}&measure=${encodeURIComponent(measure)}&measureCount=${encodeURIComponent(measureCount)}&lang=${encodeURIComponent(appState.language)}`);
+    return measurePageData;
+}
+
+export async function getMeasuresOnPage(uri, pageId, edition, backendUrl = appState.edition.backendUrl) {
+    const data = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getMeasuresOnPage.xql?uri=${encodeURIComponent(uri)}&pageId=${encodeURIComponent(pageId)}&edition=${encodeURIComponent(edition)}&lang=${encodeURIComponent(appState.language)}`);
+    return data;
+}
+
 /**
  * Fetches the annotations list for a given document URI within an edition.
  * @param {string} edition - The edition URI
