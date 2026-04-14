@@ -171,6 +171,7 @@ function buildViewHeader(linkData, availableViews, activeView) {
     viewSelect.addEventListener("change", (event) => {
         const selectedView = event.target.value;
         if (selectedView !== activeView) {
+            activeView = selectedView;
             viewHeaderContainer.dispatchEvent(new CustomEvent("switch-view-request", {
                 detail: { newView: selectedView },
                 bubbles: true
