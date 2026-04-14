@@ -376,55 +376,70 @@ export function buildImageView(target, config = {}) {
         update: async (target) => {
             const { doc, ids } = splitTargetIntoDocAndIds(target);
             console.log("Updating image view with doc:", doc, "and ids:", ids);
+
+            // Detect whether the document and edition are the same as the current state.
+            // If so we can skip re-initialising the OSD viewer (which is expensive and
+            // causes a WebGL context loss + full tile reload) and only recompute the subset.
+            const isSameDoc = doc === _doc && appState.edition.doc === _edition && _fullPages.length > 0;
+
             _doc = doc;
             _edition = appState.edition.doc;
 
-            // Reset all caches on each update (new data load)
-            _measuresData = null;
-            _measureSequenceData = [];
-            _measureLabels = [];
-            _measurePageIdCache = new Map();
-            _pageMeasuresCache = new Map();
+            if (!isSameDoc) {
+                // --- Full load for a new document ---
 
-            const [pagesData, movementsData] = await Promise.all([
-                getPages(doc, _edition),
-                getMovements(doc, _edition)
-            ]);
+                // Reset all caches on each update (new data load)
+                _measuresData = null;
+                _measureSequenceData = [];
+                _measureLabels = [];
+                _measurePageIdCache = new Map();
+                _pageMeasuresCache = new Map();
 
-            if (!pagesData || pagesData.length === 0) return { mainData: null, subsetData: null };
+                const [pagesData, movementsData] = await Promise.all([
+                    getPages(doc, _edition),
+                    getMovements(doc, _edition)
+                ]);
 
-            const movements = movementsData || [];
-            _fullPages = pagesData;
-            _fullMovements = movements;
+                if (!pagesData || pagesData.length === 0) return { mainData: null, subsetData: null };
 
-            // Build _pageIdToIndex from ALL pages (needed for OSD page numbers)
-            _pageIdToIndex = new Map(pagesData.map((page, index) => [page.id, index + 1]));
+                const movements = movementsData || [];
+                _fullPages = pagesData;
+                _fullMovements = movements;
 
-            // Build tile sources from ALL pages
-            let tileSources = pagesData.map(page => {
-                if (page.path && page.path.startsWith("http")) {
-                    return {
-                        "@context": "http://iiif.io/api/image/2/context.json",
-                        "@id": page.path,
-                        "height": Number(page.height),
-                        "width": Number(page.width),
-                        "profile": ["http://iiif.io/api/image/2/level2.json"],
-                        "protocol": "http://iiif.io/api/image",
-                        "tiles": [{ "scaleFactors": [1, 2, 4, 8, 16, 32], "width": 1024 }]
-                    };
-                }
-                return page.path;
-            });
-            imageViewComponent.setAttribute("tilesources", JSON.stringify(tileSources));
-            imageViewComponent.setAttribute("zones-data", "{}");
+                // Build _pageIdToIndex from ALL pages (needed for OSD page numbers)
+                _pageIdToIndex = new Map(pagesData.map((page, index) => [page.id, index + 1]));
 
-            const mainData = { pages: pagesData, movements };
+                // Build tile sources from ALL pages
+                let tileSources = pagesData.map(page => {
+                    if (page.path && page.path.startsWith("http")) {
+                        return {
+                            "@context": "http://iiif.io/api/image/2/context.json",
+                            "@id": page.path,
+                            "height": Number(page.height),
+                            "width": Number(page.width),
+                            "profile": ["http://iiif.io/api/image/2/level2.json"],
+                            "protocol": "http://iiif.io/api/image",
+                            "tiles": [{ "scaleFactors": [1, 2, 4, 8, 16, 32], "width": 1024 }]
+                        };
+                    }
+                    return page.path;
+                });
+                // Setting tilesources re-initialises the OSD viewer, so only do it when the
+                // document actually changes.
+                imageViewComponent.setAttribute("tilesources", JSON.stringify(tileSources));
+                imageViewComponent.setAttribute("zones-data", "{}");
+            }
+
+            const mainData = { pages: _fullPages, movements: _fullMovements };
 
             // --- Subset logic ---
             let subsetData = null;
-            if (ids.length > 0 && movements.length > 0) {
-                // Eagerly fetch measures so we can match IDs
-                _measuresData = await getMeasures(doc, _edition, movements[0].id);
+            if (ids.length > 0 && _fullMovements.length > 0) {
+                // For same-doc switches reuse the already-cached measures list; only fetch
+                // when we don't have it yet (first load or after a different-doc reset).
+                if (_measuresData === null) {
+                    _measuresData = await getMeasures(doc, _edition, _fullMovements[0].id);
+                }
                 if (_measuresData && _measuresData.length > 0) {
                     const idsSet = new Set(ids);
                     // A group matches if any of its measures has an ID in the target
@@ -434,22 +449,31 @@ export function buildImageView(target, config = {}) {
                     if (matchingGroups.length > 0) {
                         const matchingPrimaryIds = matchingGroups.map(g => g.measures[0].id);
 
-                        // Determine which pages contain the matching measures
-                        const pageResults = await Promise.all(
-                            matchingPrimaryIds.map(mId => getMeasurePage(doc, _edition, mId))
-                        );
-                        const relevantPageIds = new Set();
-                        for (let i = 0; i < pageResults.length; i++) {
-                            const data = pageResults[i];
-                            if (data && data.length > 0) {
-                                _measurePageIdCache.set(matchingPrimaryIds[i], data[0].pageId);
-                                relevantPageIds.add(data[0].pageId);
+                        // Determine which pages contain the matching measures.
+                        // For same-doc switches most entries will already be in the cache —
+                        // only fetch the ones that aren't.
+                        const uncached = matchingPrimaryIds.filter(mId => !_measurePageIdCache.has(mId));
+                        if (uncached.length > 0) {
+                            const pageResults = await Promise.all(
+                                uncached.map(mId => getMeasurePage(doc, _edition, mId))
+                            );
+                            for (let i = 0; i < uncached.length; i++) {
+                                const data = pageResults[i];
+                                if (data && data.length > 0) {
+                                    _measurePageIdCache.set(uncached[i], data[0].pageId);
+                                }
                             }
                         }
 
-                        const filteredPages = pagesData.filter(p => relevantPageIds.has(p.id));
+                        const relevantPageIds = new Set(
+                            matchingPrimaryIds
+                                .map(mId => _measurePageIdCache.get(mId))
+                                .filter(Boolean)
+                        );
+
+                        const filteredPages = _fullPages.filter(p => relevantPageIds.has(p.id));
                         if (filteredPages.length > 0) {
-                            subsetData = { pages: filteredPages, movements, measureSubsetIds: matchingPrimaryIds };
+                            subsetData = { pages: filteredPages, movements: _fullMovements, measureSubsetIds: matchingPrimaryIds };
                         }
                     }
                 }
