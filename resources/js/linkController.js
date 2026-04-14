@@ -121,6 +121,23 @@ export function loadLink(targets, updateExistingViewWindow = true, createNewView
             return true;
         }
         else if (uriType === "doc") {
+            // For single-target doc URIs, check whether an in-place update is possible before
+            // falling through to createViewWindow. This mirrors the logic in the multi-target
+            // loop below. We compare the clicked target against both the window's primary target
+            // (appState.viewWindow.target) and its view-specific target
+            // (appState.viewWindow.viewSpecificTarget) to handle sub-view scenarios where the
+            // active view displays a different document than the one the window was opened with
+            // (e.g. a textView showing text-5.xml inside a window opened for source.xml).
+            if (updateExistingViewWindow && appState.page === "views") {
+                const targetDoc = splitTargetIntoDocAndIds(target).doc;
+                const windowDoc = splitTargetIntoDocAndIds(appState.viewWindow.target ?? '').doc;
+                const viewSpecificDoc = splitTargetIntoDocAndIds(appState.viewWindow.viewSpecificTarget ?? '').doc;
+                if (targetDoc === windowDoc || targetDoc === viewSpecificDoc) {
+                    let viewContentDiv = document.querySelector("#view-content");
+                    updateCurrentView(target, viewContentDiv, config);
+                    return true;
+                }
+            }
             if (createNewViewWindow) {
                 createViewWindow(target, config);
                 return true;

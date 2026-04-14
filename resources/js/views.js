@@ -274,6 +274,7 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
     const { mainData, subsetData } = await view.update(viewSpecificTarget, viewsContainer);
     applyViewData(mainData, subsetData);
     appState.viewWindow.target = target;
+    appState.viewWindow.viewSpecificTarget = viewSpecificTarget;
 }
 
 /**
@@ -289,6 +290,7 @@ export async function updateCurrentView(target, viewContentDiv, config = {}) {
         const { mainData, subsetData } = await currentViewUpdate(viewSpecificTarget, viewContentDiv);
         applyViewData(mainData, subsetData);
         appState.viewWindow.target = target;
+        appState.viewWindow.viewSpecificTarget = viewSpecificTarget;
     } else {
         console.warn(`No update function defined for view type: ${appState.viewWindow.view}`);
     }
