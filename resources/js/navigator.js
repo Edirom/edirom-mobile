@@ -124,14 +124,6 @@ function onNavigatorDataChanged() {
  *   and `targets` fields enriched.
  */
 export async function filterAndEnrichNavigatorData(navigatorData) {
-    const VIEW_TYPE_ICONS = {
-        textView: "text_fields",
-        verovioView: "music_note_2",
-        xmlView: "code_xml",
-        sourceView: "image",
-        videoView: "video_camera_back",
-        annotationView: "list",
-    };
     const tasks = [];
 
     function collectItems(node) {
@@ -147,7 +139,7 @@ export async function filterAndEnrichNavigatorData(navigatorData) {
                     ? getLinkTarget(pt.target, appState.language, appState.edition.doc)
                         .then(data => ({
                             title: data?.title || null,
-                            icons: (data?.views || []).filter(v => appConfig.availableViews.includes(v.type)).map(v => VIEW_TYPE_ICONS[v.type]).filter(Boolean),
+                            icons: (data?.views || []).filter(v => appConfig.availableViews.some(av => av.view === v.type)).map(v => appConfig.availableViews.find(av => av.view === v.type)?.icon).filter(Boolean),
                         }))
                         .catch(() => ({ title: null, icons: [] }))
                     : Promise.resolve({ title: pt.target, icons: ["open_in_new"] })

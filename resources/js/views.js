@@ -157,6 +157,12 @@ function buildViewHeader(linkData, availableViews, activeView) {
     const selectContainer = document.createElement("div");
     selectContainer.classList.add("view-select-container");
 
+    const viewIcon = document.createElement("edirom-icon");
+    const activeViewConfig = availableViews.find(v => v.type === activeView);
+    viewIcon.setAttribute("name", activeViewConfig?.icon || "visibility");
+    viewIcon.setAttribute("size", "1.3em");
+    selectContainer.appendChild(viewIcon);
+
     const viewSelect = document.createElement("select");
     viewSelect.setAttribute("aria-label", "Select view");
 
@@ -172,6 +178,8 @@ function buildViewHeader(linkData, availableViews, activeView) {
         const selectedView = event.target.value;
         if (selectedView !== activeView) {
             activeView = selectedView;
+            const selectedViewConfig = availableViews.find(v => v.type === selectedView);
+            viewIcon.setAttribute("name", selectedViewConfig?.icon || "visibility");
             viewHeaderContainer.dispatchEvent(new CustomEvent("switch-view-request", {
                 detail: { newView: selectedView },
                 bubbles: true
@@ -308,8 +316,13 @@ export function removeCurrentViewSubset() {
 function reduceToAvailableViews(views) {
     var availableViews = [];
     views.forEach(view => {
-        if (appConfig.availableViews.includes(view.type)) {
-            availableViews.push(view);
+        const configView = appConfig.availableViews.find(av => av.view === view.type);
+        if (configView) {
+            availableViews.push({
+                ...view,
+                label: view.label || configView.label,
+                icon: configView.icon
+            });
         }
     });
     return availableViews;

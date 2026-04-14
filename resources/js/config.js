@@ -1,5 +1,9 @@
 const DEFAULT_LANGUAGE = "de";
-const DEFAULT_AVAILABLE_VIEWS = ["annotationView", "sourceView", "textView"];
+const DEFAULT_AVAILABLE_VIEWS = [
+    { "view": "annotationView", "label": "Annotationen", "icon": "list" },
+    { "view": "sourceView", "label": "Faksimile", "icon": "image" },
+    { "view": "textView", "label": "Text", "icon": "text_fields" }
+];
 const DEFAULT_VIEW_HEADER_ID = "view-header";
 
 /**
