@@ -18,7 +18,11 @@
     <script defer src="resources/web-components/edirom-controls/edirom-spacer-widget.js" type="module"></script>
     <script defer src="resources/web-components/edirom-controls/edirom-button-widget.js" type="module"></script>
     <script defer src="resources/web-components/edirom-controls/edirom-spin-box-widget.js" type="module"></script>
-    <script src="resources/js/html5-qrcode.min.js" type="text/javascript"></script>
+    <!-- html5-qrcode must be a plain (non-module) script so that its var declarations
+         become globals on window. Loaded with type="module" the var scoping breaks
+         window.__Html5QrcodeLibrary__ and Html5Qrcode is never defined globally. -->
+    <script defer src="resources/web-components/edirom-qr-code-scanner/resources/html5-qrcode.min.js"></script>
+    <script defer src="resources/web-components/edirom-qr-code-scanner/edirom-qr-code-scanner.js" type="module"></script>
     <link rel="stylesheet" href="resources/css/styles.css">
 </head>
 

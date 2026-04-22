@@ -16,6 +16,7 @@ export async function initConcordanceNavigator() {
     const footerElement = document.getElementById("footer");
     const concordanceNavigatorElement = document.createElement("edirom-concordance-navigator");
     concordanceNavigatorElement.setAttribute("layout-mode", "mobile");
+    concordanceNavigatorElement.setAttribute('enable-qr-code-scanner', 'true');
     concordanceNavigatorElement.setAttribute("concordances-data", JSON.stringify(concordances));
     concordanceNavigatorElement.setAttribute("inject-disabled-concordance", "Freies Erkunden");
     concordanceNavigatorElement.addEventListener("show-connection-request", (event) => {
