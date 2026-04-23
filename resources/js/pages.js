@@ -78,6 +78,31 @@ export async function switchPage(pageName, newContent, { pushState = true, repla
 }
 
 /**
+ * Ensures the navigator page is visible.
+ *
+ * If the navigator is already active and mounted, this is a no-op by default
+ * to avoid unnecessary remounts of `<edirom-navigator>`. Set `forceRemount`
+ * to true when a full rebuild is explicitly required.
+ *
+ * @param {Object} options - History and remount options
+ * @param {boolean} [options.pushState=true] - Whether to push a new history entry
+ * @param {boolean} [options.replaceState=false] - Whether to replace current history entry
+ * @param {boolean} [options.forceRemount=false] - Force rebuilding navigator even when already active
+ * @returns {Promise<boolean>} `true` if a page switch occurred, `false` if skipped
+ */
+export async function showNavigator({ pushState = true, replaceState = false, forceRemount = false } = {}) {
+    const navigatorElement = document.querySelector("#content-container edirom-navigator");
+    const isNavigatorActive = appState.page === "navigator" && !!navigatorElement;
+
+    if (isNavigatorActive && !forceRemount) {
+        return false;
+    }
+
+    await switchPage("navigator", buildNavigator(), { pushState, replaceState });
+    return true;
+}
+
+/**
  * Builds and returns the "About Edirom Mobile" page element.
  * @returns {HTMLElement} The page container element
  */
@@ -156,7 +181,7 @@ window.addEventListener("popstate", async (event) => {
 
     // Fallback for null state (e.g., if replaceState wasn't called on init)
     if (!event.state) {
-        await switchPage("navigator", buildNavigator(), { replaceState: true });
+        await showNavigator({ replaceState: true, forceRemount: true });
         return;
     }
 
@@ -183,6 +208,6 @@ window.addEventListener("popstate", async (event) => {
         }
 
         // From views or other pages, fall back to navigator
-        await switchPage("navigator", buildNavigator(), { pushState: false });
+        await showNavigator({ pushState: false });
     }
 });

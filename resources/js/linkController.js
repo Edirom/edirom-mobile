@@ -1,8 +1,8 @@
 import { appState } from "./config.js";
 import { createViewWindow, updateCurrentView } from "./views.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
-import { buildNavigatorDataFromParsedTargets, filterAndEnrichNavigatorData, setNavigatorData, buildNavigator } from "./navigator.js";
-import { switchPage } from "./pages.js";
+import { buildNavigatorDataFromParsedTargets, filterAndEnrichNavigatorData, setNavigatorData } from "./navigator.js";
+import { showNavigator } from "./pages.js";
 
 /**
  * Resolves a plist targets string and handles navigation based on the
@@ -41,7 +41,7 @@ export async function loadLinks(plist, additionalConfig = {}) {
         ].includes(configuredBehaviour) && appState.page !== "navigator";
 
         if (shouldSwitchToNavigator) {
-            switchPage("navigator", buildNavigator());
+            await showNavigator();
         }
         return;
     }
@@ -94,7 +94,7 @@ export async function loadLinks(plist, additionalConfig = {}) {
         setNavigatorData(filteredAndEnrichedNavigatorData, setAsMainNavigation, addToCurrentNavigation);
     }
     if (shouldSwitchToNavigator) {
-        switchPage("navigator", buildNavigator());
+        await showNavigator();
     }
 
 
@@ -391,21 +391,21 @@ export function parseTargets(targets, additionalConfig = {}) {
 
     if (configStart !== -1) {
 
-    var cfgString = targets.slice(configStart + 1, configEnd);
-    var configPairs = splitAtDepthZero(cfgString).map(function (pair) {
-        return pair.split(/[=:](.*)/).slice(0, 2);
-    });
+        var cfgString = targets.slice(configStart + 1, configEnd);
+        var configPairs = splitAtDepthZero(cfgString).map(function (pair) {
+            return pair.split(/[=:](.*)/).slice(0, 2);
+        });
 
-    for (var j = 0; j < configPairs.length; j++) {
-        var k = configPairs[j][0];
-        var v = configPairs[j][1];
-        // Strip sep chars from keys and values to handle masked whitespace (e.g. \uC280sort → sort)
-        var cleanK = sep ? k.split(sep).join('') : k;
-        var cleanV = sep && v ? v.split(sep).join('') : v;
-        if (cleanK && cleanK.trim()) {
-            config[cleanK.trim()] = parseValue((cleanV && cleanV.trim()) || '');
+        for (var j = 0; j < configPairs.length; j++) {
+            var k = configPairs[j][0];
+            var v = configPairs[j][1];
+            // Strip sep chars from keys and values to handle masked whitespace (e.g. \uC280sort → sort)
+            var cleanK = sep ? k.split(sep).join('') : k;
+            var cleanV = sep && v ? v.split(sep).join('') : v;
+            if (cleanK && cleanK.trim()) {
+                config[cleanK.trim()] = parseValue((cleanV && cleanV.trim()) || '');
+            }
         }
-    }
 
     } // end if (configStart !== -1)
 
