@@ -1,7 +1,7 @@
-import { getConcordances, getNavigatorConfig } from "./api.js";
+import { getConcordances } from "./api.js";
 import { appState } from "./config.js";
 import { loadLinks } from "./linkController.js";
-import { filterAndEnrichNavigatorData, setNavigatorData } from "./navigator.js";
+import { refreshNavigatorDataFromBackend } from "./navigator.js";
 import { removeCurrentViewSubset } from "./views.js";
 
 /**
@@ -22,8 +22,10 @@ export async function initConcordanceNavigator() {
     concordanceNavigatorElement.addEventListener("show-connection-request", (event) => {
         loadLinks(event.detail.plist, { "setAsMainNavigation": true, "behaviour": "updateViewOrSwitchToNavigator" });
     });
-    concordanceNavigatorElement.addEventListener("concordance-navigator-disabled", (event) => {
-        onConcordanceNavigatorDisabled();
+    concordanceNavigatorElement.addEventListener("concordance-navigator-disabled", () => {
+        onConcordanceNavigatorDisabled().catch((error) => {
+            console.error("Failed to refresh navigator after disabling concordance navigator:", error);
+        });
     });
     footerElement.innerHTML = ""; // Clear previous content
     footerElement.appendChild(concordanceNavigatorElement);
@@ -37,9 +39,10 @@ export async function initConcordanceNavigator() {
 async function onConcordanceNavigatorDisabled() {
     console.log("Concordance navigator disabled");
     removeCurrentViewSubset();
-    let navigatorData = await getNavigatorConfig(appState.edition.doc, appState.work.id, appState.language, appState.edition.doc, appState.edition.backendUrl);
-    let filteredAndEnrichedNavigatorData = await filterAndEnrichNavigatorData(navigatorData);
-    setNavigatorData(filteredAndEnrichedNavigatorData, true, false);
+    await refreshNavigatorDataFromBackend({
+        setAsNavigatorDataMain: true,
+        addToNavigatorDataCurrent: false
+    });
 
     // TODO: Break Views from restriction
 }

@@ -25,6 +25,27 @@ export async function loadLinks(plist, additionalConfig = {}) {
     console.log("Loading links from plist:", plist);
     let parsedTargets = parseTargets(plist, additionalConfig);
 
+    if (parsedTargets.length === 0) {
+        const configuredBehaviour = additionalConfig?.behaviour;
+        const setAsMainNavigation = additionalConfig?.setAsMainNavigation || false;
+        const addToCurrentNavigation = additionalConfig?.addToCurrentNavigation || false;
+
+        if (setAsMainNavigation || addToCurrentNavigation) {
+            setNavigatorData({ navigatorDefinition: [] }, setAsMainNavigation, addToCurrentNavigation);
+        }
+
+        const shouldSwitchToNavigator = [
+            "switchToNavigator",
+            "updateViewOrSwitchToNavigator",
+            "updateViewOrCreateViewWindowOrSwitchToNavigator"
+        ].includes(configuredBehaviour) && appState.page !== "navigator";
+
+        if (shouldSwitchToNavigator) {
+            switchPage("navigator", buildNavigator());
+        }
+        return;
+    }
+
     let shouldSetNavigatorData = true;
     let shouldSwitchToNavigator = false;
 

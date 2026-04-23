@@ -2,6 +2,8 @@ import { loadLinks, parseTargets, getUriType, buildTargetsStringWithConfig } fro
 import { getNavigatorConfig, getLinkTarget } from "./api.js";
 import { appConfig, appState } from "./config.js";
 
+const EMPTY_NAVIGATOR_DATA = { navigatorDefinition: [] };
+
 
 /**
  * Serializes `data` as JSON and sets it as the `navigator-data` attribute on
@@ -14,7 +16,60 @@ function updateNavigatorData(data, navigatorElement = null) {
     if (!navigatorElement) {
         navigatorElement = document.querySelector("edirom-navigator");
     }
-    navigatorElement.setAttribute("navigator-data", JSON.stringify(data));
+    if (!navigatorElement) {
+        return;
+    }
+    navigatorElement.setAttribute("navigator-data", JSON.stringify(data ?? EMPTY_NAVIGATOR_DATA));
+}
+
+/**
+ * Sets the loading state on the `<edirom-navigator>` element.
+ * @param {boolean} isLoading - Whether navigator should render loading state
+ * @param {HTMLElement|null} [navigatorElement] - Optional explicit element reference
+ */
+export function setNavigatorLoading(isLoading, navigatorElement = null) {
+    if (!navigatorElement) {
+        navigatorElement = document.querySelector("edirom-navigator");
+    }
+    if (!navigatorElement) {
+        return;
+    }
+    navigatorElement.setAttribute("is-loading", isLoading ? "true" : "false");
+}
+
+/**
+ * Fetches navigator configuration from backend, enriches it and pushes the
+ * result into app navigator state.
+ * @param {Object} [options]
+ * @param {boolean} [options.setAsNavigatorDataMain=true] - Store as main navigation root
+ * @param {boolean} [options.addToNavigatorDataCurrent=false] - Push onto current stack
+ * @param {HTMLElement|null} [options.navigatorElement=null] - Optional explicit target element
+ * @returns {Promise<Object>} The loaded and enriched navigator data
+ */
+export async function refreshNavigatorDataFromBackend({
+    setAsNavigatorDataMain = true,
+    addToNavigatorDataCurrent = false,
+    navigatorElement = null,
+} = {}) {
+    setNavigatorLoading(true, navigatorElement);
+    try {
+        const navigatorData = await getNavigatorConfig(
+            appState.edition.doc,
+            appState.work.id,
+            appState.language,
+            appState.edition.doc,
+            appState.edition.backendUrl
+        );
+        const filteredAndEnrichedNavigatorData = await filterAndEnrichNavigatorData(navigatorData);
+        setNavigatorData(filteredAndEnrichedNavigatorData, setAsNavigatorDataMain, addToNavigatorDataCurrent);
+        updateNavigatorData(filteredAndEnrichedNavigatorData, navigatorElement);
+        return filteredAndEnrichedNavigatorData;
+    } catch (error) {
+        console.error("Failed to refresh navigator data:", error);
+        throw error;
+    } finally {
+        setNavigatorLoading(false, navigatorElement);
+    }
 }
 
 /**
@@ -30,7 +85,21 @@ export async function buildNavigator(navigatorData = appState.navigatorData.curr
     navigatorElement.classList.add("web-component");
     navigatorElement.setAttribute("layout-mode", "mobile");
     navigatorElement.setAttribute("no-content-message", "(Noch) keine Inhalte für diesen Kontext verfügbar.");
-    updateNavigatorData(navigatorData, navigatorElement);
+
+    const hasExistingNavigatorData = navigatorData !== null && navigatorData !== undefined;
+    setNavigatorLoading(!hasExistingNavigatorData, navigatorElement);
+    updateNavigatorData(hasExistingNavigatorData ? navigatorData : EMPTY_NAVIGATOR_DATA, navigatorElement);
+
+    if (!hasExistingNavigatorData) {
+        refreshNavigatorDataFromBackend({
+            setAsNavigatorDataMain: true,
+            addToNavigatorDataCurrent: false,
+            navigatorElement
+        }).catch(() => {
+            // On failure, loading is cleared in refreshNavigatorDataFromBackend.
+        });
+    }
+
     navigatorElement.addEventListener("load-links-request", (event) => {
         loadLinks(event.detail, { "behaviour": "updateViewOrSwitchToNavigator" });
 
@@ -56,6 +125,7 @@ export function setNavigatorData(data, setAsNavigatorDataMain = false, addToNavi
         appState.navigatorData.current.push(data);
     }
     onNavigatorDataChanged();
+    setNavigatorLoading(false);
 }
 
 /**
@@ -83,7 +153,7 @@ function onNavigatorDataChanged() {
     if (appState.page === "navigator") {
         const navigatorElement = document.querySelector("edirom-navigator");
         if (navigatorElement) {
-            navigatorElement.setAttribute("navigator-data", JSON.stringify(appState.navigatorData.current[appState.navigatorData.current.length - 1] || appState.navigatorData.main));
+            updateNavigatorData(appState.navigatorData.current[appState.navigatorData.current.length - 1] || appState.navigatorData.main, navigatorElement);
         }
     }
 }
