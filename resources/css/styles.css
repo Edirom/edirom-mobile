@@ -120,6 +120,8 @@ header > div:last-child {
   border-radius: 4px;
   font-family: inherit;
   font-size: 14px;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #view-header .view-title {
@@ -177,6 +179,8 @@ header > div:last-child {
   text-decoration: none;
   color: inherit;
   font-weight: 500;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .header-menu a:hover,
