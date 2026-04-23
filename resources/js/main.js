@@ -1,9 +1,8 @@
 import { appConfig, appState } from "./config.js";
-import { buildNavigator } from "./navigator.js";
 import { getEditions, getAllEditions, getWorks } from "./api.js";
 import { setupHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
-import { switchPage, buildEditionSelectionPage } from "./pages.js";
+import { switchPage, buildEditionSelectionPage, showNavigator } from "./pages.js";
 import { initConcordanceNavigator } from "./concordanceNavigator.js";
 
 
@@ -142,7 +141,7 @@ export async function initWork(workId = null) {
     }
 
     setWorkTitle();
-    switchPage("navigator", buildNavigator());
+    showNavigator();
     initConcordanceNavigator();
 
 

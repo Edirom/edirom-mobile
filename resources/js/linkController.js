@@ -1,8 +1,8 @@
 import { appState } from "./config.js";
 import { createViewWindow, updateCurrentView } from "./views.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
-import { buildNavigatorDataFromParsedTargets, filterAndEnrichNavigatorData, setNavigatorData, buildNavigator } from "./navigator.js";
-import { switchPage } from "./pages.js";
+import { buildNavigatorDataFromParsedTargets, filterAndEnrichNavigatorData, setNavigatorData } from "./navigator.js";
+import { showNavigator } from "./pages.js";
 
 /**
  * Resolves a plist targets string and handles navigation based on the
@@ -24,6 +24,27 @@ import { switchPage } from "./pages.js";
 export async function loadLinks(plist, additionalConfig = {}) {
     console.log("Loading links from plist:", plist);
     let parsedTargets = parseTargets(plist, additionalConfig);
+
+    if (parsedTargets.length === 0) {
+        const configuredBehaviour = additionalConfig?.behaviour;
+        const setAsMainNavigation = additionalConfig?.setAsMainNavigation || false;
+        const addToCurrentNavigation = additionalConfig?.addToCurrentNavigation || false;
+
+        if (setAsMainNavigation || addToCurrentNavigation) {
+            setNavigatorData({ navigatorDefinition: [] }, setAsMainNavigation, addToCurrentNavigation);
+        }
+
+        const shouldSwitchToNavigator = [
+            "switchToNavigator",
+            "updateViewOrSwitchToNavigator",
+            "updateViewOrCreateViewWindowOrSwitchToNavigator"
+        ].includes(configuredBehaviour) && appState.page !== "navigator";
+
+        if (shouldSwitchToNavigator) {
+            await showNavigator();
+        }
+        return;
+    }
 
     let shouldSetNavigatorData = true;
     let shouldSwitchToNavigator = false;
@@ -73,7 +94,7 @@ export async function loadLinks(plist, additionalConfig = {}) {
         setNavigatorData(filteredAndEnrichedNavigatorData, setAsMainNavigation, addToCurrentNavigation);
     }
     if (shouldSwitchToNavigator) {
-        switchPage("navigator", buildNavigator());
+        await showNavigator();
     }
 
 
