@@ -165,7 +165,10 @@ export function setWorkTitle() {
         select.addEventListener("change", (e) => {
             const workId = e.target.value;
             const work = appState.worksInEdition.find((w) => w.id === workId);
-            initWork({ workId: work.id });
+            if (!work) {
+                return;
+            }
+            initWork(work.id);
         });
 
         wrapper.appendChild(select);
