@@ -67,22 +67,39 @@ function isWorkAvailableInEdition(workId) {
  * @param {string|null} [options.editionId] - The edition ID to initialize
  * @param {string|null} [options.backendUrl] - A known backend URL for the edition
  * @param {string|null} [options.workId] - A specific work ID to initialize after the edition
+ * @param {string|null} [options.connectionId] - A specific concordance connection ID to initialize after the work
  * @returns {Promise<void>}
  */
-export async function initEdition({ editionId = null, backendUrl = null, workId = null } = {}) {
+export async function initEdition({ editionId = null, backendUrl = null, workId = null, connectionId = null } = {}) {
     let foundEditionId = "";
+    let resolvedBackendUrl = backendUrl;
     appState.edition = {};
 
     if (editionId) {
-        if (!backendUrl) {
+        if (!resolvedBackendUrl) {
             const foundUrl = await findBackendForEdition(editionId);
             if (foundUrl) {
-                foundEditionId = editionId;
+                resolvedBackendUrl = foundUrl;
             }
         }
-        else {
-            if (await isEditionAvailableInBackend(editionId, backendUrl)) {
-                foundEditionId = editionId;
+
+        if (resolvedBackendUrl && await isEditionAvailableInBackend(editionId, resolvedBackendUrl)) {
+            foundEditionId = editionId;
+
+            const hasEditionInCache = appState.allEditions.some((edition) =>
+                edition.id === foundEditionId && edition.backendUrl === resolvedBackendUrl
+            );
+
+            if (!hasEditionInCache) {
+                const editionsFromBackend = await getEditions(resolvedBackendUrl);
+                const editionList = Array.isArray(editionsFromBackend) ? editionsFromBackend : (editionsFromBackend ? [editionsFromBackend] : []);
+
+                const existingEntries = new Set(appState.allEditions.map((edition) => `${edition.id}|${edition.backendUrl}`));
+                const mergedEditions = editionList
+                    .map((edition) => ({ ...edition, backendUrl: resolvedBackendUrl }))
+                    .filter((edition) => !existingEntries.has(`${edition.id}|${edition.backendUrl}`));
+
+                appState.allEditions.push(...mergedEditions);
             }
         }
     }
@@ -102,12 +119,33 @@ export async function initEdition({ editionId = null, backendUrl = null, workId 
     }
 
     // find the foundEditionId in in all Editions to set it as the current edition
-    let editionData = appState.allEditions.find((edition) => edition.id === foundEditionId);
+    let editionData = appState.allEditions.find((edition) => {
+        if (edition.id !== foundEditionId) return false;
+        if (!resolvedBackendUrl) return true;
+        return edition.backendUrl === resolvedBackendUrl;
+    });
+
+    if (!editionData && !resolvedBackendUrl) {
+        editionData = appState.allEditions.find((edition) => edition.id === foundEditionId);
+    }
+
+    if (!editionData) {
+        console.error("Resolved edition ID is missing from cache", { foundEditionId, resolvedBackendUrl });
+        switchPage("edition-selection", buildEditionSelectionPage());
+        return;
+    }
+
     appState.edition = editionData;
+
+    if (!appState.edition.doc || !appState.edition.backendUrl) {
+        console.error("Edition data is incomplete", appState.edition);
+        switchPage("edition-selection", buildEditionSelectionPage());
+        return;
+    }
 
     appState.worksInEdition = await getWorks(appState.edition.doc, appState.edition.backendUrl);
 
-    initWork(workId);
+    await initWork(workId, connectionId);
 }
 
 /**
@@ -117,9 +155,10 @@ export async function initEdition({ editionId = null, backendUrl = null, workId 
  * switches to the navigator page, and starts the concordance navigator.
  *
  * @param {string|null} [workId] - The work ID to initialize, or null to use the first available
+ * @param {string|null} [connectionId] - The connection ID to initialize in the concordance navigator
  * @returns {Promise<void>}
  */
-export async function initWork(workId = null) {
+export async function initWork(workId = null, connectionId = null) {
     console.log("Initializing work");
     let foundWorkId = "";
     appState.work = {};
@@ -141,8 +180,17 @@ export async function initWork(workId = null) {
     }
 
     setWorkTitle();
-    showNavigator();
-    initConcordanceNavigator();
+
+    if (connectionId) {
+        const { initialConnectionResolved } = await initConcordanceNavigator(connectionId);
+        if (!initialConnectionResolved) {
+            await showNavigator();
+        }
+    }
+    else {
+        await showNavigator();
+        await initConcordanceNavigator();
+    }
 
 
     console.log("Set work to", appState.work);
@@ -158,13 +206,36 @@ async function initApp() {
     console.log("Initializing Edirom Mobile App");
     const urlParams = new URLSearchParams(window.location.search);
 
+    const normalizeParam = (value) => {
+        if (value == null) return null;
+        const trimmedValue = value.trim();
+        return trimmedValue === "" ? null : trimmedValue;
+    };
+
+    const editionId = normalizeParam(urlParams.get("edition"));
+    const backendUrl = normalizeParam(urlParams.get("backendUrl"));
+    let workId = normalizeParam(urlParams.get("work"));
+    let connectionId = normalizeParam(urlParams.get("connection"));
+
+    // Enforce URL parameter hierarchy without failing startup.
+    // work requires edition, and connection requires both edition and work.
+    if (!editionId) {
+        workId = null;
+        connectionId = null;
+    }
+    else if (!workId) {
+        connectionId = null;
+    }
+
     setupHeaderMenu();
-    initEdition({
-        editionId: urlParams.get("editionId"),
-        backendUrl: urlParams.get("backendUrl"),
-        workId: urlParams.get("workId")
-    });
     registerLayoutListeners();
+
+    await initEdition({
+        editionId,
+        backendUrl,
+        workId,
+        connectionId
+    });
 
 }
 
