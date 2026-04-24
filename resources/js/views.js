@@ -24,6 +24,9 @@ let currentViewLockState = null;
 /** @type {HTMLElement|null} The lock button for the currently active view */
 let currentViewLockButton = null;
 
+/** @type {HTMLElement|null} The control bar widget (edirom-control-bar) for the currently active view */
+let currentViewControlBarWidget = null;
+
 /** @type {Object[]} The available views for the currently open document (from getLinkTarget) */
 let currentViewAvailableViews = [];
 
@@ -213,10 +216,12 @@ function applyViewData(mainData, subsetData) {
         currentViewLockState = 'locked';
         currentViewLockButton.setAttribute("current-state", "locked");
         currentViewLockButton.classList.remove("hidden");
+        currentViewControlBarWidget?.classList.add("locked-state");
         currentViewSetData(subsetData);
     } else {
         currentViewLockState = null;
         currentViewLockButton.classList.add("hidden");
+        currentViewControlBarWidget?.classList.remove("locked-state");
         currentViewSetData(mainData);
     }
 }
@@ -231,6 +236,7 @@ function applyCurrentViewLockState(newLockState) {
     const effectiveData = newLockState === 'locked' ? currentViewSubsetData : currentViewMainData;
     currentViewSetData(effectiveData);
     currentViewLockButton.setAttribute("current-state", newLockState);
+    currentViewControlBarWidget?.classList.toggle("locked-state", newLockState === 'locked');
 }
 
 /**
@@ -259,6 +265,8 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
         applyCurrentViewLockState(event.detail.requestedState);
     });
     view.controlBarWidget.appendChild(lockButton);
+    currentViewControlBarWidget = view.controlBarWidget;
+    currentViewControlBarWidget.classList.remove("locked-state");
 
     viewsContainer.querySelector("#view-content").replaceWith(view.content);
     viewsContainer.querySelector("#view-control-bar-container").replaceWith(view.controlBar);
@@ -305,6 +313,7 @@ export function removeCurrentViewSubset() {
     currentViewSubsetData = null;
     currentViewLockState = null;
     currentViewLockButton?.classList.add("hidden");
+    currentViewControlBarWidget?.classList.remove("locked-state");
     currentViewSetData(currentViewMainData);
 }
 

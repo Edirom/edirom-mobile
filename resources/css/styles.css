@@ -4,6 +4,7 @@
   --ewk-primary-color: #232a44;
   --ewk-secondary-color: #e9d9af;
   --ewk-tertiary-color: #faf6f0;
+  --ewk-locked-highlight: #ff1a01;
   --primary-color: var(--ewk-primary-color);
   --secondary-color: var(--ewk-secondary-color);
   --header-height: 55px;
@@ -528,6 +529,14 @@ edirom-spin-box-widget {
   --primary-color: color-mix(in oklch, var(--ewk-secondary-color) 95%, black);
   --spin-box-input-width: 4ch;
   --spin-box-border-color: color-mix(in oklch, var(--ewk-secondary-color) 80%, black);
+}
+
+edirom-control-bar.locked-state #view-lock-button {
+  --secondary-color: color-mix(in oklch, var(--ewk-locked-highlight) 30%, transparent);
+}
+
+edirom-control-bar.locked-state edirom-spin-box-widget {
+  --primary-color: color-mix(in oklch, var(--ewk-locked-highlight) 15%, transparent);
 }
 
 .inline-music-character {
