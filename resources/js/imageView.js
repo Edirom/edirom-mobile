@@ -325,7 +325,9 @@ export function buildImageView(target, config = {}) {
     // Called by views.js applyViewData / applyCurrentViewLockState with either
     // mainData or subsetData.  Tile sources, zones-data, _pageIdToIndex, and
     // measure caches are set once in update() and survive lock toggles.
-    function setData({ pages, movements, measureSubsetIds }) {
+    // isNavigationUpdate is true when called from a concordance connection switch
+    // or any other navigation event; false (default) for lock-state toggles.
+    function setData({ pages, movements, measureSubsetIds }, { isNavigationUpdate = false } = {}) {
         // Capture current state before rebuilding sequences
         const wasInitialized = _sequenceData.length > 0;
         const previousViewMode = _viewMode;
@@ -350,8 +352,9 @@ export function buildImageView(target, config = {}) {
             viewModeButton.classList.add("hidden");
         }
 
-        if (!wasInitialized) {
-            // First load: subset → measure view, no subset → page view.
+        if (!wasInitialized || isNavigationUpdate) {
+            // First load or concordance connection switch: derive view mode from subset.
+            // Subset present → measure view; whole-document connection → page view.
             if (_activeMeasureSubsetIds) {
                 activateMeasureView(0);
             } else {

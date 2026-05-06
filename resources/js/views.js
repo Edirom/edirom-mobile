@@ -207,8 +207,12 @@ function buildViewHeader(linkData, availableViews, activeView) {
  * Called after both initial data loads and subsequent updates.
  * @param {Object[]|null} mainData - The full dataset fetched for the active target
  * @param {Object[]|null} subsetData - The filtered subset, or null if none
+ * @param {boolean} [isNavigationUpdate=false] - True when called from a view update
+ *   triggered by navigation (e.g. concordance connection switch), as opposed to a
+ *   lock-state toggle. Views may use this to decide whether to derive their internal
+ *   display mode from the new data rather than preserving the current mode.
  */
-function applyViewData(mainData, subsetData) {
+function applyViewData(mainData, subsetData, isNavigationUpdate = false) {
     if (mainData === null) return;
     currentViewMainData = mainData;
     currentViewSubsetData = subsetData;
@@ -217,12 +221,12 @@ function applyViewData(mainData, subsetData) {
         currentViewLockButton.setAttribute("current-state", "locked");
         currentViewLockButton.classList.remove("hidden");
         currentViewControlBarWidget?.classList.add("locked-state");
-        currentViewSetData(subsetData);
+        currentViewSetData(subsetData, { isNavigationUpdate });
     } else {
         currentViewLockState = null;
         currentViewLockButton.classList.add("hidden");
         currentViewControlBarWidget?.classList.remove("locked-state");
-        currentViewSetData(mainData);
+        currentViewSetData(mainData, { isNavigationUpdate });
     }
 }
 
@@ -280,7 +284,7 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
     currentViewLockState = null;
 
     const { mainData, subsetData } = await view.update(viewSpecificTarget, viewsContainer);
-    applyViewData(mainData, subsetData);
+    applyViewData(mainData, subsetData, true);
     appState.viewWindow.target = target;
     appState.viewWindow.viewSpecificTarget = viewSpecificTarget;
 }
@@ -296,7 +300,7 @@ export async function updateCurrentView(target, viewContentDiv, config = {}) {
     if (currentViewUpdate) {
         const viewSpecificTarget = resolveViewSpecificTarget(appState.viewWindow.view, target, currentViewAvailableViews);
         const { mainData, subsetData } = await currentViewUpdate(viewSpecificTarget, viewContentDiv);
-        applyViewData(mainData, subsetData);
+        applyViewData(mainData, subsetData, true);
         appState.viewWindow.target = target;
         appState.viewWindow.viewSpecificTarget = viewSpecificTarget;
     } else {
