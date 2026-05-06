@@ -211,6 +211,31 @@ footer {
   z-index: 1000;
 }
 
+/* Create an overlay to host ALL shadows. This ensures inset shadows render on top of children */
+footer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none; /* Ignore clicks */
+  z-index: 999999;
+}
+
+/* Collapsed mode: Pressed in. Minimal drop shadow + strong inset shadow */
+footer:has(edirom-concordance-navigator[collapsed])::after,
+footer:has(edirom-concordance-navigator:not([collapsible]))::after {
+  box-shadow: rgba(23, 22, 22, 0.6) 0px 1px 4px 1px inset;
+}
+
+/* Expanded mode: Pressed out. Very large and long drop shadow */
+footer:has(edirom-concordance-navigator[collapsible][expanded])::after {
+  box-shadow: rgb(0, 0, 0) 10px -20px 30px;
+}
+
+
+
 #view-control-bar-wrapper {
   width: 100%;
   flex: 0 0 auto;
