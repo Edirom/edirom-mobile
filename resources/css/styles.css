@@ -219,7 +219,7 @@ footer {
 
 #concordance-navigator-wrapper {
   width: 100%;
-  padding: 5px;
+  padding: 1px;
   box-sizing: border-box;
   min-height: var(--base-footer-height);
   flex: 0 0 auto;
