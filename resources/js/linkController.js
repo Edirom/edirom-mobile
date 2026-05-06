@@ -3,6 +3,7 @@ import { createViewWindow, updateCurrentView } from "./views.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
 import { buildNavigatorDataFromParsedTargets, filterAndEnrichNavigatorData, setNavigatorData } from "./navigator.js";
 import { showNavigator } from "./pages.js";
+import { applyUrlParams } from "./main.js";
 
 /**
  * Resolves a plist targets string and handles navigation based on the
@@ -137,6 +138,11 @@ export function loadLink(targets, updateExistingViewWindow = true, createNewView
             console.warn("Unknown URI type for target:", target);
             return false;
         }
+        else if (uriType === "selfLink") {
+            const urlParams = new URL(target).searchParams;
+            applyUrlParams(urlParams);
+            return true;
+        }
         else if (uriType === "externalLink") {
             window.open(target, '_blank');
             return true;
@@ -221,14 +227,23 @@ export function loadLink(targets, updateExistingViewWindow = true, createNewView
 /**
  * Determines the type of a URI string.
  * @param {string} uri - The URI to classify
- * @returns {"doc"|"externalLink"|"unknown"} `"doc"` for `xmldb:exist://...` URIs,
- *   `"externalLink"` for HTTP/WWW URLs, `"unknown"` otherwise
+ * @returns {"doc"|"selfLink"|"externalLink"|"unknown"} `"doc"` for `xmldb:exist://...` URIs,
+ *   `"selfLink"` for HTTP/WWW URLs that share the running client's origin and pathname,
+ *   `"externalLink"` for all other HTTP/WWW URLs, `"unknown"` otherwise
  */
 export function getUriType(uri) {
     if (uri.startsWith("xmldb:exist")) {
         return "doc";
     }
-    else if (uri.startsWith("http") || uri.startsWith("www")) {
+    if (uri.startsWith("http") || uri.startsWith("www")) {
+        try {
+            const url = new URL(uri);
+            if (url.origin === window.location.origin && url.pathname === window.location.pathname) {
+                return "selfLink";
+            }
+        } catch {
+            // Malformed URL — fall through to "externalLink"
+        }
         return "externalLink";
     }
     return "unknown";

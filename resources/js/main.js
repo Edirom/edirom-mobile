@@ -198,20 +198,27 @@ export async function initWork(workId = null, connectionId = null) {
 
 
 /**
- * Entry point for the app. Reads URL query parameters, sets up the header menu
- * and layout listeners, then initializes the edition and work.
+ * Normalizes a raw URL parameter value: trims whitespace and returns `null` for
+ * empty or missing values.
+ * @param {string|null} value - The raw parameter value
+ * @returns {string|null} The trimmed value, or `null` if absent or empty
+ */
+function normalizeParam(value) {
+    if (value == null) return null;
+    const trimmedValue = value.trim();
+    return trimmedValue === "" ? null : trimmedValue;
+}
+
+/**
+ * Applies a set of URL search parameters to initialize the app in the
+ * corresponding state. Enforces the `edition > work > connection` hierarchy
+ * (work requires edition; connection requires both) and delegates to
+ * `initEdition`. This is the single point where URL parameters are translated
+ * into app state, used both on startup and when a self-link is activated.
+ * @param {URLSearchParams} urlParams - The parameters to apply
  * @returns {Promise<void>}
  */
-async function initApp() {
-    console.log("Initializing Edirom Mobile App");
-    const urlParams = new URLSearchParams(window.location.search);
-
-    const normalizeParam = (value) => {
-        if (value == null) return null;
-        const trimmedValue = value.trim();
-        return trimmedValue === "" ? null : trimmedValue;
-    };
-
+export async function applyUrlParams(urlParams) {
     const editionId = normalizeParam(urlParams.get("edition"));
     const backendUrl = normalizeParam(urlParams.get("backendUrl"));
     let workId = normalizeParam(urlParams.get("work"));
@@ -227,16 +234,26 @@ async function initApp() {
         connectionId = null;
     }
 
-    setupHeaderMenu();
-    registerLayoutListeners();
-
     await initEdition({
         editionId,
         backendUrl,
         workId,
         connectionId
     });
+}
 
+/**
+ * Entry point for the app. Sets up the header menu and layout listeners,
+ * then applies the current URL parameters to initialize the edition and work.
+ * @returns {Promise<void>}
+ */
+async function initApp() {
+    console.log("Initializing Edirom Mobile App");
+
+    setupHeaderMenu();
+    registerLayoutListeners();
+
+    await applyUrlParams(new URLSearchParams(window.location.search));
 }
 
 document.addEventListener("DOMContentLoaded", () => {

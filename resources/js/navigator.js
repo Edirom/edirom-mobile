@@ -212,7 +212,9 @@ export async function filterAndEnrichNavigatorData(navigatorData) {
                             icons: (data?.views || []).filter(v => appConfig.availableViews.some(av => av.view === v.type)).map(v => appConfig.availableViews.find(av => av.view === v.type)?.icon).filter(Boolean),
                         }))
                         .catch(() => ({ title: null, icons: [] }))
-                    : Promise.resolve({ title: pt.target, icons: ["open_in_new"] })
+                    : getUriType(pt.target) === "selfLink"
+                        ? Promise.resolve({ title: pt.target, icons: ["refresh"] })
+                        : Promise.resolve({ title: pt.target, icons: ["open_in_new"] })
             );
             tasks.push({ item: node, promises, parsedTargets });
         }
@@ -232,9 +234,10 @@ export async function filterAndEnrichNavigatorData(navigatorData) {
         const results = allResults.slice(offset, offset + promises.length);
 
         const hasExternalLink = parsedTargets.some(pt => getUriType(pt.target) === "externalLink");
+        const hasSelfLink = parsedTargets.some(pt => getUriType(pt.target) === "selfLink");
         const hasDocWithViews = results.some((r, i) => getUriType(parsedTargets[i].target) === "doc" && r.icons.length > 0);
 
-        if (!hasExternalLink && !hasDocWithViews) {
+        if (!hasExternalLink && !hasSelfLink && !hasDocWithViews) {
             itemsToRemove.add(item);
         } else {
             if (!item.name) {
