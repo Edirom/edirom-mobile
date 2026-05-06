@@ -3,7 +3,7 @@ import { getEditions, getAllEditions, getWorks } from "./api.js";
 import { setupHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
 import { switchPage, buildEditionSelectionPage, showNavigator } from "./pages.js";
-import { initConcordanceNavigator } from "./concordanceNavigator.js";
+import { initConcordanceNavigator, navigateConcordanceNavigatorToConnection } from "./concordanceNavigator.js";
 
 
 /**
@@ -162,6 +162,7 @@ export async function initWork(workId = null, connectionId = null) {
     console.log("Initializing work");
     let foundWorkId = "";
     appState.work = {};
+    appState.navigatorData = { main: null, current: [] };
 
     if (workId) {
         if (isWorkAvailableInEdition(workId)) {
@@ -184,11 +185,11 @@ export async function initWork(workId = null, connectionId = null) {
     if (connectionId) {
         const { initialConnectionResolved } = await initConcordanceNavigator(connectionId);
         if (!initialConnectionResolved) {
-            await showNavigator();
+            await showNavigator({ forceRemount: true });
         }
     }
     else {
-        await showNavigator();
+        await showNavigator({ forceRemount: true });
         await initConcordanceNavigator();
     }
 
@@ -232,6 +233,27 @@ export async function applyUrlParams(urlParams) {
     }
     else if (!workId) {
         connectionId = null;
+    }
+
+    // Fast path: same edition + same work + new connection.
+    // Reuse the existing concordance navigator element — nothing is rebuilt and the
+    // scanner stays paused so it can resume instantly on next open.
+    if (editionId && editionId === appState.edition?.id &&
+        workId && workId === appState.work?.id &&
+        connectionId) {
+        const navigated = navigateConcordanceNavigatorToConnection(connectionId);
+        if (navigated) return;
+        // Connection not found in current concordance data — fall through to full reinitialisation.
+    }
+
+    // Medium path: same edition, different work.
+    // Skip initEdition() and its backend availability checks; call initWork() directly.
+    // Navigator data reset and rebuild are handled inside initWork().
+    if (editionId && editionId === appState.edition?.id &&
+        workId && workId !== appState.work?.id &&
+        appState.worksInEdition?.length > 0) {
+        await initWork(workId, connectionId);
+        return;
     }
 
     await initEdition({

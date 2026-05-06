@@ -60,11 +60,20 @@ export async function initConcordanceNavigator(connectionId = null) {
     concordanceNavigatorElement.setAttribute('enable-qr-code-scanner', 'true');
     concordanceNavigatorElement.setAttribute("concordances-data", JSON.stringify(concordances));
     concordanceNavigatorElement.setAttribute("inject-disabled-concordance", "Freies Erkunden");
+    // Build a regex that matches only URLs sharing the current client's origin and pathname,
+    // so the embedded QR scanner filters at scan time and only self-links fire qr-code-scanned.
+    const escapedOrigin = window.location.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedPathname = window.location.pathname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    concordanceNavigatorElement.setAttribute("qr-regex", `^${escapedOrigin}${escapedPathname}`);
     if (connectionExists) {
         concordanceNavigatorElement.setAttribute("current-connection", connectionId);
     }
+    concordanceNavigatorElement.addEventListener("load-links-request", (event) => {
+        loadLinks(event.detail, { behaviour: "updateViewOrSwitchToNavigator" });
+    });
     concordanceNavigatorElement.addEventListener("show-connection-request", async (event) => {
         await loadLinks(event.detail.plist, { "setAsMainNavigation": true, "behaviour": "updateViewOrSwitchToNavigator" });
+        concordanceNavigatorElement.closeScannerPopover();
         if (resolveInitialConnection) {
             resolveInitialConnection(true);
         }
@@ -82,6 +91,20 @@ export async function initConcordanceNavigator(connectionId = null) {
     }
 
     return { initialConnectionResolved };
+}
+
+/**
+ * Navigates the existing `<edirom-concordance-navigator>` element in the page footer
+ * to a specific connection by ID without rebuilding the element.
+ * Intended for the fast-path in `applyUrlParams` where only the connection changes.
+ * @param {string} connectionId - The connection ID to navigate to
+ * @returns {boolean} `true` if navigation succeeded, `false` if the element is not
+ *   found or the connection ID is not present in the current concordance data
+ */
+export function navigateConcordanceNavigatorToConnection(connectionId) {
+    const element = document.querySelector("#footer edirom-concordance-navigator");
+    if (!element) return false;
+    return element.navigateToConnectionById(connectionId);
 }
 
 /**
