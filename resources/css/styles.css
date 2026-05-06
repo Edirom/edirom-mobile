@@ -12,7 +12,6 @@
   --control-bar-height: 40px;
   --active-control-bar-height: 0px;
   --base-footer-height: 59px;
-  --footer-height: 59px;
   --viewport-height: 100dvh;
 }
 
@@ -223,6 +222,9 @@ footer {
   box-sizing: border-box;
   min-height: var(--base-footer-height);
   flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 #context-container {
@@ -557,6 +559,7 @@ edirom-control-bar.locked-state edirom-spin-box-widget {
 
 edirom-concordance-navigator {
   width: 100%;
+  min-height: 49px;
 }
 
 /* ── About / Tutorial page ─────────────────────────────────────────── */
