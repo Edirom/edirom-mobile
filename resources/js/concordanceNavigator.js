@@ -39,6 +39,7 @@ function hasConnectionId(concordances, connectionId) {
 export async function initConcordanceNavigator(connectionId = null) {
     const concordances = await getConcordances(appState.edition.doc, appState.work.id, appState.edition.backendUrl);
     const footerElement = document.getElementById("footer");
+    const concordanceWrapper = document.getElementById("concordance-navigator-wrapper") || footerElement;
     const concordanceNavigatorElement = document.createElement("edirom-concordance-navigator");
     const connectionExists = connectionId ? hasConnectionId(concordances, connectionId) : false;
     let initialConnectionResolved = !connectionId;
@@ -83,8 +84,8 @@ export async function initConcordanceNavigator(connectionId = null) {
             console.error("Failed to refresh navigator after disabling concordance navigator:", error);
         });
     });
-    footerElement.innerHTML = ""; // Clear previous content
-    footerElement.appendChild(concordanceNavigatorElement);
+    concordanceWrapper.innerHTML = ""; // Clear previous concordance content
+    concordanceWrapper.appendChild(concordanceNavigatorElement);
 
     if (connectionExists) {
         await initialConnectionPromise;

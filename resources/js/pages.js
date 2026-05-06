@@ -60,6 +60,11 @@ export async function switchPage(pageName, newContent, { pushState = true, repla
     contentContainer.appendChild(resolvedContent);
     appState.page = pageName;
 
+    const controlBarSlot = document.getElementById("view-control-bar-wrapper");
+    if (controlBarSlot && pageName !== "views") {
+        controlBarSlot.innerHTML = "";
+    }
+
     // Warn user before leaving when on the main navigator page
     if (pageName === "navigator") {
         window.addEventListener("beforeunload", handleBeforeUnload);
