@@ -236,7 +236,11 @@ footer:has(edirom-concordance-navigator[collapsible][expanded])::after {
 
 
 
+
+
 #view-control-bar-wrapper {
+  position: relative;
+  z-index: 0;
   width: 100%;
 }
 
@@ -536,6 +540,8 @@ h2 {
 }
 
 #view-content {
+  position: relative;
+  z-index: 1;
   height: calc(
     var(--viewport-height) - var(--header-height) - var(--base-footer-height) -
       var(--view-header-height) - var(--active-control-bar-height)
@@ -545,6 +551,8 @@ h2 {
       var(--view-header-height) - var(--active-control-bar-height)
   );
   overflow: hidden;
+
+  box-shadow: rgba(0, 0, 0, 0.40) 0px 0px 2px 2px;
 }
 
 #view-control-bar-container {
@@ -554,7 +562,6 @@ h2 {
   overflow: hidden;
   display: flex;
   align-items: center;
-  z-index: 999;
 }
 
 edirom-button-widget {
