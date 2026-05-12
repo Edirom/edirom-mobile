@@ -65,6 +65,16 @@ export async function switchPage(pageName, newContent, { pushState = true, repla
         controlBarSlot.innerHTML = "";
     }
 
+    const concordanceWrapper = document.getElementById("concordance-navigator-wrapper");
+    if (concordanceWrapper) {
+        const showConcordance = pageName === "navigator" || pageName === "views";
+        concordanceWrapper.style.display = showConcordance ? "" : "none";
+        if (!showConcordance) {
+            const concordanceNavigator = concordanceWrapper.querySelector("edirom-concordance-navigator");
+            concordanceNavigator?.setCollapseState(true);
+        }
+    }
+
     // Warn user before leaving when on the main navigator page
     if (pageName === "navigator") {
         window.addEventListener("beforeunload", handleBeforeUnload);
