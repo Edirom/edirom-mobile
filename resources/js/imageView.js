@@ -55,7 +55,7 @@ export function buildImageView(target, config = {}) {
     let _movements = [];
     let _pageIdToIndex = new Map();   // pageId → 1-based OSD pageNumber
 
-    // Full data (set once in update, survives lock toggles)
+    // Full data (set once in update, survives filter toggles)
     let _fullPages = [];
     let _fullMovements = [];
 
@@ -322,11 +322,11 @@ export function buildImageView(target, config = {}) {
     }
 
     // --- setData ---
-    // Called by views.js applyViewData / applyCurrentViewLockState with either
+    // Called by views.js applyViewData / applyCurrentViewFilterState with either
     // mainData or subsetData.  Tile sources, zones-data, _pageIdToIndex, and
-    // measure caches are set once in update() and survive lock toggles.
+    // measure caches are set once in update() and survive filter toggles.
     // isNavigationUpdate is true when called from a concordance connection switch
-    // or any other navigation event; false (default) for lock-state toggles.
+    // or any other navigation event; false (default) for filter-state toggles.
     function setData({ pages, movements, measureSubsetIds }, { isNavigationUpdate = false } = {}) {
         // Capture current state before rebuilding sequences
         const wasInitialized = _sequenceData.length > 0;
@@ -361,7 +361,7 @@ export function buildImageView(target, config = {}) {
                 activatePageView();
             }
         } else {
-            // Lock toggle: preserve view mode, stay on current item if still valid.
+            // Filter toggle: preserve view mode, stay on current item if still valid.
             if (previousViewMode === "measure-view") {
                 const targetId = previousStep && previousStep.type === "zone" ? previousStep.id : null;
                 activateMeasureView(null, targetId);

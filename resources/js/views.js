@@ -18,11 +18,11 @@ let currentViewMainData = null;
 /** @type {Object[]|null} The filtered subset from the last update, or null if none */
 let currentViewSubsetData = null;
 
-/** @type {string|null} The current lock state: 'locked', 'unlocked', or null when no subset is present */
-let currentViewLockState = null;
+/** @type {string|null} The current filter state: 'filtered', 'unfiltered', or null when no subset is present */
+let currentViewFilterState = null;
 
-/** @type {HTMLElement|null} The lock button for the currently active view */
-let currentViewLockButton = null;
+/** @type {HTMLElement|null} The filter button for the currently active view */
+let currentViewFilterButton = null;
 
 /** @type {HTMLElement|null} The control bar widget (edirom-control-bar) for the currently active view */
 let currentViewControlBarWidget = null;
@@ -202,14 +202,14 @@ function buildViewHeader(linkData, availableViews, activeView) {
 }
 
 /**
- * Applies main and subset data to the currently active view, updating lock
+ * Applies main and subset data to the currently active view, updating filter
  * button visibility and pushing the effective dataset to the view component.
  * Called after both initial data loads and subsequent updates.
  * @param {Object[]|null} mainData - The full dataset fetched for the active target
  * @param {Object[]|null} subsetData - The filtered subset, or null if none
  * @param {boolean} [isNavigationUpdate=false] - True when called from a view update
  *   triggered by navigation (e.g. concordance connection switch), as opposed to a
- *   lock-state toggle. Views may use this to decide whether to derive their internal
+ *   filter-state toggle. Views may use this to decide whether to derive their internal
  *   display mode from the new data rather than preserving the current mode.
  */
 function applyViewData(mainData, subsetData, isNavigationUpdate = false) {
@@ -217,30 +217,30 @@ function applyViewData(mainData, subsetData, isNavigationUpdate = false) {
     currentViewMainData = mainData;
     currentViewSubsetData = subsetData;
     if (subsetData !== null) {
-        currentViewLockState = 'locked';
-        currentViewLockButton.setAttribute("current-state", "locked");
-        currentViewLockButton.classList.remove("hidden");
-        currentViewControlBarWidget?.classList.add("locked-state");
+        currentViewFilterState = 'filtered';
+        currentViewFilterButton.setAttribute("current-state", "filtered");
+        currentViewFilterButton.classList.remove("hidden");
+        currentViewControlBarWidget?.classList.add("filtered-state");
         currentViewSetData(subsetData, { isNavigationUpdate });
     } else {
-        currentViewLockState = null;
-        currentViewLockButton.classList.add("hidden");
-        currentViewControlBarWidget?.classList.remove("locked-state");
+        currentViewFilterState = null;
+        currentViewFilterButton.classList.add("hidden");
+        currentViewControlBarWidget?.classList.remove("filtered-state");
         currentViewSetData(mainData, { isNavigationUpdate });
     }
 }
 
 /**
- * Applies a new lock state to the currently active view: switches between
- * main data and subset data and updates the lock button accordingly.
- * @param {string} newLockState - Either `'locked'` or `'unlocked'`
+ * Applies a new filter state to the currently active view: switches between
+ * main data and subset data and updates the filter button accordingly.
+ * @param {string} newFilterState - Either `'filtered'` or `'unfiltered'`
  */
-function applyCurrentViewLockState(newLockState) {
-    currentViewLockState = newLockState;
-    const effectiveData = newLockState === 'locked' ? currentViewSubsetData : currentViewMainData;
+function applyCurrentViewFilterState(newFilterState) {
+    currentViewFilterState = newFilterState;
+    const effectiveData = newFilterState === 'filtered' ? currentViewSubsetData : currentViewMainData;
     currentViewSetData(effectiveData);
-    currentViewLockButton.setAttribute("current-state", newLockState);
-    currentViewControlBarWidget?.classList.toggle("locked-state", newLockState === 'locked');
+    currentViewFilterButton.setAttribute("current-state", newFilterState);
+    currentViewControlBarWidget?.classList.toggle("filtered-state", newFilterState === 'filtered');
 }
 
 /**
@@ -258,19 +258,19 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
     const viewSpecificTarget = resolveViewSpecificTarget(newView, target, availableViews);
     const view = buildView(newView, viewSpecificTarget, config);
 
-    const lockButton = document.createElement("edirom-button-widget");
-    lockButton.id = "view-lock-button";
-    lockButton.setAttribute("states-data", JSON.stringify([
-        { name: "locked", iconName: "lock" },
-        { name: "unlocked", iconName: "lock_open_right" },
+    const filterButton = document.createElement("edirom-button-widget");
+    filterButton.id = "view-filter-button";
+    filterButton.setAttribute("states-data", JSON.stringify([
+        { name: "filtered", iconName: "filter_alt" },
+        { name: "unfiltered", iconName: "filter_alt_off" },
     ]));
-    lockButton.classList.add("hidden");
-    lockButton.addEventListener("button-state-requested", (event) => {
-        applyCurrentViewLockState(event.detail.requestedState);
+    filterButton.classList.add("hidden");
+    filterButton.addEventListener("button-state-requested", (event) => {
+        applyCurrentViewFilterState(event.detail.requestedState);
     });
-    view.controlBarWidget.appendChild(lockButton);
+    view.controlBarWidget.appendChild(filterButton);
     currentViewControlBarWidget = view.controlBarWidget;
-    currentViewControlBarWidget.classList.remove("locked-state");
+    currentViewControlBarWidget.classList.remove("filtered-state");
 
     viewsContainer.querySelector("#view-content").replaceWith(view.content);
 
@@ -288,10 +288,10 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
     appState.viewWindow.view = newView;
     currentViewUpdate = view.update;
     currentViewSetData = view.setData;
-    currentViewLockButton = lockButton;
+    currentViewFilterButton = filterButton;
     currentViewMainData = null;
     currentViewSubsetData = null;
-    currentViewLockState = null;
+    currentViewFilterState = null;
 
     const { mainData, subsetData } = await view.update(viewSpecificTarget, viewsContainer);
     applyViewData(mainData, subsetData, true);
@@ -320,14 +320,14 @@ export async function updateCurrentView(target, viewContentDiv, config = {}) {
 
 /**
  * Clears the subset from the currently active view, falling back to main data.
- * Hides the lock button. Only acts when a view is currently displayed.
+ * Hides the filter button. Only acts when a view is currently displayed.
  */
 export function removeCurrentViewSubset() {
     if (appState.page !== "views" || !currentViewSetData) return;
     currentViewSubsetData = null;
-    currentViewLockState = null;
-    currentViewLockButton?.classList.add("hidden");
-    currentViewControlBarWidget?.classList.remove("locked-state");
+    currentViewFilterState = null;
+    currentViewFilterButton?.classList.add("hidden");
+    currentViewControlBarWidget?.classList.remove("filtered-state");
     currentViewSetData(currentViewMainData);
 }
 
