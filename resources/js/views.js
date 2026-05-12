@@ -30,10 +30,6 @@ let currentViewControlBarWidget = null;
 /** @type {Object[]} The available views for the currently open document (from getLinkTarget) */
 let currentViewAvailableViews = [];
 
-function getControlBarSlot() {
-    return document.getElementById("view-control-bar-wrapper");
-}
-
 /**
  * Resolves the view-specific URI for a given view type from the available views list.
  * Each view in getLinkTarget may carry its own `uri` (e.g. a text document URI that
@@ -107,6 +103,10 @@ function buildViewsContainer(linkData, activeView, availableViews, target, confi
     const viewContent = document.createElement("div");
     viewContent.id = "view-content";
     viewsContainer.appendChild(viewContent);
+
+    const controlBarWrapper = document.createElement("div");
+    controlBarWrapper.id = "view-control-bar-wrapper";
+    viewsContainer.appendChild(controlBarWrapper);
 
     switchView(viewsContainer, activeView, target, config, availableViews);
 
@@ -274,16 +274,9 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
 
     viewsContainer.querySelector("#view-content").replaceWith(view.content);
 
-    const controlBarSlot = getControlBarSlot();
-    if (controlBarSlot) {
-        controlBarSlot.innerHTML = "";
-        controlBarSlot.appendChild(view.controlBar);
-    } else {
-        const existingControlBar = viewsContainer.querySelector("#view-control-bar-container");
-        if (existingControlBar) {
-            existingControlBar.replaceWith(view.controlBar);
-        }
-    }
+    const controlBarSlot = viewsContainer.querySelector("#view-control-bar-wrapper");
+    controlBarSlot.innerHTML = "";
+    controlBarSlot.appendChild(view.controlBar);
 
     appState.viewWindow.view = newView;
     currentViewUpdate = view.update;

@@ -238,7 +238,6 @@ footer:has(edirom-concordance-navigator[collapsible][expanded])::after {
 
 #view-control-bar-wrapper {
   width: 100%;
-  flex: 0 0 auto;
 }
 
 #concordance-navigator-wrapper {
