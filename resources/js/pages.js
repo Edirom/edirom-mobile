@@ -66,7 +66,7 @@ export async function switchPage(pageName, newContent, { pushState = true, repla
         concordanceWrapper.style.display = showConcordance ? "" : "none";
         if (!showConcordance) {
             const concordanceNavigator = concordanceWrapper.querySelector("edirom-concordance-navigator");
-            concordanceNavigator?.setCollapseState(true);
+            concordanceNavigator?.setCollapseState(true, { animate: false, fireLayoutChange: false });
         }
     }
 

@@ -3,19 +3,17 @@ import { appConfig } from "./config.js";
 let viewHeaderResizeObserver;
 let viewHeaderAttributeObserver;
 let viewHeaderPresenceObserver;
-let footerResizeObserver;
 
 /**
- * Measures the heights of the header, view header, and footer and writes them
+ * Measures the heights of the header and view header and writes them
  * to CSS custom properties (`--header-height`, `--view-header-height`,
- * `--footer-height`, `--viewport-height`) on `:root`. Called on resize and
+ * `--viewport-height`) on `:root`. Called on resize and
  * whenever the view header changes.
  */
-function updateLayoutMetrics() {
+export function updateLayoutMetrics() {
     const root = document.documentElement;
     const header = document.querySelector("header");
     const viewHeader = document.getElementById(appConfig.viewHeaderId);
-    const footer = document.querySelector("footer");
     const viewportHeight = window.innerHeight;
 
     if (viewportHeight) {
@@ -34,10 +32,6 @@ function updateLayoutMetrics() {
 
     const controlBar = document.getElementById("view-control-bar-container");
     root.style.setProperty("--active-control-bar-height", controlBar ? "var(--control-bar-height)" : "0px");
-
-    if (footer) {
-        root.style.setProperty("--footer-height", `${footer.getBoundingClientRect().height}px`);
-    }
 }
 
 /**
@@ -111,14 +105,6 @@ export function registerLayoutListeners() {
     window.addEventListener("load", updateLayoutMetrics);
     connectViewHeaderObservers();
     watchViewHeaderPresence();
-
-    if (typeof ResizeObserver !== "undefined") {
-        const footer = document.querySelector("footer");
-        if (footer) {
-            footerResizeObserver = new ResizeObserver(updateLayoutMetrics);
-            footerResizeObserver.observe(footer);
-        }
-    }
 
     if (window.visualViewport) {
         window.visualViewport.addEventListener("resize", updateLayoutMetrics);

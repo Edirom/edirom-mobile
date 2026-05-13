@@ -11,7 +11,7 @@
   --view-header-height: 0px;
   --control-bar-height: 40px;
   --active-control-bar-height: 0px;
-  --base-footer-height: 59px;
+  --base-footer-height: 50px;
   --viewport-height: 100dvh;
 }
 
@@ -198,8 +198,8 @@ header > div:last-child {
 
 footer {
   position: fixed;
-  min-height: 49px;
-  background-color: var(--ewk-primary-color);
+  min-height: var(--base-footer-height);
+  background-color: transparent;
   color: var(--ewk-secondary-color);
   left: 0;
   right: 0;
@@ -224,15 +224,15 @@ footer::after {
 }
 
 /* Collapsed mode: Pressed in. Minimal drop shadow + strong inset shadow */
-footer:has(edirom-concordance-navigator[collapsed])::after,
+/* footer:has(edirom-concordance-navigator[collapsed])::after,
 footer:has(edirom-concordance-navigator:not([collapsible]))::after {
   box-shadow: rgba(23, 22, 22, 0.6) 0px 1px 4px 1px inset;
-}
+} */
 
 /* Expanded mode: Pressed out. Very large and long drop shadow */
-footer:has(edirom-concordance-navigator[collapsible][expanded])::after {
+/* footer:has(edirom-concordance-navigator[collapsible][expanded])::after {
   box-shadow: rgb(0, 0, 0) 10px -20px 30px;
-}
+} */
 
 
 
@@ -245,8 +245,9 @@ footer:has(edirom-concordance-navigator[collapsible][expanded])::after {
 }
 
 #concordance-navigator-wrapper {
+  position: relative;
   width: 100%;
-  padding: 1px;
+  padding: 0;
   box-sizing: border-box;
   min-height: var(--base-footer-height);
   flex: 0 0 auto;
@@ -591,6 +592,7 @@ edirom-control-bar.filtered-state edirom-spin-box-widget {
 edirom-concordance-navigator {
   width: 100%;
   min-height: 49px;
+  --concordance-navigator-background: var(--ewk-primary-color);
 }
 
 /* ── About / Tutorial page ─────────────────────────────────────────── */
