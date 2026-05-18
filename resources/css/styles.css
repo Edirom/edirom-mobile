@@ -384,26 +384,6 @@ h2 {
   display: block;
 }
 
-#header-connection-status {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background-color: red;
-  /* margin: 5px; */
-}
-
-#header-connection-status[data-connection-status="session"] {
-  background-color: green;
-}
-
-#header-connection-status[data-connection-status="connected"] {
-  background-color: rgb(246, 161, 15);
-}
-
-#header-connection-status[data-connection-status="disconnected"] {
-  background-color: red;
-}
-
 #alerts-container {
   text-align: center;
 }

@@ -22,6 +22,22 @@ function handleBeforeUnload(event) {
  * @returns {boolean} true if a component handled the back request
  */
 function requestComponentsBackHandling() {
+    // First pass: global components outside #content-container (header, footer)
+    // that declare they can handle back navigation (e.g. open popovers).
+    const globalTargets = document.querySelectorAll('[data-handles-back-request]');
+    for (const target of globalTargets) {
+        const backRequestEvent = new CustomEvent("back-request", {
+            cancelable: true,
+            bubbles: true,
+            composed: true
+        });
+        target.dispatchEvent(backRequestEvent);
+        if (backRequestEvent.defaultPrevented) {
+            return true;
+        }
+    }
+
+    // Second pass: content-area web components (e.g. annotation view detail page).
     const contentContainer = document.getElementById("content-container");
     if (!contentContainer) return false;
 

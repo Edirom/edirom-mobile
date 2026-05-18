@@ -22,6 +22,7 @@ const parseBackendUrls = (urlString) => {
 
 export const appConfig = {
     backendUrls: parseBackendUrls(window?.config?.APP_BACKEND_URLS ?? ""),
+    wsUrl: window?.config?.APP_WS_URL ?? "",
     viewHeaderId: DEFAULT_VIEW_HEADER_ID,
     availableViews: [...DEFAULT_AVAILABLE_VIEWS]
 };

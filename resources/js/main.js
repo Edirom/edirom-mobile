@@ -4,6 +4,7 @@ import { setupHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
 import { switchPage, buildEditionSelectionPage, showNavigator } from "./pages.js";
 import { initConcordanceNavigator, navigateConcordanceNavigatorToConnection } from "./concordanceNavigator.js";
+import { initWebSocketConnector } from "./web-socket-connector.js";
 
 
 /**
@@ -274,6 +275,7 @@ async function initApp() {
 
     setupHeaderMenu();
     registerLayoutListeners();
+    initWebSocketConnector();
 
     await applyUrlParams(new URLSearchParams(window.location.search));
 }

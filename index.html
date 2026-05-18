@@ -23,6 +23,8 @@
          window.__Html5QrcodeLibrary__ and Html5Qrcode is never defined globally. -->
     <script defer src="resources/web-components/edirom-qr-code-scanner/resources/html5-qrcode.min.js"></script>
     <script defer src="resources/web-components/edirom-qr-code-scanner/edirom-qr-code-scanner.js" type="module"></script>
+    <script defer src="resources/web-components/edirom-web-socket-connector/resources/qrcode.js"></script>
+    <script defer src="resources/web-components/edirom-web-socket-connector/webSocketElement.js" type="module"></script>
     <link rel="stylesheet" href="resources/css/styles.css">
 </head>
 
@@ -31,8 +33,8 @@
     <header>
         <div id="header-burger-menu"><edirom-icon name="menu" size="2rem"></edirom-icon></div>
         <div id="header-edition-name">Edirom Mobile</div>
-        <div id="header-status-container">
-            <div id="header-connection-status" data-connection-status="disconnected"></div>
+        <div id="edirom-web-socket-connector-container">
+            <edirom-web-socket-connector layout-mode="mobile"></edirom-web-socket-connector>
         </div>
         <nav id="header-menu" class="header-menu" aria-label="Hauptmenü" aria-hidden="true"></nav>
     </header>
