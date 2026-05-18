@@ -1,12 +1,13 @@
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap");
 
 :root {
-  --ewk-primary-color: #232a44;
-  --ewk-secondary-color: #e9d9af;
-  --ewk-tertiary-color: #faf6f0;
   --ewk-filtered-highlight: #ff1a01;
-  --primary-color: var(--ewk-primary-color);
-  --secondary-color: var(--ewk-secondary-color);
+  --edirom-mobile-primary-color: #232a44;
+  --edirom-mobile-secondary-color: #e9d9af;
+  --edirom-mobile-tertiary-color: #faf6f0;
+  --primary-color: var(--edirom-mobile-primary-color);
+  --secondary-color: var(--edirom-mobile-secondary-color);
+  --tertiary-color: var(--edirom-mobile-tertiary-color);
   --header-height: 55px;
   --view-header-height: 0px;
   --control-bar-height: 40px;
@@ -16,14 +17,14 @@
 }
 
 edirom-navigator {
-  --primary-color: var(--ewk-primary-color);
-  --secondary-color: var(--ewk-secondary-color);
-  --tertiary-color: var(--ewk-tertiary-color);
+  --primary-color: var(--edirom-mobile-primary-color);
+  --secondary-color: var(--edirom-mobile-secondary-color);
+  --tertiary-color: var(--edirom-mobile-tertiary-color);
 }
 
 edirom-control-bar {
-  --primary-color: var(--ewk-primary-color);
-  --secondary-color: var(--ewk-secondary-color);
+  --primary-color: var(--edirom-mobile-primary-color);
+  --secondary-color: var(--edirom-mobile-secondary-color);
   --control-bar-padding: 5px 13px;
 }
 
@@ -49,15 +50,15 @@ html {
 }
 
 body {
-  background-color: var(--ewk-tertiary-color);
+  background-color: var(--tertiary-color);
   font-family: Montserrat;
   font-weight: 300;
 }
 
 header {
   position: relative;
-  background-color: var(--ewk-primary-color);
-  color: var(--ewk-secondary-color);
+  background-color: var(--primary-color);
+  color: var(--secondary-color);
   height: 35px;
   padding: 10px;
   display: flex;
@@ -113,7 +114,7 @@ header > div:last-child {
   max-width: 140px;
   overflow-x: hidden;
   text-overflow: ellipsis;
-  background-color: var(--tertiary-color);
+  background-color: var(--secondary-color);
   color: var(--primary-color);
   border: 1px solid var(--primary-color);
   padding: 4px 4px 4px 29px;
@@ -144,8 +145,8 @@ header > div:last-child {
   position: absolute;
   top: 100%;
   left: 0px;
-  background-color: var(--ewk-primary-color);
-  color: var(--ewk-secondary-color);
+  background-color: var(--primary-color);
+  color: var(--secondary-color);
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.25);
   display: none;
   width: max-content;
@@ -185,8 +186,8 @@ header > div:last-child {
 
 .header-menu a:hover,
 .header-menu a:focus-visible {
-  background-color: var(--ewk-secondary-color);
-  color: var(--ewk-primary-color);
+  background-color: var(--secondary-color);
+  color: var(--primary-color);
   outline: none;
 }
 
@@ -200,7 +201,7 @@ footer {
   position: fixed;
   min-height: var(--base-footer-height);
   background-color: transparent;
-  color: var(--ewk-secondary-color);
+  color: var(--secondary-color);
   left: 0;
   right: 0;
   bottom: 0;
@@ -287,15 +288,15 @@ footer:has(edirom-concordance-navigator:not([collapsible]))::after {
 #footer-arrow-left svg,
 #footer-arrow-right svg {
   height: 35px;
-  fill: var(--ewk-secondary-color);
+  fill: var(--secondary-color);
   transform: translateY(5%);
 }
 
 button {
-  background-color: var(--ewk-primary-color);
+  background-color: var(--primary-color);
   user-select: none;
   -webkit-user-select: none;
-  color: var(--ewk-secondary-color);
+  color: var(--secondary-color);
   cursor: pointer;
 }
 
@@ -367,8 +368,8 @@ h2 {
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  background-color: var(--ewk-primary-color);
-  color: var(--ewk-secondary-color);
+  background-color: var(--primary-color);
+  color: var(--secondary-color);
   border: 1px solid rgba(233, 217, 175, 0.6);
   border-radius: 8px;
   padding: 8px 12px;
@@ -425,7 +426,7 @@ h2 {
 
 #start-scan-btn-container button svg {
   height: 50px;
-  fill: var(--ewk-secondary-color);
+  fill: var(--secondary-color);
 }
 
 #start-scan-btn-container button p {
@@ -492,7 +493,7 @@ h2 {
 #scanNewQrCodePopover {
   width: 80%;
   padding: 10px;
-  background-color: var(--ewk-tertiary-color);
+  background-color: var(--tertiary-color);
   border: 1px solid black;
   box-shadow: 5px 10px 10px hsl(0deg 0% 0% / 0.55);
 }
@@ -538,7 +539,7 @@ h2 {
 
 #view-control-bar-container {
   height: var(--control-bar-height);
-  color: var(--ewk-primary-color);
+  color: var(--primary-color);
   width: 100%;
   overflow: hidden;
   display: flex;
@@ -546,21 +547,21 @@ h2 {
 }
 
 edirom-button-widget {
-  --secondary-color: color-mix(in oklch, var(--ewk-secondary-color) 95%, black);
+  --secondary-color: color-mix(in oklch, var(--edirom-mobile-secondary-color) 95%, black);
 }
 
 edirom-spin-box-widget {
-  --primary-color: color-mix(in oklch, var(--ewk-secondary-color) 95%, black);
+  --primary-color: color-mix(in oklch, var(--edirom-mobile-secondary-color) 95%, black);
   --spin-box-input-width: 4ch;
-  --spin-box-border-color: color-mix(in oklch, var(--ewk-secondary-color) 80%, black);
+  --spin-box-border-color: color-mix(in oklch, var(--edirom-mobile-secondary-color) 80%, black);
 }
 
 edirom-control-bar.filtered-state #view-filter-button {
-  --secondary-color: color-mix(in oklch, var(--ewk-filtered-highlight) 30%, transparent);
+  --secondary-color: color-mix(in oklch, var(--filtered-highlight) 30%, transparent);
 }
 
 edirom-control-bar.filtered-state edirom-spin-box-widget {
-  --primary-color: color-mix(in oklch, var(--ewk-filtered-highlight) 15%, transparent);
+  --primary-color: color-mix(in oklch, var(--filtered-highlight) 15%, transparent);
 }
 
 .inline-music-character {
@@ -572,7 +573,7 @@ edirom-control-bar.filtered-state edirom-spin-box-widget {
 edirom-concordance-navigator {
   width: 100%;
   min-height: 49px;
-  --concordance-navigator-background: var(--ewk-primary-color);
+  --concordance-navigator-background: var(--edirom-mobile-primary-color);
 }
 
 /* ── About / Tutorial page ─────────────────────────────────────────── */
@@ -596,28 +597,28 @@ edirom-concordance-navigator {
   text-align: center;
   margin-bottom: 32px;
   padding-bottom: 24px;
-  border-bottom: 2px solid var(--ewk-secondary-color);
+  border-bottom: 2px solid var(--secondary-color);
 }
 
 .about-hero h1 {
   font-size: 1.8em;
   font-weight: 700;
-  color: var(--ewk-primary-color);
+  color: var(--primary-color);
   margin: 0 0 8px;
 }
 
 .about-hero-subtitle {
   font-size: 1em;
   font-weight: 400;
-  color: var(--ewk-primary-color);
+  color: var(--primary-color);
   opacity: 0.65;
   margin: 0;
 }
 
 /* Table of contents */
 .about-toc {
-  background-color: var(--ewk-secondary-color);
-  color: var(--ewk-primary-color);
+  background-color: var(--secondary-color);
+  color: var(--primary-color);
   border-radius: 8px;
   padding: 16px 20px 16px 12px;
   margin-bottom: 32px;
@@ -630,7 +631,7 @@ edirom-concordance-navigator {
   letter-spacing: 0.08em;
   margin: 0 0 10px;
   text-align: left;
-  color: var(--ewk-primary-color);
+  color: var(--primary-color);
 }
 
 .about-toc ol {
@@ -652,7 +653,7 @@ edirom-concordance-navigator {
 }
 
 .about-toc a {
-  color: var(--ewk-primary-color);
+  color: var(--primary-color);
   text-decoration: none;
   font-weight: 500;
 }
@@ -667,7 +668,7 @@ edirom-concordance-navigator {
 .about-section {
   margin-bottom: 40px;
   padding-bottom: 32px;
-  border-bottom: 1px solid color-mix(in oklch, var(--ewk-secondary-color) 70%, transparent);
+  border-bottom: 1px solid color-mix(in oklch, var(--secondary-color) 70%, transparent);
 }
 
 .about-section:last-child {
@@ -678,7 +679,7 @@ edirom-concordance-navigator {
 .about-section h2 {
   font-size: 1.25em;
   font-weight: 700;
-  color: var(--ewk-primary-color);
+  color: var(--primary-color);
   text-align: left;
   margin: 0 0 10px;
 }
@@ -686,7 +687,7 @@ edirom-concordance-navigator {
 .about-section h3 {
   font-size: 1em;
   font-weight: 700;
-  color: var(--ewk-primary-color);
+  color: var(--primary-color);
   margin: 22px 0 6px;
   text-align: left;
 }
@@ -694,7 +695,7 @@ edirom-concordance-navigator {
 .about-section h4 {
   font-size: 0.9em;
   font-weight: 600;
-  color: var(--ewk-primary-color);
+  color: var(--primary-color);
   opacity: 0.8;
   margin: 16px 0 4px;
   text-transform: uppercase;
@@ -708,8 +709,8 @@ edirom-concordance-navigator {
   line-height: 1.6;
   margin: 0 0 14px;
   padding: 12px 14px;
-  border-left: 3px solid var(--ewk-secondary-color);
-  background-color: color-mix(in oklch, var(--ewk-secondary-color) 25%, transparent);
+  border-left: 3px solid var(--secondary-color);
+  background-color: color-mix(in oklch, var(--secondary-color) 25%, transparent);
   border-radius: 0 6px 6px 0;
 }
 
