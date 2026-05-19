@@ -734,3 +734,33 @@ edirom-concordance-navigator {
   line-height: 1.6;
   margin-bottom: 6px;
 }
+
+/* ── Global content-container loading overlay ──────────────────────── */
+
+#content-loading-overlay {
+  position: fixed;
+  top: var(--header-height);
+  left: 0;
+  right: 0;
+  bottom: var(--base-footer-height);
+  background-color: color-mix(in oklch, var(--edirom-mobile-primary-color) 50%, transparent);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  pointer-events: all;
+}
+
+#content-loading-overlay.visible {
+  display: flex;
+}
+
+#content-loading-overlay edirom-icon {
+  color: var(--edirom-mobile-secondary-color);
+  animation: content-loading-spin 1s linear infinite;
+}
+
+@keyframes content-loading-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

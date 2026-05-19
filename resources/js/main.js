@@ -5,6 +5,7 @@ import { registerLayoutListeners } from "./layout.js";
 import { switchPage, buildEditionSelectionPage, showNavigator } from "./pages.js";
 import { initConcordanceNavigator, navigateConcordanceNavigatorToConnection } from "./concordanceNavigator.js";
 import { initWebSocketConnector } from "./web-socket-connector.js";
+import { showContentLoading, hideContentLoading } from "./loading.js";
 
 
 /**
@@ -72,6 +73,8 @@ function isWorkAvailableInEdition(workId) {
  * @returns {Promise<void>}
  */
 export async function initEdition({ editionId = null, backendUrl = null, workId = null, connectionId = null } = {}) {
+    const loadingToken = showContentLoading();
+    try {
     let foundEditionId = "";
     let resolvedBackendUrl = backendUrl;
     appState.edition = {};
@@ -147,6 +150,9 @@ export async function initEdition({ editionId = null, backendUrl = null, workId 
     appState.worksInEdition = await getWorks(appState.edition.doc, appState.edition.backendUrl);
 
     await initWork(workId, connectionId);
+    } finally {
+        hideContentLoading(loadingToken);
+    }
 }
 
 /**

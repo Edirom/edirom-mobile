@@ -4,6 +4,7 @@ import { splitTargetIntoDocAndIds } from "./utils.js";
 import { buildNavigatorDataFromParsedTargets, filterAndEnrichNavigatorData, setNavigatorData } from "./navigator.js";
 import { showNavigator } from "./pages.js";
 import { applyUrlParams } from "./main.js";
+import { showContentLoading, hideContentLoading } from "./loading.js";
 
 /**
  * Resolves a plist targets string and handles navigation based on the
@@ -91,7 +92,13 @@ export async function loadLinks(plist, additionalConfig = {}) {
 
     if (shouldSetNavigatorData) {
         let navigatorData = buildNavigatorDataFromParsedTargets(parsedTargets);
-        let filteredAndEnrichedNavigatorData = await filterAndEnrichNavigatorData(navigatorData);
+        const loadingToken = showContentLoading();
+        let filteredAndEnrichedNavigatorData;
+        try {
+            filteredAndEnrichedNavigatorData = await filterAndEnrichNavigatorData(navigatorData);
+        } finally {
+            hideContentLoading(loadingToken);
+        }
         setNavigatorData(filteredAndEnrichedNavigatorData, setAsMainNavigation, addToCurrentNavigation);
     }
     if (shouldSwitchToNavigator) {

@@ -2,6 +2,7 @@ import { appState } from "./config.js";
 import { buildNavigator, navigateBackInNavigator } from "./navigator.js";
 import { getAllEditions } from "./api.js";
 import { initEdition } from "./main.js";
+import { resetContentLoadingState } from "./loading.js";
 
 // Flag to skip the next popstate event (set when we call history.go(1) ourselves)
 let skipNextPopstate = false;
@@ -124,6 +125,7 @@ export async function showNavigator({ pushState = true, replaceState = false, fo
         return false;
     }
 
+    resetContentLoadingState();
     await switchPage("navigator", buildNavigator(), { pushState, replaceState });
     return true;
 }

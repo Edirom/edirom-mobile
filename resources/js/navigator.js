@@ -1,6 +1,7 @@
 import { loadLinks, parseTargets, getUriType, buildTargetsStringWithConfig } from "./linkController.js";
 import { getNavigatorConfig, getLinkTarget } from "./api.js";
 import { appConfig, appState } from "./config.js";
+import { showContentLoading, hideContentLoading } from "./loading.js";
 
 const EMPTY_NAVIGATOR_DATA = { navigatorDefinition: [] };
 
@@ -23,21 +24,6 @@ function updateNavigatorData(data, navigatorElement = null) {
 }
 
 /**
- * Sets the loading state on the `<edirom-navigator>` element.
- * @param {boolean} isLoading - Whether navigator should render loading state
- * @param {HTMLElement|null} [navigatorElement] - Optional explicit element reference
- */
-export function setNavigatorLoading(isLoading, navigatorElement = null) {
-    if (!navigatorElement) {
-        navigatorElement = document.querySelector("edirom-navigator");
-    }
-    if (!navigatorElement) {
-        return;
-    }
-    navigatorElement.setAttribute("is-loading", isLoading ? "true" : "false");
-}
-
-/**
  * Fetches navigator configuration from backend, enriches it and pushes the
  * result into app navigator state.
  * @param {Object} [options]
@@ -51,7 +37,7 @@ export async function refreshNavigatorDataFromBackend({
     addToNavigatorDataCurrent = false,
     navigatorElement = null,
 } = {}) {
-    setNavigatorLoading(true, navigatorElement);
+    const loadingToken = showContentLoading();
     try {
         const navigatorData = await getNavigatorConfig(
             appState.edition.doc,
@@ -68,7 +54,7 @@ export async function refreshNavigatorDataFromBackend({
         console.error("Failed to refresh navigator data:", error);
         throw error;
     } finally {
-        setNavigatorLoading(false, navigatorElement);
+        hideContentLoading(loadingToken);
     }
 }
 
@@ -87,7 +73,6 @@ export async function buildNavigator(navigatorData = appState.navigatorData.curr
     navigatorElement.setAttribute("no-content-message", "(Noch) keine Inhalte für diesen Kontext verfügbar.");
 
     const hasExistingNavigatorData = navigatorData !== null && navigatorData !== undefined;
-    setNavigatorLoading(!hasExistingNavigatorData, navigatorElement);
     updateNavigatorData(hasExistingNavigatorData ? navigatorData : EMPTY_NAVIGATOR_DATA, navigatorElement);
 
     if (!hasExistingNavigatorData) {
@@ -125,7 +110,6 @@ export function setNavigatorData(data, setAsNavigatorDataMain = false, addToNavi
         appState.navigatorData.current.push(data);
     }
     onNavigatorDataChanged();
-    setNavigatorLoading(false);
 }
 
 /**

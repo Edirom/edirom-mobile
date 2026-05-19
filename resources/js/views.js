@@ -5,6 +5,7 @@ import { buildAnnotationView } from "./annotationView.js";
 import { buildImageView } from "./imageView.js";
 import { buildTextView } from "./textView.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
+import { showContentLoading, hideContentLoading, resetContentLoadingState } from "./loading.js";
 
 /** @type {function|null} Update function for the currently active view (not stored on appState to avoid history.pushState serialization issues) */
 let currentViewUpdate = null;
@@ -57,8 +58,12 @@ function resolveViewSpecificTarget(viewType, target, availableViews) {
  * @returns {Promise<void>}
  */
 export async function createViewWindow(target, config = {}) {
-
+    resetContentLoadingState();
+    const loadingToken = showContentLoading();
+    try {
     let linkData = await getLinkTarget(target, appState.language, appState.edition.doc);
+
+    if (!linkData) return;
 
     let activeView = null;
 
@@ -77,6 +82,9 @@ export async function createViewWindow(target, config = {}) {
         });
     }
     switchPage("views", buildViewsContainer(linkData, activeView, availableViews, target, config));
+    } finally {
+        hideContentLoading(loadingToken);
+    }
 }
 
 /**
@@ -286,7 +294,13 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
     currentViewSubsetData = null;
     currentViewFilterState = null;
 
-    const { mainData, subsetData } = await view.update(viewSpecificTarget, viewsContainer);
+    const loadingToken = showContentLoading();
+    let mainData, subsetData;
+    try {
+        ({ mainData, subsetData } = await view.update(viewSpecificTarget, viewsContainer));
+    } finally {
+        hideContentLoading(loadingToken);
+    }
     applyViewData(mainData, subsetData, true);
     appState.viewWindow.target = target;
     appState.viewWindow.viewSpecificTarget = viewSpecificTarget;
@@ -302,7 +316,14 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
 export async function updateCurrentView(target, viewContentDiv, config = {}) {
     if (currentViewUpdate) {
         const viewSpecificTarget = resolveViewSpecificTarget(appState.viewWindow.view, target, currentViewAvailableViews);
-        const { mainData, subsetData } = await currentViewUpdate(viewSpecificTarget, viewContentDiv);
+        resetContentLoadingState();
+        const loadingToken = showContentLoading();
+        let mainData, subsetData;
+        try {
+            ({ mainData, subsetData } = await currentViewUpdate(viewSpecificTarget, viewContentDiv));
+        } finally {
+            hideContentLoading(loadingToken);
+        }
         applyViewData(mainData, subsetData, true);
         appState.viewWindow.target = target;
         appState.viewWindow.viewSpecificTarget = viewSpecificTarget;

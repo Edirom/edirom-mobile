@@ -1,4 +1,5 @@
 import { appConfig, appState } from "./config.js";
+import { getContentSignal } from "./loading.js";
 
 /**
  * Fetches JSON data from a URL and returns it as a JavaScript object
@@ -8,7 +9,7 @@ import { appConfig, appState } from "./config.js";
  */
 async function fetchJSON(url) {
     try {
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: getContentSignal() });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -17,6 +18,7 @@ async function fetchJSON(url) {
         const data = await response.json();
         return data;
     } catch (error) {
+        if (error.name === 'AbortError') return null;
         console.error(`Failed to fetch JSON from ${url}: ${error.message}`);
         return null;
     }
@@ -29,7 +31,7 @@ async function fetchJSON(url) {
  */
 async function fetchHtml(url) {
     try {
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: getContentSignal() });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -38,6 +40,7 @@ async function fetchHtml(url) {
         const data = await response.text();
         return data;
     } catch (error) {
+        if (error.name === 'AbortError') return null;
         console.error(`Failed to fetch HTML from ${url}: ${error.message}`);
         return null;
     }
@@ -50,7 +53,7 @@ async function fetchHtml(url) {
  */
 async function fetchText(url) {
     try {
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: getContentSignal() });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -59,6 +62,7 @@ async function fetchText(url) {
         const data = await response.text();
         return data;
     } catch (error) {
+        if (error.name === 'AbortError') return null;
         console.error(`Failed to fetch text from ${url}: ${error.message}`);
         return null;
     }

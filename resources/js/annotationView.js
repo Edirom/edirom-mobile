@@ -1,6 +1,7 @@
 import { appState } from "./config.js";
 import { getAnnotations, getAnnotationText, getAnnotationPreviews } from "./api.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
+import { showContentLoading, hideContentLoading } from "./loading.js";
 
 /**
  * Builds the annotation view web component and its control bar together,
@@ -39,7 +40,13 @@ export function buildAnnotationView(target, config = {}) {
 
     async function navigateToAnnotation(annotation) {
         let doc = splitTargetIntoDocAndIds(target).doc;
-        let annotationData = await composeAnnotationData(annotation, doc);
+        const loadingToken = showContentLoading();
+        let annotationData;
+        try {
+            annotationData = await composeAnnotationData(annotation, doc);
+        } finally {
+            hideContentLoading(loadingToken);
+        }
         annotationViewComponent.setAttribute("annotation-data", JSON.stringify(annotationData));
         annotationViewComponent.setAttribute("current-page", "annotation");
     }
