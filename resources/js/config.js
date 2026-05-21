@@ -33,6 +33,7 @@ export const appState = {
     edition: {},
     worksInEdition: [],
     work: {},
+    connection: null, // ID of the currently shown concordance connection, or null
     language: DEFAULT_LANGUAGE,
     navigatorData: {
         main: null,

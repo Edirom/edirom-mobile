@@ -4,7 +4,7 @@ import { setupHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
 import { switchPage, buildEditionSelectionPage, showNavigator } from "./pages.js";
 import { initConcordanceNavigator, navigateConcordanceNavigatorToConnection } from "./concordanceNavigator.js";
-import { initWebSocketConnector } from "./web-socket-connector.js";
+import { initWebSocketConnector, updateWebSocketConnectorInviteUrl, applyWorkspaceSession } from "./web-socket-connector.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
 
 
@@ -78,6 +78,8 @@ export async function initEdition({ editionId = null, backendUrl = null, workId 
     let foundEditionId = "";
     let resolvedBackendUrl = backendUrl;
     appState.edition = {};
+        appState.work = {};
+        appState.connection = null;
 
     if (editionId) {
         if (!resolvedBackendUrl) {
@@ -169,6 +171,7 @@ export async function initWork(workId = null, connectionId = null) {
     console.log("Initializing work");
     let foundWorkId = "";
     appState.work = {};
+    appState.connection = null;
     appState.navigatorData = { main: null, current: [] };
 
     if (workId) {
@@ -231,6 +234,7 @@ export async function applyUrlParams(urlParams) {
     const backendUrl = normalizeParam(urlParams.get("backendUrl"));
     let workId = normalizeParam(urlParams.get("work"));
     let connectionId = normalizeParam(urlParams.get("connection"));
+    const workspaceSession = normalizeParam(urlParams.get("workspaceSession"));
 
     // Enforce URL parameter hierarchy without failing startup.
     // work requires edition, and connection requires both edition and work.
@@ -249,7 +253,11 @@ export async function applyUrlParams(urlParams) {
         workId && workId === appState.work?.id &&
         connectionId) {
         const navigated = navigateConcordanceNavigatorToConnection(connectionId);
-        if (navigated) return;
+        if (navigated) {
+            updateWebSocketConnectorInviteUrl();
+            if (workspaceSession) applyWorkspaceSession(workspaceSession);
+            return;
+        }
         // Connection not found in current concordance data — fall through to full reinitialisation.
     }
 
@@ -260,6 +268,8 @@ export async function applyUrlParams(urlParams) {
         workId && workId !== appState.work?.id &&
         appState.worksInEdition?.length > 0) {
         await initWork(workId, connectionId);
+        updateWebSocketConnectorInviteUrl();
+        if (workspaceSession) applyWorkspaceSession(workspaceSession);
         return;
     }
 
@@ -269,6 +279,8 @@ export async function applyUrlParams(urlParams) {
         workId,
         connectionId
     });
+    updateWebSocketConnectorInviteUrl();
+    if (workspaceSession) applyWorkspaceSession(workspaceSession);
 }
 
 /**

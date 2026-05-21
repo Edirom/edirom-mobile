@@ -3,6 +3,7 @@ import { appState } from "./config.js";
 import { loadLinks } from "./linkController.js";
 import { refreshNavigatorDataFromBackend } from "./navigator.js";
 import { removeCurrentViewSubset } from "./views.js";
+import { updateWebSocketConnectorInviteUrl } from "./web-socket-connector.js";
 
 function hasConnectionId(concordances, connectionId) {
     if (!Array.isArray(concordances) || !connectionId) return false;
@@ -84,6 +85,10 @@ export async function initConcordanceNavigator(connectionId = null) {
             console.error("Failed to refresh navigator after disabling concordance navigator:", error);
         });
     });
+    concordanceNavigatorElement.addEventListener("connection-changed", (event) => {
+        appState.connection = event.detail.connectionId ?? null;
+        updateWebSocketConnectorInviteUrl();
+    });
     concordanceWrapper.innerHTML = ""; // Clear previous concordance content
     concordanceWrapper.appendChild(concordanceNavigatorElement);
 
@@ -116,6 +121,8 @@ export function navigateConcordanceNavigatorToConnection(connectionId) {
 async function onConcordanceNavigatorDisabled() {
     console.log("Concordance navigator disabled");
     removeCurrentViewSubset();
+    appState.connection = null;
+    updateWebSocketConnectorInviteUrl();
     await refreshNavigatorDataFromBackend({
         setAsNavigatorDataMain: true,
         addToNavigatorDataCurrent: false

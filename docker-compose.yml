@@ -17,15 +17,15 @@ services:
 
     ports:
       - "8082:80"
-    # depends_on:
-    #   - ws-server
+    depends_on:
+      - ws-server
     environment:
       # Use semicolon to separate multiple backend URLs, e.g.: http://localhost:8080;http://localhost:8081
       - APP_BACKEND_URLS=http://localhost:8080
       - APP_WS_URL=ws://localhost:8081
 
-  # ws-server:
-  #   image: dennisfriedl/edirom-ws-server:main
-  #   ports:
-  #     - "8081:3000"
+  ws-server:
+    build: ../edirom-ws-server
+    ports:
+      - "8081:3000"
    
