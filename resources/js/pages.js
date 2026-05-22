@@ -353,6 +353,20 @@ export async function buildEditionSelectionPage() {
  * 
  * @see https://chromium.googlesource.com/chromium/src/+/eef521b43a410cb55d4e5b27eec28f826484bfea
  */
+/**
+ * Returns true if the navigator page can be meaningfully shown:
+ * either saved navigator data exists to re-render, or both edition and work
+ * are set so that getNavigatorConfig() can be called successfully.
+ * @returns {boolean}
+ */
+function canShowNavigator() {
+    const hasNavigatorData =
+        appState.navigatorData.current.length > 0 ||
+        appState.navigatorData.main !== null;
+    const canFetchNavigatorData = !!(appState.edition?.doc && appState.work?.id);
+    return hasNavigatorData || canFetchNavigatorData;
+}
+
 window.addEventListener("popstate", async (event) => {
     // Skip popstate events triggered by our own history.go(1) calls
     if (skipNextPopstate) {
@@ -362,7 +376,11 @@ window.addEventListener("popstate", async (event) => {
 
     // Fallback for null state (e.g., if replaceState wasn't called on init)
     if (!event.state) {
-        await showNavigator({ replaceState: true, forceRemount: true });
+        if (canShowNavigator()) {
+            await showNavigator({ replaceState: true, forceRemount: true });
+        } else {
+            await switchPage("edition-selection", buildEditionSelectionPage(), { replaceState: true });
+        }
         return;
     }
 
@@ -388,7 +406,11 @@ window.addEventListener("popstate", async (event) => {
             return;
         }
 
-        // From views or other pages, fall back to navigator
-        await showNavigator({ pushState: false });
+        // From views or other pages, fall back to navigator if possible
+        if (canShowNavigator()) {
+            await showNavigator({ pushState: false });
+        } else {
+            await switchPage("edition-selection", buildEditionSelectionPage(), { pushState: false });
+        }
     }
 });
