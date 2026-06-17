@@ -248,7 +248,7 @@ export async function getWorks(editionDoc, backendUrl = appState.edition.backend
  */
 export async function getNavigatorConfig(editionId, workId, lang, edition, backendUrl = appState.edition.backendUrl) {
     console.log("editionId", editionId);
-    const navigatorConfig = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getNavigatorConfig.xql?editionId=${encodeURIComponent(editionId)}&workId=${encodeURIComponent(workId)}&lang=${encodeURIComponent(lang)}&edition=${encodeURIComponent(edition)}`);
+    const navigatorConfig = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getNavigatorConfig.xql?editionId=${encodeURIComponent(editionId)}&workId=${encodeURIComponent(workId)}&lang=${encodeURIComponent(lang)}&edition=${encodeURIComponent(edition)}&mode=json`);
     return navigatorConfig;
 }
 
