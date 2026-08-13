@@ -4,7 +4,7 @@ import { setupHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
 import { switchPage, buildEditionSelectionPage, showNavigator } from "./pages.js";
 import { initConcordanceNavigator, navigateConcordanceNavigatorToConnection } from "./concordanceNavigator.js";
-import { initWebSocketConnector, updateWebSocketConnectorInviteUrl, applyWorkspaceSession } from "./web-socket-connector.js";
+import { initWebSocketConnector, updateWebSocketConnectorInviteUrl, applyWorkspaceSession, setStateSyncHandler, broadcastAppState } from "./web-socket-connector.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
 
 
@@ -203,6 +203,7 @@ export async function initWork(workId = null, connectionId = null) {
         await initConcordanceNavigator();
     }
 
+    broadcastAppState();
 
     console.log("Set work to", appState.work);
 }
@@ -294,6 +295,20 @@ async function initApp() {
     setupHeaderMenu();
     registerLayoutListeners();
     initWebSocketConnector();
+    setStateSyncHandler((state) => {
+        if (!state || typeof state !== "object") return;
+        const edition = state.edition;
+        const work = state.work;
+        const connection = state.connection ?? null;
+        if (edition === appState.edition?.id && work === appState.work?.id && connection === (appState.connection ?? null)) {
+            return;
+        }
+        // applyUrlParams expects URL parameters — pass the state as a
+        // URLSearchParams object purely as an application-side transport.
+        applyUrlParams(new URLSearchParams(state)).catch((error) => {
+            console.error("Failed to apply synced state:", error);
+        });
+    });
 
     await applyUrlParams(new URLSearchParams(window.location.search));
 }

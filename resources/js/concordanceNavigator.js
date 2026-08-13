@@ -3,7 +3,7 @@ import { appState } from "./config.js";
 import { loadLinks } from "./linkController.js";
 import { refreshNavigatorDataFromBackend } from "./navigator.js";
 import { removeCurrentViewSubset } from "./views.js";
-import { updateWebSocketConnectorInviteUrl } from "./web-socket-connector.js";
+import { updateWebSocketConnectorInviteUrl, broadcastAppState } from "./web-socket-connector.js";
 
 function hasConnectionId(concordances, connectionId) {
     if (!Array.isArray(concordances) || !connectionId) return false;
@@ -86,8 +86,10 @@ export async function initConcordanceNavigator(connectionId = null) {
         });
     });
     concordanceNavigatorElement.addEventListener("connection-changed", (event) => {
-        appState.connection = event.detail.connectionId ?? null;
+        const connectionId = event.detail?.connectionId ?? null;
+        appState.connection = connectionId;
         updateWebSocketConnectorInviteUrl();
+        broadcastAppState();
     });
     concordanceWrapper.innerHTML = ""; // Clear previous concordance content
     concordanceWrapper.appendChild(concordanceNavigatorElement);
