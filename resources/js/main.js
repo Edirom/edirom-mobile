@@ -1,4 +1,4 @@
-import { appConfig, appState } from "./config.js";
+import { appConfig, appState, setAppState } from "./config.js";
 import { getEditions, getAllEditions, getWorks } from "./api.js";
 import { setupHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
@@ -77,9 +77,11 @@ export async function initEdition({ editionId = null, backendUrl = null, workId 
     try {
     let foundEditionId = "";
     let resolvedBackendUrl = backendUrl;
-    appState.edition = {};
-        appState.work = {};
-        appState.connection = null;
+    setAppState({
+        edition: {},
+        work: {},
+        connection: null
+    });
 
     if (editionId) {
         if (!resolvedBackendUrl) {
@@ -105,7 +107,7 @@ export async function initEdition({ editionId = null, backendUrl = null, workId 
                     .map((edition) => ({ ...edition, backendUrl: resolvedBackendUrl }))
                     .filter((edition) => !existingEntries.has(`${edition.id}|${edition.backendUrl}`));
 
-                appState.allEditions.push(...mergedEditions);
+                setAppState({ allEditions: [...appState.allEditions, ...mergedEditions] });
             }
         }
     }
@@ -141,7 +143,7 @@ export async function initEdition({ editionId = null, backendUrl = null, workId 
         return;
     }
 
-    appState.edition = editionData;
+    setAppState({ edition: editionData });
 
     if (!appState.edition.doc || !appState.edition.backendUrl) {
         console.error("Edition data is incomplete", appState.edition);
@@ -149,7 +151,8 @@ export async function initEdition({ editionId = null, backendUrl = null, workId 
         return;
     }
 
-    appState.worksInEdition = await getWorks(appState.edition.doc, appState.edition.backendUrl);
+    const worksInEdition = await getWorks(appState.edition.doc, appState.edition.backendUrl);
+    setAppState({ worksInEdition });
 
     await initWork(workId, connectionId);
     } finally {
@@ -170,19 +173,21 @@ export async function initEdition({ editionId = null, backendUrl = null, workId 
 export async function initWork(workId = null, connectionId = null) {
     console.log("Initializing work");
     let foundWorkId = "";
-    appState.work = {};
-    appState.connection = null;
-    appState.navigatorData = { main: null, current: [] };
+    setAppState({
+        work: {},
+        connection: null,
+        navigatorData: { main: null, current: [] }
+    });
 
     if (workId) {
         if (isWorkAvailableInEdition(workId)) {
             foundWorkId = workId;
         }
     }
-    appState.work = appState.worksInEdition.find((work) => work.id === (foundWorkId));
+    setAppState({ work: appState.worksInEdition.find((work) => work.id === foundWorkId) });
     if (appState.work == null || appState.work == undefined) {
         if (appState.worksInEdition.length > 0) {
-            appState.work = appState.worksInEdition[0];
+            setAppState({ work: appState.worksInEdition[0] });
         }
         else {
             console.error("No works found for edition", appState.edition.id);

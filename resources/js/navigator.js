@@ -1,6 +1,6 @@
 import { loadLinks, parseTargets, getUriType, buildTargetsStringWithConfig } from "./linkController.js";
 import { getNavigatorConfig, getLinkTarget } from "./api.js";
-import { appConfig, appState } from "./config.js";
+import { appConfig, appState, setAppState } from "./config.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
 
 const EMPTY_NAVIGATOR_DATA = { navigatorDefinition: [] };
@@ -103,11 +103,21 @@ export async function buildNavigator(navigatorData = appState.navigatorData.curr
  */
 export function setNavigatorData(data, setAsNavigatorDataMain = false, addToNavigatorDataCurrent = false) {
     if (setAsNavigatorDataMain) {
-        appState.navigatorData.main = data;
-        appState.navigatorData.current = [data];
+        setAppState({
+            navigatorData: {
+                ...appState.navigatorData,
+                main: data,
+                current: [data]
+            }
+        });
     }
     else if (addToNavigatorDataCurrent) {
-        appState.navigatorData.current.push(data);
+        setAppState({
+            navigatorData: {
+                ...appState.navigatorData,
+                current: [...appState.navigatorData.current, data]
+            }
+        });
     }
     onNavigatorDataChanged();
 }
@@ -121,7 +131,12 @@ export function setNavigatorData(data, setAsNavigatorDataMain = false, addToNavi
  */
 export function navigateBackInNavigator() {
     if (appState.navigatorData.current.length > 1) {
-        appState.navigatorData.current.pop();
+        setAppState({
+            navigatorData: {
+                ...appState.navigatorData,
+                current: appState.navigatorData.current.slice(0, -1)
+            }
+        });
         onNavigatorDataChanged();
         return true;
     }

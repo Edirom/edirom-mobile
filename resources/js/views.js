@@ -1,4 +1,4 @@
-import { appConfig, appState } from "./config.js";
+import { appConfig, appState, setAppState } from "./config.js";
 import { switchPage } from "./pages.js";
 import { getLinkTarget } from "./api.js";
 import { buildAnnotationView } from "./annotationView.js";
@@ -286,7 +286,7 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
     controlBarSlot.innerHTML = "";
     controlBarSlot.appendChild(view.controlBar);
 
-    appState.viewWindow.view = newView;
+    setAppState({ viewWindow: { ...appState.viewWindow, view: newView } });
     currentViewUpdate = view.update;
     currentViewSetData = view.setData;
     currentViewFilterButton = filterButton;
@@ -302,8 +302,7 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
         hideContentLoading(loadingToken);
     }
     applyViewData(mainData, subsetData, true);
-    appState.viewWindow.target = target;
-    appState.viewWindow.viewSpecificTarget = viewSpecificTarget;
+    setAppState({ viewWindow: { ...appState.viewWindow, target, viewSpecificTarget } });
 }
 
 /**
@@ -325,8 +324,7 @@ export async function updateCurrentView(target, viewContentDiv, config = {}) {
             hideContentLoading(loadingToken);
         }
         applyViewData(mainData, subsetData, true);
-        appState.viewWindow.target = target;
-        appState.viewWindow.viewSpecificTarget = viewSpecificTarget;
+        setAppState({ viewWindow: { ...appState.viewWindow, target, viewSpecificTarget } });
     } else {
         console.warn(`No update function defined for view type: ${appState.viewWindow.view}`);
     }

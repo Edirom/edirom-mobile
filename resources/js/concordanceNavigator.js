@@ -1,5 +1,5 @@
 import { getConcordances } from "./api.js";
-import { appState } from "./config.js";
+import { appState, setAppState } from "./config.js";
 import { loadLinks } from "./linkController.js";
 import { refreshNavigatorDataFromBackend } from "./navigator.js";
 import { removeCurrentViewSubset } from "./views.js";
@@ -87,7 +87,7 @@ export async function initConcordanceNavigator(connectionId = null) {
     });
     concordanceNavigatorElement.addEventListener("connection-changed", (event) => {
         const connectionId = event.detail?.connectionId ?? null;
-        appState.connection = connectionId;
+        setAppState({ connection: connectionId });
         updateWebSocketConnectorInviteUrl();
         broadcastAppState();
     });
@@ -123,7 +123,7 @@ export function navigateConcordanceNavigatorToConnection(connectionId) {
 async function onConcordanceNavigatorDisabled() {
     console.log("Concordance navigator disabled");
     removeCurrentViewSubset();
-    appState.connection = null;
+    setAppState({ connection: null });
     updateWebSocketConnectorInviteUrl();
     await refreshNavigatorDataFromBackend({
         setAsNavigatorDataMain: true,

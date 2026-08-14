@@ -1,4 +1,4 @@
-import { appState } from "./config.js";
+import { appState, setAppState } from "./config.js";
 import { buildNavigator, navigateBackInNavigator } from "./navigator.js";
 import { getAllEditions } from "./api.js";
 import { initEdition } from "./main.js";
@@ -75,7 +75,7 @@ export async function switchPage(pageName, newContent, { pushState = true, repla
     const contentContainer = document.getElementById("content-container");
     contentContainer.innerHTML = "";
     contentContainer.appendChild(resolvedContent);
-    appState.page = pageName;
+    setAppState({ page: pageName });
 
     const concordanceWrapper = document.getElementById("concordance-navigator-wrapper");
     if (concordanceWrapper) {

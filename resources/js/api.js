@@ -1,4 +1,4 @@
-import { appConfig, appState } from "./config.js";
+import { appConfig, appState, setAppState } from "./config.js";
 import { getContentSignal } from "./loading.js";
 
 /**
@@ -220,7 +220,7 @@ export async function getAllEditions() {
         return list.map((edition) => ({ ...edition, backendUrl }));
     });
 
-    appState.allEditions = flattened;
+    setAppState({ allEditions: flattened });
     console.log("Fetched all editions:", appState.allEditions);
     return appState.allEditions;
 }
