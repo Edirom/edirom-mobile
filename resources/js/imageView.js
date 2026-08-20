@@ -38,7 +38,7 @@ function findNearestIndex(arr, value, referenceIndex) {
  * @returns {{ content: HTMLElement, controlBar: HTMLElement, controlBarWidget: HTMLElement, update: function, setData: function }}
  */
 export function buildImageView(target, config = {}) {
-    const imageViewComponent = document.createElement("edirom-openseadragon");
+    const imageViewComponent = document.createElement("edirom-image-viewer");
     imageViewComponent.classList.add("web-component");
     // Sequence mode: OSD shows one page at a time and only loads that page's
     // tiles – the same as the desktop viewer which calls showImage() once per page.
