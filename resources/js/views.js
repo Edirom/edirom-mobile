@@ -219,17 +219,20 @@ function buildViewHeader(linkData, availableViews, activeView) {
  *   triggered by navigation (e.g. concordance connection switch), as opposed to a
  *   filter-state toggle. Views may use this to decide whether to derive their internal
  *   display mode from the new data rather than preserving the current mode.
+ * @param {boolean} [defaultFiltered=true] - Whether filtered mode should be active
+ *   by default when a subset exists. Targets with a single ID still expose the
+ *   subset/filter button for the user to activate manually, but start unfiltered.
  */
-function applyViewData(mainData, subsetData, isNavigationUpdate = false) {
+function applyViewData(mainData, subsetData, isNavigationUpdate = false, defaultFiltered = true) {
     if (mainData === null) return;
     currentViewMainData = mainData;
     currentViewSubsetData = subsetData;
     if (subsetData !== null) {
-        currentViewFilterState = 'filtered';
-        currentViewFilterButton.setAttribute("current-state", "filtered");
+        currentViewFilterState = defaultFiltered ? 'filtered' : 'unfiltered';
+        currentViewFilterButton.setAttribute("current-state", currentViewFilterState);
         currentViewFilterButton.classList.remove("hidden");
-        currentViewControlBarWidget?.classList.add("filtered-state");
-        currentViewSetData(subsetData, { isNavigationUpdate });
+        currentViewControlBarWidget?.classList.toggle("filtered-state", defaultFiltered);
+        currentViewSetData(defaultFiltered ? subsetData : mainData, { isNavigationUpdate });
     } else {
         currentViewFilterState = null;
         currentViewFilterButton.classList.add("hidden");
@@ -301,7 +304,8 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
     } finally {
         hideContentLoading(loadingToken);
     }
-    applyViewData(mainData, subsetData, true);
+    const { ids } = splitTargetIntoDocAndIds(viewSpecificTarget);
+    applyViewData(mainData, subsetData, true, ids.length > 1);
     setAppState({ viewWindow: { ...appState.viewWindow, target, viewSpecificTarget } });
 }
 
@@ -323,7 +327,8 @@ export async function updateCurrentView(target, viewContentDiv, config = {}) {
         } finally {
             hideContentLoading(loadingToken);
         }
-        applyViewData(mainData, subsetData, true);
+        const { ids } = splitTargetIntoDocAndIds(viewSpecificTarget);
+        applyViewData(mainData, subsetData, true, ids.length > 1);
         setAppState({ viewWindow: { ...appState.viewWindow, target, viewSpecificTarget } });
     } else {
         console.warn(`No update function defined for view type: ${appState.viewWindow.view}`);

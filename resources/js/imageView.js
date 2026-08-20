@@ -327,7 +327,7 @@ export function buildImageView(target, config = {}) {
     // measure caches are set once in update() and survive filter toggles.
     // isNavigationUpdate is true when called from a concordance connection switch
     // or any other navigation event; false (default) for filter-state toggles.
-    function setData({ pages, movements, measureSubsetIds }, { isNavigationUpdate = false } = {}) {
+    function setData({ pages, movements, measureSubsetIds, jumpMeasureId }, { isNavigationUpdate = false } = {}) {
         // Capture current state before rebuilding sequences
         const wasInitialized = _sequenceData.length > 0;
         const previousViewMode = _viewMode;
@@ -354,9 +354,12 @@ export function buildImageView(target, config = {}) {
 
         if (!wasInitialized || isNavigationUpdate) {
             // First load or concordance connection switch: derive view mode from subset.
-            // Subset present → measure view; whole-document connection → page view.
+            // Subset present → measure view; single-ID jump → measure view on that
+            // measure, unrestricted; whole-document connection → page view.
             if (_activeMeasureSubsetIds) {
                 activateMeasureView(0);
+            } else if (jumpMeasureId) {
+                activateMeasureView(null, jumpMeasureId);
             } else {
                 activatePageView();
             }
@@ -433,10 +436,13 @@ export function buildImageView(target, config = {}) {
                 imageViewComponent.setAttribute("zones-data", "{}");
             }
 
-            const mainData = { pages: _fullPages, movements: _fullMovements };
-
             // --- Subset logic ---
+            // The subset is always built for any non-empty ids, so the user can
+            // manually activate filtered mode even for a single-ID target (see
+            // views.js applyViewData's defaultFiltered). jumpMeasureId separately
+            // carries where to land when a single-ID target starts unfiltered.
             let subsetData = null;
+            let jumpMeasureId = null;
             if (ids.length > 0 && _fullMovements.length > 0) {
                 // For same-doc switches reuse the already-cached measures list; only fetch
                 // when we don't have it yet (first load or after a different-doc reset).
@@ -451,6 +457,10 @@ export function buildImageView(target, config = {}) {
                     );
                     if (matchingGroups.length > 0) {
                         const matchingPrimaryIds = matchingGroups.map(g => g.measures[0].id);
+
+                        if (ids.length === 1) {
+                            jumpMeasureId = matchingPrimaryIds[0];
+                        }
 
                         // Determine which pages contain the matching measures.
                         // For same-doc switches most entries will already be in the cache —
@@ -482,6 +492,7 @@ export function buildImageView(target, config = {}) {
                 }
             }
 
+            const mainData = { pages: _fullPages, movements: _fullMovements, jumpMeasureId };
             return { mainData, subsetData };
         },
         setData

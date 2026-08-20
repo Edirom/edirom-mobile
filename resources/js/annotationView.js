@@ -23,6 +23,9 @@ export function buildAnnotationView(target, config = {}) {
     content.appendChild(annotationViewComponent);
 
     let currentAnnotationsData = [];
+    // Single-ID target to auto-navigate to on the next setData call, or null.
+    // Set by update(), consumed once by setData() (mirrors textView's _scrollToId).
+    let _pendingJumpAnnotationId = null;
 
     const controlBar = document.createElement("edirom-control-bar");
     controlBar.classList.add("web-component");
@@ -78,9 +81,21 @@ export function buildAnnotationView(target, config = {}) {
         }
     });
 
-    function setData(annotations) {
+    function setData(annotations, { isNavigationUpdate = false } = {}) {
         currentAnnotationsData = annotations;
         annotationViewComponent.setAttribute("annotations-data", JSON.stringify(annotations));
+
+        if (isNavigationUpdate && _pendingJumpAnnotationId) {
+            const alreadyShowing = annotationViewComponent.currentPage === "annotation"
+                && annotationViewComponent.annotationData?.id === _pendingJumpAnnotationId;
+            if (!alreadyShowing) {
+                const matchedAnnotation = annotations.find(a => a.id === _pendingJumpAnnotationId);
+                if (matchedAnnotation) {
+                    navigateToAnnotation(matchedAnnotation);
+                    return;
+                }
+            }
+        }
 
         if (annotationViewComponent.currentPage === "annotation") {
             spinBox.setAttribute("steps-data", JSON.stringify(annotations.map(a => a.pos)));
@@ -112,7 +127,11 @@ export function buildAnnotationView(target, config = {}) {
         content,
         controlBar: controlBarContainer,
         controlBarWidget: controlBar,
-        update: (target) => updateAnnotationViewWebComponent(target, annotationViewComponent),
+        update: async (target) => {
+            const { mainData, subsetData, jumpAnnotationId } = await updateAnnotationViewWebComponent(target, annotationViewComponent);
+            _pendingJumpAnnotationId = jumpAnnotationId;
+            return { mainData, subsetData };
+        },
         setData
     };
 }
@@ -121,25 +140,23 @@ export function buildAnnotationView(target, config = {}) {
  * Fetches the annotations list for the given target URI. If not currently on
  * the annotation detail page, resets the view to the annotations list.
  * Returns the full dataset and, if the target contains fragment IDs, the
- * matching subset. Data is not written to the component; the caller is
- * responsible for calling `setData` with the appropriate dataset.
+ * matching subset (built for any non-empty ids, so the user can manually
+ * activate filtered mode even for a single-ID target — see views.js
+ * applyViewData's defaultFiltered). A single fragment ID additionally yields
+ * `jumpAnnotationId`, so the caller can navigate straight to that annotation
+ * without the list starting out restricted. Data is not written to the
+ * component; the caller is responsible for calling `setData` with the
+ * appropriate dataset.
  * @param {string} target - The document URI (with optional `#id` fragment)
  * @param {HTMLElement} annotationViewComponent - The annotation view web component
- * @returns {Promise<{ mainData: Object[]|null, subsetData: Object[]|null }>}
+ * @returns {Promise<{ mainData: Object[]|null, subsetData: Object[]|null, jumpAnnotationId: string|null }>}
  */
 async function updateAnnotationViewWebComponent(target, annotationViewComponent) {
     let { doc, ids } = splitTargetIntoDocAndIds(target);
 
     const annotationsData = (await getAnnotations(appState.edition.doc, doc)).annotations;
 
-    if (!annotationsData) return { mainData: null, subsetData: null };
-
-    // Only reset to the list page if not currently on the annotation detail page.
-    // When on the detail page, setData decides: stay if the current annotation
-    // is still in the new data, or switch to the list if it is not.
-    if (annotationViewComponent.currentPage !== "annotation") {
-        annotationViewComponent.setAttribute("current-page", "annotations");
-    }
+    if (!annotationsData) return { mainData: null, subsetData: null, jumpAnnotationId: null };
 
     let subsetData = null;
     if (ids.length > 0) {
@@ -149,7 +166,20 @@ async function updateAnnotationViewWebComponent(target, annotationViewComponent)
         }
     }
 
-    return { mainData: annotationsData, subsetData };
+    const jumpAnnotationId = ids.length === 1 && annotationsData.some(a => a.id === ids[0])
+        ? ids[0]
+        : null;
+
+    // Only reset to the list page if not currently on the annotation detail page,
+    // and we're not about to auto-navigate straight to a single matched
+    // annotation (avoids a flash of the list before the detail page loads).
+    // When on the detail page, setData decides: stay if the current annotation
+    // is still in the new data, or switch to the list if it is not.
+    if (annotationViewComponent.currentPage !== "annotation" && !jumpAnnotationId) {
+        annotationViewComponent.setAttribute("current-page", "annotations");
+    }
+
+    return { mainData: annotationsData, subsetData, jumpAnnotationId };
 }
 
 /**
