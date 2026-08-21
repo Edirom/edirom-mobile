@@ -330,8 +330,7 @@ export async function buildEditionSelectionPage() {
         editionLink.addEventListener("click", () => {
             console.log("Selected edition:", edition);
             initEdition({
-                editionId: edition.id,
-                backendUrl: edition.backendUrl
+                editionId: edition.id
             });
         });
         listItem.appendChild(editionLink);

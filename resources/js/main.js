@@ -1,5 +1,5 @@
-import { appConfig, appState, setAppState, loadAppConfig } from "./config.js";
-import { getEditions, getAllEditions, getWorks } from "./api.js";
+import { appState, setAppState, loadAppConfig } from "./config.js";
+import { getAllEditions, getWorks } from "./api.js";
 import { setupHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
 import { switchPage, buildEditionSelectionPage, showNavigator } from "./pages.js";
@@ -7,39 +7,6 @@ import { initConcordanceNavigator, navigateConcordanceNavigatorToConnection } fr
 import { initWebSocketConnector, updateWebSocketConnectorInviteUrl, applyWorkspaceSession, setStateSyncHandler, broadcastAppState } from "./web-socket-connector.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
 
-
-/**
- * Checks whether a given edition ID is available on a specific backend.
- * @param {string} editionId - The edition ID to look for
- * @param {string} backendUrl - The backend URL to query
- * @returns {Promise<boolean>} True if the edition was found on that backend
- */
-async function isEditionAvailableInBackend(editionId, backendUrl) {
-    let editions = await getEditions(backendUrl);
-    let editionFound = editions.find((edition) => edition.id === editionId);
-    return editionFound !== undefined;
-}
-
-/**
- * Searches all configured backends in parallel to find one that hosts the given edition.
- * @param {string} editionId - The edition ID to search for
- * @returns {Promise<string|null>} The URL of the first matching backend, or null if none found
- */
-async function findBackendForEdition(editionId) {
-    const availabilityChecks = appConfig.backendUrls.map(async url => {
-        try {
-            return { url, available: await isEditionAvailableInBackend(editionId, url) };
-        } catch (error) {
-            console.warn(`Failed to check edition availability at ${url}:`, error);
-            return { url, available: false };
-        }
-    });
-
-    const results = await Promise.all(availabilityChecks);
-    const found = results.find(result => result.available);
-
-    return found ? found.url : null;
-}
 
 /**
  * Checks whether a given work ID is among the works loaded for the current edition.
@@ -57,67 +24,40 @@ function isWorkAvailableInEdition(workId) {
 
 
 /**
- * Initializes the app for a given edition, resolving which backend hosts it if needed.
+ * Initializes the app for a given edition.
  *
- * If an `editionId` is provided, the function locates the appropriate backend (either
- * the supplied `backendUrl` or the first one found via `findBackendForEdition`). If no
- * `editionId` is given and only a single edition is available across all backends, that
- * edition is selected automatically. If the edition cannot be resolved, the edition
- * selection page is shown instead.
+ * If an `editionId` is provided, it's looked up among the configured backend's
+ * editions. If no `editionId` is given and only one edition is available, that
+ * edition is selected automatically. If the edition cannot be resolved, the
+ * edition selection page is shown instead.
  *
  * @param {Object} [options]
  * @param {string|null} [options.editionId] - The edition ID to initialize
- * @param {string|null} [options.backendUrl] - A known backend URL for the edition
  * @param {string|null} [options.workId] - A specific work ID to initialize after the edition
  * @param {string|null} [options.connectionId] - A specific concordance connection ID to initialize after the work
  * @returns {Promise<void>}
  */
-export async function initEdition({ editionId = null, backendUrl = null, workId = null, connectionId = null } = {}) {
+export async function initEdition({ editionId = null, workId = null, connectionId = null } = {}) {
     const loadingToken = showContentLoading();
     try {
     let foundEditionId = "";
-    let resolvedBackendUrl = backendUrl;
     setAppState({
         edition: {},
         work: {},
         connection: null
     });
 
+    if (!appState.allEditions || appState.allEditions.length === 0) {
+        await getAllEditions();
+    }
+
     if (editionId) {
-        if (!resolvedBackendUrl) {
-            const foundUrl = await findBackendForEdition(editionId);
-            if (foundUrl) {
-                resolvedBackendUrl = foundUrl;
-            }
-        }
-
-        if (resolvedBackendUrl && await isEditionAvailableInBackend(editionId, resolvedBackendUrl)) {
+        if (appState.allEditions.some((edition) => edition.id === editionId)) {
             foundEditionId = editionId;
-
-            const hasEditionInCache = appState.allEditions.some((edition) =>
-                edition.id === foundEditionId && edition.backendUrl === resolvedBackendUrl
-            );
-
-            if (!hasEditionInCache) {
-                const editionsFromBackend = await getEditions(resolvedBackendUrl);
-                const editionList = Array.isArray(editionsFromBackend) ? editionsFromBackend : (editionsFromBackend ? [editionsFromBackend] : []);
-
-                const existingEntries = new Set(appState.allEditions.map((edition) => `${edition.id}|${edition.backendUrl}`));
-                const mergedEditions = editionList
-                    .map((edition) => ({ ...edition, backendUrl: resolvedBackendUrl }))
-                    .filter((edition) => !existingEntries.has(`${edition.id}|${edition.backendUrl}`));
-
-                setAppState({ allEditions: [...appState.allEditions, ...mergedEditions] });
-            }
         }
     }
-    else {
-        if (!appState.allEditions || appState.allEditions.length === 0) {
-            await getAllEditions();
-        }
-        if (appState.allEditions.length === 1) {
-            foundEditionId = appState.allEditions[0].id;
-        }
+    else if (appState.allEditions.length === 1) {
+        foundEditionId = appState.allEditions[0].id;
     }
 
     if (foundEditionId == "") {
@@ -126,32 +66,23 @@ export async function initEdition({ editionId = null, backendUrl = null, workId 
         return;
     }
 
-    // find the foundEditionId in in all Editions to set it as the current edition
-    let editionData = appState.allEditions.find((edition) => {
-        if (edition.id !== foundEditionId) return false;
-        if (!resolvedBackendUrl) return true;
-        return edition.backendUrl === resolvedBackendUrl;
-    });
-
-    if (!editionData && !resolvedBackendUrl) {
-        editionData = appState.allEditions.find((edition) => edition.id === foundEditionId);
-    }
+    const editionData = appState.allEditions.find((edition) => edition.id === foundEditionId);
 
     if (!editionData) {
-        console.error("Resolved edition ID is missing from cache", { foundEditionId, resolvedBackendUrl });
+        console.error("Resolved edition ID is missing from cache", { foundEditionId });
         switchPage("edition-selection", buildEditionSelectionPage());
         return;
     }
 
     setAppState({ edition: editionData });
 
-    if (!appState.edition.doc || !appState.edition.backendUrl) {
+    if (!appState.edition.doc) {
         console.error("Edition data is incomplete", appState.edition);
         switchPage("edition-selection", buildEditionSelectionPage());
         return;
     }
 
-    const worksInEdition = await getWorks(appState.edition.doc, appState.edition.backendUrl);
+    const worksInEdition = await getWorks(appState.edition.doc);
     setAppState({ worksInEdition });
 
     await initWork(workId, connectionId);
@@ -237,7 +168,6 @@ function normalizeParam(value) {
  */
 export async function applyUrlParams(urlParams) {
     const editionId = normalizeParam(urlParams.get("edition"));
-    const backendUrl = normalizeParam(urlParams.get("backendUrl"));
     let workId = normalizeParam(urlParams.get("work"));
     let connectionId = normalizeParam(urlParams.get("connection"));
     const workspaceSession = normalizeParam(urlParams.get("workspaceSession"));
@@ -281,7 +211,6 @@ export async function applyUrlParams(urlParams) {
 
     await initEdition({
         editionId,
-        backendUrl,
         workId,
         connectionId
     });

@@ -6,22 +6,8 @@ const DEFAULT_AVAILABLE_VIEWS = [
 ];
 const DEFAULT_VIEW_HEADER_ID = "view-header";
 
-/**
- * Parse semicolon-separated URLs into an array.
- * Handles both single URLs and multiple semicolon-separated URLs.
- * @param {string} urlString - Semicolon-separated URL string
- * @returns {string[]} Array of URLs
- */
-const parseBackendUrls = (urlString) => {
-    if (!urlString) return [];
-    return urlString
-        .split(";")
-        .map(url => url.trim())
-        .filter(url => url.length > 0);
-};
-
 export const appConfig = {
-    backendUrls: [],
+    backendUrl: "",
     wsUrl: "",
     viewHeaderId: DEFAULT_VIEW_HEADER_ID,
     availableViews: [...DEFAULT_AVAILABLE_VIEWS]
@@ -29,9 +15,11 @@ export const appConfig = {
 
 /**
  * Fetches Frontend's config.json (the same file Desktop's ConfigController
- * reads) and populates `appConfig.backendUrls`/`appConfig.wsUrl`. Must be
+ * reads) and populates `appConfig.backendUrl`/`appConfig.wsUrl`. Must be
  * awaited before anything that reads those two fields — see `initApp()` in
- * main.js.
+ * main.js. `backendUrl` is used exactly like Desktop uses it: the full base
+ * URL (including path), with relative paths appended directly on top — see
+ * api.js.
  * @returns {Promise<void>}
  */
 export async function loadAppConfig() {
@@ -39,7 +27,7 @@ export async function loadAppConfig() {
         const response = await fetch("../config.json");
         if (!response.ok) throw new Error(`Status: ${response.status}`);
         const config = await response.json();
-        appConfig.backendUrls = parseBackendUrls(config.backendURL ?? "");
+        appConfig.backendUrl = config.backendURL ?? "";
         appConfig.wsUrl = config.wsURL ?? "";
     } catch (e) {
         console.warn("Failed to load ../config.json:", e);
@@ -48,7 +36,7 @@ export async function loadAppConfig() {
 
 export const appState = {
     page: "",
-    allEditions: [], // List of all editions from all backends
+    allEditions: [], // List of all editions from the configured backend
     edition: {},
     worksInEdition: [],
     work: {},

@@ -43,8 +43,7 @@ export async function refreshNavigatorDataFromBackend({
             appState.edition.doc,
             appState.work.id,
             appState.language,
-            appState.edition.doc,
-            appState.edition.backendUrl
+            appState.edition.doc
         );
         const filteredAndEnrichedNavigatorData = await filterAndEnrichNavigatorData(navigatorData);
         setNavigatorData(filteredAndEnrichedNavigatorData, setAsNavigatorDataMain, addToNavigatorDataCurrent);

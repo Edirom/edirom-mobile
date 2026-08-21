@@ -38,7 +38,7 @@ function hasConnectionId(concordances, connectionId) {
  * @returns {Promise<{initialConnectionResolved: boolean}>} Whether startup connection deep-link was resolved
  */
 export async function initConcordanceNavigator(connectionId = null) {
-    const concordances = await getConcordances(appState.edition.doc, appState.work.id, appState.edition.backendUrl);
+    const concordances = await getConcordances(appState.edition.doc, appState.work.id);
     const footerElement = document.getElementById("footer");
     const concordanceWrapper = document.getElementById("concordance-navigator-wrapper") || footerElement;
     const concordanceNavigatorElement = document.createElement("edirom-concordance-navigator");
