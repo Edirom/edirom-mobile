@@ -1,0 +1,27 @@
+[submodule "resources/web-components/edirom-concordance-navigator"]
+	path = resources/web-components/edirom-concordance-navigator
+	url = https://github.com/Edirom/edirom-concordance-navigator
+[submodule "resources/web-components/edirom-navigator"]
+	path = resources/web-components/edirom-navigator
+	url = https://github.com/Edirom/edirom-navigator
+[submodule "resources/web-components/edirom-core-web-components"]
+	path = resources/web-components/edirom-core-web-components
+	url = https://github.com/Edirom/edirom-core-web-components
+[submodule "resources/web-components/edirom-annotation-view"]
+	path = resources/web-components/edirom-annotation-view
+	url = https://github.com/Edirom/edirom-annotation-view
+[submodule "resources/web-components/edirom-image-viewer"]
+	path = resources/web-components/edirom-image-viewer
+	url = https://github.com/Edirom/edirom-image-viewer
+[submodule "resources/web-components/edirom-text-viewer"]
+	path = resources/web-components/edirom-text-viewer
+	url = https://github.com/Edirom/edirom-text-viewer
+[submodule "resources/web-components/edirom-controls"]
+	path = resources/web-components/edirom-controls
+	url = https://github.com/Edirom/edirom-controls
+[submodule "resources/web-components/edirom-qr-code-scanner"]
+	path = resources/web-components/edirom-qr-code-scanner
+	url = https://github.com/Edirom/edirom-qr-code-scanner
+[submodule "resources/web-components/edirom-web-socket-connector"]
+	path = resources/web-components/edirom-web-socket-connector
+	url = https://github.com/Edirom/edirom-web-socket-connector
