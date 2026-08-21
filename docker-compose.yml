@@ -4,17 +4,7 @@ services:
     container_name: edirom-mobile
     volumes:
     - .:/usr/share/nginx/html
-    - "/Users/dennisfriedl/Documents/GitHub/Korngold/Korngold-Edirom/Web-Components/edirom-concordance-navigator:/usr/share/nginx/html/resources/web-components/edirom-concordance-navigator"
-    - "/Users/dennisfriedl/Documents/GitHub/Korngold/Korngold-Edirom/Web-Components/edirom-navigator:/usr/share/nginx/html/resources/web-components/edirom-navigator"
-    - "/Users/dennisfriedl/Documents/GitHub/Korngold/Korngold-Edirom/Web-Components/edirom-core-web-components:/usr/share/nginx/html/resources/web-components/edirom-core-web-components"
-    - "/Users/dennisfriedl/Documents/GitHub/Korngold/Korngold-Edirom/Web-Components/edirom-annotation-view:/usr/share/nginx/html/resources/web-components/edirom-annotation-view"
-    - "/Users/dennisfriedl/Documents/GitHub/Korngold/Korngold-Edirom/Web-Components/edirom-image-viewer:/usr/share/nginx/html/resources/web-components/edirom-image-viewer"
-    - "/Users/dennisfriedl/Documents/GitHub/Korngold/Korngold-Edirom/Web-Components/edirom-videoplayer:/usr/share/nginx/html/resources/web-components/edirom-videoplayer"
-    - "/Users/dennisfriedl/Documents/GitHub/Korngold/Korngold-Edirom/Web-Components/edirom-text-viewer:/usr/share/nginx/html/resources/web-components/edirom-text-viewer"
-    - "/Users/dennisfriedl/Documents/GitHub/Korngold/Korngold-Edirom/Web-Components/edirom-controls:/usr/share/nginx/html/resources/web-components/edirom-controls"
-    - "/Users/dennisfriedl/Documents/GitHub/Korngold/Korngold-Edirom/Web-Components/edirom-qr-code-scanner:/usr/share/nginx/html/resources/web-components/edirom-qr-code-scanner"
-    - "/Users/dennisfriedl/Documents/GitHub/Korngold/Korngold-Edirom/Web-Components/edirom-web-socket-connector:/usr/share/nginx/html/resources/web-components/edirom-web-socket-connector"
-
+    
     ports:
       - "8082:80"
     depends_on:

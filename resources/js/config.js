@@ -21,11 +21,30 @@ const parseBackendUrls = (urlString) => {
 };
 
 export const appConfig = {
-    backendUrls: parseBackendUrls(window?.config?.APP_BACKEND_URLS ?? ""),
-    wsUrl: window?.config?.APP_WS_URL ?? "",
+    backendUrls: [],
+    wsUrl: "",
     viewHeaderId: DEFAULT_VIEW_HEADER_ID,
     availableViews: [...DEFAULT_AVAILABLE_VIEWS]
 };
+
+/**
+ * Fetches Frontend's config.json (the same file Desktop's ConfigController
+ * reads) and populates `appConfig.backendUrls`/`appConfig.wsUrl`. Must be
+ * awaited before anything that reads those two fields — see `initApp()` in
+ * main.js.
+ * @returns {Promise<void>}
+ */
+export async function loadAppConfig() {
+    try {
+        const response = await fetch("../config.json");
+        if (!response.ok) throw new Error(`Status: ${response.status}`);
+        const config = await response.json();
+        appConfig.backendUrls = parseBackendUrls(config.backendURL ?? "");
+        appConfig.wsUrl = config.wsURL ?? "";
+    } catch (e) {
+        console.warn("Failed to load ../config.json:", e);
+    }
+}
 
 export const appState = {
     page: "",

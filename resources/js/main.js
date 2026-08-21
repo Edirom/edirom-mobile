@@ -1,4 +1,4 @@
-import { appConfig, appState, setAppState } from "./config.js";
+import { appConfig, appState, setAppState, loadAppConfig } from "./config.js";
 import { getEditions, getAllEditions, getWorks } from "./api.js";
 import { setupHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
@@ -296,6 +296,8 @@ export async function applyUrlParams(urlParams) {
  */
 async function initApp() {
     console.log("Initializing Edirom Mobile App");
+
+    await loadAppConfig();
 
     setupHeaderMenu();
     registerLayoutListeners();
