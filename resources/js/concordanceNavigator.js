@@ -62,6 +62,9 @@ export async function initConcordanceNavigator(connectionId = null) {
     concordanceNavigatorElement.setAttribute('enable-qr-code-scanner', 'true');
     concordanceNavigatorElement.setAttribute("concordances-data", JSON.stringify(concordances));
     concordanceNavigatorElement.setAttribute("inject-disabled-concordance", "Freies Erkunden");
+    // Arrow navigation skips connections with no targets; explicit selection (slider, text
+    // input, deep-link) still lands on them.
+    concordanceNavigatorElement.setAttribute("skip-empty-connections", "");
     // Build a regex that matches only URLs sharing the current client's origin and pathname,
     // so the embedded QR scanner filters at scan time and only self-links fire qr-code-scanned.
     const escapedOrigin = window.location.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
