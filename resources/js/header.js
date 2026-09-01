@@ -70,6 +70,27 @@ function buildHeaderMenu() {
         listEl.appendChild(listItem);
     });
 
+    const switchToDesktopLi = document.createElement("li");
+    const switchToDesktopLink = document.createElement("a");
+    const switchToDesktopIcon = document.createElement("edirom-icon");
+    switchToDesktopIcon.setAttribute("name", "devices");
+    switchToDesktopLink.appendChild(switchToDesktopIcon);
+    switchToDesktopLink.appendChild(document.createTextNode("Zur Desktop-Ansicht"));
+    switchToDesktopLink.setAttribute("role", "button");
+    switchToDesktopLink.setAttribute("tabindex", "0");
+    switchToDesktopLink.addEventListener("click", (event) => {
+        localStorage.setItem("edirom-ui-mode", "desktop");
+
+        const params = new URLSearchParams();
+        params.set("ui", "desktop");
+        if (appState.edition?.id) params.set("edition", appState.edition.id);
+        if (appState.work?.id) params.set("work", appState.work.id);
+
+        window.location.href = "../index.html?" + params.toString();
+    });
+    switchToDesktopLi.appendChild(switchToDesktopLink);
+    listEl.appendChild(switchToDesktopLi);
+
     return listEl;
 }
 
