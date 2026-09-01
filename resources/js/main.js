@@ -238,7 +238,7 @@ async function initApp() {
 
     setupHeaderMenu();
     registerLayoutListeners();
-    initWebSocketConnector();
+    await initWebSocketConnector();
     setStateSyncHandler((state) => {
         if (!state || typeof state !== "object") return;
         const edition = state.edition;

@@ -2,9 +2,17 @@ import { appConfig, appState } from "./config.js";
 
 const SYNC_STATE_TYPE = "syncState";
 
+const CONNECTOR_MODULE_URL = "../web-components/edirom-web-socket-connector/edirom-web-socket-connector.js";
+
 let connectorElement = null;
 let stateSyncHandler = null;
 let lastSyncedKey = null;
+
+// Set to true only once the connector component has actually been loaded and
+// attached to the DOM (i.e. appConfig.wsUrl was present). While false, every
+// exported function below is a no-op, so the whole WebSocket feature is
+// completely inert when no ws-url is configured.
+let webSocketConnectorEnabled = false;
 
 function getConnectorElement() {
     return connectorElement ?? (connectorElement = document.querySelector("edirom-web-socket-connector"));
@@ -24,23 +32,39 @@ function makeStateKey(state) {
 
 /**
  * Initializes the edirom-web-socket-connector web component in the header.
- * Reads the WebSocket URL from appConfig and sets it as the ws-url attribute
- * on the element, then wires up event listeners for messages received over
- * the WebSocket connection.
+ *
+ * If `appConfig.wsUrl` is empty, the entire WebSocket connector is skipped:
+ * the component module is never loaded and no `<edirom-web-socket-connector>`
+ * element is added to the DOM, so none of its functionality (connection,
+ * session UI, vendor-library loading) is active. Every other exported function
+ * in this module becomes a no-op in that case.
+ *
+ * Otherwise, the component module is loaded on demand, the element is created
+ * with the configured `ws-url`, its event listeners are wired up, and it is
+ * appended to `#edirom-web-socket-connector-container` in the header.
+ *
+ * @returns {Promise<void>} Resolves once the connector is ready (or skipped).
  */
-export function initWebSocketConnector() {
-    const el = document.querySelector('edirom-web-socket-connector');
-    if (!el) {
-        console.warn('initWebSocketConnector: <edirom-web-socket-connector> element not found in DOM.');
-        return;
-    }
-
+export async function initWebSocketConnector() {
     if (!appConfig.wsUrl) {
-        console.warn('initWebSocketConnector: appConfig.wsUrl is empty, skipping WebSocket setup.');
+        console.info('initWebSocketConnector: appConfig.wsUrl is empty, WebSocket connector disabled.');
         return;
     }
 
-    connectorElement = el;
+    const container = document.querySelector('#edirom-web-socket-connector-container');
+    if (!container) {
+        console.warn('initWebSocketConnector: #edirom-web-socket-connector-container not found in DOM.');
+        return;
+    }
+
+    try {
+        await import(CONNECTOR_MODULE_URL);
+    } catch (error) {
+        console.error('initWebSocketConnector: failed to load the WebSocket connector component.', error);
+        return;
+    }
+
+    const el = document.createElement('edirom-web-socket-connector');
     el.setAttribute('ws-url', appConfig.wsUrl);
 
     el.addEventListener('received-message', (event) => {
@@ -60,6 +84,10 @@ export function initWebSocketConnector() {
         lastSyncedKey = null;
         broadcastAppState();
     });
+
+    container.appendChild(el);
+    connectorElement = el;
+    webSocketConnectorEnabled = true;
 }
 
 /**
@@ -70,6 +98,7 @@ export function initWebSocketConnector() {
  * (without a value). The connector appends its own session ID to complete the URL.
  */
 export function updateWebSocketConnectorInviteUrl() {
+    if (!webSocketConnectorEnabled) return;
     const el = document.querySelector('edirom-web-socket-connector');
     if (!el) return;
 
@@ -93,6 +122,7 @@ export function updateWebSocketConnectorInviteUrl() {
  * @param {string|null} sessionId - The session ID to join
  */
 export function applyWorkspaceSession(sessionId) {
+    if (!webSocketConnectorEnabled) return;
     const el = document.querySelector('edirom-web-socket-connector');
     if (!el || !sessionId) return;
     el.setAttribute('session', sessionId);
@@ -114,6 +144,7 @@ export function setStateSyncHandler(handler) {
  * edition and work.
  */
 export function broadcastAppState() {
+    if (!webSocketConnectorEnabled) return;
     const state = {};
     if (appState.edition?.id) state.edition = appState.edition.id;
     if (appState.work?.id) state.work = appState.work.id;
@@ -128,6 +159,7 @@ export function broadcastAppState() {
  * @param {Object} state - Flat key-value state object
  */
 export function broadcastStateSync(state) {
+    if (!webSocketConnectorEnabled) return;
     const el = getConnectorElement();
     if (!el || !state) return;
     const key = makeStateKey(state);
