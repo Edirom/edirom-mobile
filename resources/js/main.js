@@ -9,13 +9,14 @@ import { showContentLoading, hideContentLoading } from "./loading.js";
 
 
 /**
- * Checks whether a given work ID is among the works loaded for the current edition.
- * @param {string} workId - The work ID to check
- * @returns {boolean} True if the work is available
+ * Finds a work among those loaded for the current edition, matching either
+ * the short `id` or the full `doc` URI — the same two identifiers editions
+ * carry (see `initEdition`'s matching for why both are accepted).
+ * @param {string} workId - The work identifier to look for
+ * @returns {Object|undefined} The matching work object, or undefined if not found
  */
-function isWorkAvailableInEdition(workId) {
-    let workFound = appState.worksInEdition.find((work) => work.id === workId);
-    return workFound !== undefined;
+function findWorkInEdition(workId) {
+    return appState.worksInEdition.find((work) => work.id === workId || work.doc === workId);
 }
 
 
@@ -52,8 +53,14 @@ export async function initEdition({ editionId = null, workId = null, connectionI
     }
 
     if (editionId) {
-        if (appState.allEditions.some((edition) => edition.id === editionId)) {
-            foundEditionId = editionId;
+        // Accept either identifier a caller might use: the short `id` (used
+        // internally, e.g. by the edition-selection page) or the full `doc`
+        // URI (used by Desktop, which has no concept of the short id — see
+        // edition.xqm's edition:details()). Both are always present on every
+        // edition object.
+        const matchedEdition = appState.allEditions.find((edition) => edition.id === editionId || edition.doc === editionId);
+        if (matchedEdition) {
+            foundEditionId = matchedEdition.id;
         }
     }
     else if (appState.allEditions.length === 1) {
@@ -111,8 +118,9 @@ export async function initWork(workId = null, connectionId = null) {
     });
 
     if (workId) {
-        if (isWorkAvailableInEdition(workId)) {
-            foundWorkId = workId;
+        const matchedWork = findWorkInEdition(workId);
+        if (matchedWork) {
+            foundWorkId = matchedWork.id;
         }
     }
     setAppState({ work: appState.worksInEdition.find((work) => work.id === foundWorkId) });
