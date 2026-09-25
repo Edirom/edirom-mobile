@@ -22,9 +22,9 @@
 [submodule "resources/web-components/edirom-qr-code-scanner"]
 	path = resources/web-components/edirom-qr-code-scanner
 	url = https://github.com/Edirom/edirom-qr-code-scanner
-[submodule "resources/web-components/edirom-web-socket-connector"]
-	path = resources/web-components/edirom-web-socket-connector
-	url = https://github.com/Edirom/edirom-web-socket-connector
 [submodule "resources/web-components/edirom-videoplayer"]
 	path = resources/web-components/edirom-videoplayer
 	url = https://github.com/Edirom/edirom-video-player.git
+[submodule "resources/web-components/edirom-connected-workspace"]
+	path = resources/web-components/edirom-connected-workspace
+	url = https://github.com/Edirom/edirom-connected-workspace.git

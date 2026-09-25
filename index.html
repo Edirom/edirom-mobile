@@ -17,7 +17,7 @@
     <script defer src="resources/web-components/edirom-controls/edirom-button-widget.js" type="module"></script>
     <script defer src="resources/web-components/edirom-controls/edirom-spin-box-widget.js" type="module"></script>
     <script defer src="resources/web-components/edirom-qr-code-scanner/edirom-qr-code-scanner.js" type="module"></script>
-    <!-- edirom-web-socket-connector is loaded on demand by initWebSocketConnector(),
+    <!-- edirom-connected-workspace is loaded on demand by initConnectedWorkspace(),
          only when appConfig.wsUrl is set. -->
     <link rel="stylesheet" href="resources/css/styles.css">
 </head>
@@ -27,7 +27,7 @@
     <header>
         <div id="header-burger-menu"><edirom-icon name="menu" size="2rem"></edirom-icon></div>
         <div id="header-edition-name">Edirom Mobile</div>
-        <div id="edirom-web-socket-connector-container"></div>
+        <div id="edirom-connected-workspace-container"></div>
         <nav id="header-menu" class="header-menu" aria-label="Hauptmenü" aria-hidden="true"></nav>
     </header>
     <div id="content-container">

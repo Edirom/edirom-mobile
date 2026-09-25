@@ -3,7 +3,7 @@ import { appState, setAppState } from "./config.js";
 import { loadLinks } from "./linkController.js";
 import { refreshNavigatorDataFromBackend } from "./navigator.js";
 import { removeCurrentViewSubset } from "./views.js";
-import { updateWebSocketConnectorInviteUrl, broadcastAppState } from "./web-socket-connector.js";
+import { updateConnectedWorkspaceInviteUrl, broadcastAppState } from "./connected-workspace.js";
 
 function hasConnectionId(concordances, connectionId) {
     if (!Array.isArray(concordances) || !connectionId) return false;
@@ -91,7 +91,7 @@ export async function initConcordanceNavigator(connectionId = null) {
     concordanceNavigatorElement.addEventListener("connection-changed", (event) => {
         const connectionId = event.detail?.connectionId ?? null;
         setAppState({ connection: connectionId });
-        updateWebSocketConnectorInviteUrl();
+        updateConnectedWorkspaceInviteUrl();
         broadcastAppState();
     });
     concordanceWrapper.innerHTML = ""; // Clear previous concordance content
@@ -127,7 +127,7 @@ async function onConcordanceNavigatorDisabled() {
     console.log("Concordance navigator disabled");
     removeCurrentViewSubset();
     setAppState({ connection: null });
-    updateWebSocketConnectorInviteUrl();
+    updateConnectedWorkspaceInviteUrl();
     await refreshNavigatorDataFromBackend({
         setAsNavigatorDataMain: true,
         addToNavigatorDataCurrent: false

@@ -4,7 +4,7 @@ import { setupHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
 import { switchPage, buildEditionSelectionPage, showNavigator } from "./pages.js";
 import { initConcordanceNavigator, navigateConcordanceNavigatorToConnection } from "./concordanceNavigator.js";
-import { initWebSocketConnector, updateWebSocketConnectorInviteUrl, applyWorkspaceSession, setStateSyncHandler, broadcastAppState } from "./web-socket-connector.js";
+import { initConnectedWorkspace, updateConnectedWorkspaceInviteUrl, applyWorkspaceSession, setStateSyncHandler, broadcastAppState } from "./connected-workspace.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
 
 
@@ -198,7 +198,7 @@ export async function applyUrlParams(urlParams) {
         connectionId) {
         const navigated = navigateConcordanceNavigatorToConnection(connectionId);
         if (navigated) {
-            updateWebSocketConnectorInviteUrl();
+            updateConnectedWorkspaceInviteUrl();
             if (workspaceSession) applyWorkspaceSession(workspaceSession);
             return;
         }
@@ -212,7 +212,7 @@ export async function applyUrlParams(urlParams) {
         workId && workId !== appState.work?.id &&
         appState.worksInEdition?.length > 0) {
         await initWork(workId, connectionId);
-        updateWebSocketConnectorInviteUrl();
+        updateConnectedWorkspaceInviteUrl();
         if (workspaceSession) applyWorkspaceSession(workspaceSession);
         return;
     }
@@ -222,7 +222,7 @@ export async function applyUrlParams(urlParams) {
         workId,
         connectionId
     });
-    updateWebSocketConnectorInviteUrl();
+    updateConnectedWorkspaceInviteUrl();
     if (workspaceSession) applyWorkspaceSession(workspaceSession);
 }
 
@@ -238,7 +238,7 @@ async function initApp() {
 
     setupHeaderMenu();
     registerLayoutListeners();
-    await initWebSocketConnector();
+    await initConnectedWorkspace();
     setStateSyncHandler((state) => {
         if (!state || typeof state !== "object") return;
         const edition = state.edition;
