@@ -3,8 +3,8 @@ import { getAllEditions, getWorks } from "./api.js";
 import { setupHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
 import { switchPage, buildEditionSelectionPage, showNavigator } from "./pages.js";
-import { initConcordanceNavigator, navigateConcordanceNavigatorToConnection } from "./concordanceNavigator.js";
-import { initConnectedWorkspace, updateConnectedWorkspaceInviteUrl, applyWorkspaceSession, setStateSyncHandler, broadcastAppState } from "./connected-workspace.js";
+import { initConcordanceNavigator, navigateConcordanceNavigatorToConnection, navigateConcordanceNavigatorToDisabled } from "./concordanceNavigator.js";
+import { initConnectedWorkspace, updateConnectedWorkspaceInviteUrl, applyWorkspaceSession, notifyStateChanged, getSyncedState } from "./connected-workspace.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
 
 
@@ -147,7 +147,7 @@ export async function initWork(workId = null, connectionId = null) {
         await initConcordanceNavigator();
     }
 
-    broadcastAppState();
+    notifyStateChanged();
 
     console.log("Set work to", appState.work);
 }
@@ -227,6 +227,57 @@ export async function applyUrlParams(urlParams) {
 }
 
 /**
+ * Moves the app to a state the ws-server asked for (its `syncState`).
+ * Registered with the connected workspace, which also takes care of not
+ * reporting the result back as a new change.
+ *
+ * Other clients may identify an edition or work differently (Desktop uses the
+ * edition's `doc` URI, mobile the short `id`), so both are resolved to this
+ * app's ids first. `null` for edition/work means "no information" and leaves
+ * the current value alone; for `connection` it means free exploration.
+ *
+ * @param {{edition?: string|null, work?: string|null, connection?: string|null}} patch
+ * @returns {Promise<void>}
+ */
+async function applySyncedState(patch) {
+    const current = getSyncedState();
+    const target = { ...current };
+
+    if (patch.edition) {
+        const edition = appState.allEditions?.find((e) => e.id === patch.edition || e.doc === patch.edition);
+        target.edition = edition?.id ?? patch.edition;
+    }
+    // A work can only be resolved against the edition it belongs to.
+    if (patch.work) {
+        const work = target.edition === current.edition ? findWorkInEdition(patch.work) : undefined;
+        target.work = work?.id ?? patch.work;
+    }
+    if ("connection" in patch) {
+        target.connection = patch.connection ?? null;
+    }
+
+    if (!target.edition) return; // nothing to navigate in yet (e.g. still on the edition selection page)
+    if (target.edition === current.edition && target.work === current.work && target.connection === current.connection) return;
+
+    // Same edition and work: only the connection changes.
+    if (target.edition === current.edition && target.work === current.work && target.connection !== current.connection) {
+        if (target.connection === null) {
+            navigateConcordanceNavigatorToDisabled();
+            return;
+        }
+        if (navigateConcordanceNavigatorToConnection(target.connection)) return;
+        // Connection not found in the current concordance data — fall through to a full re-init.
+    }
+
+    // applyUrlParams expects URL parameters; only non-null values are passed.
+    const params = new URLSearchParams();
+    if (target.edition) params.set("edition", target.edition);
+    if (target.work) params.set("work", target.work);
+    if (target.connection) params.set("connection", target.connection);
+    await applyUrlParams(params);
+}
+
+/**
  * Entry point for the app. Sets up the header menu and layout listeners,
  * then applies the current URL parameters to initialize the edition and work.
  * @returns {Promise<void>}
@@ -238,21 +289,7 @@ async function initApp() {
 
     setupHeaderMenu();
     registerLayoutListeners();
-    await initConnectedWorkspace();
-    setStateSyncHandler((state) => {
-        if (!state || typeof state !== "object") return;
-        const edition = state.edition;
-        const work = state.work;
-        const connection = state.connection ?? null;
-        if (edition === appState.edition?.id && work === appState.work?.id && connection === (appState.connection ?? null)) {
-            return;
-        }
-        // applyUrlParams expects URL parameters — pass the state as a
-        // URLSearchParams object purely as an application-side transport.
-        applyUrlParams(new URLSearchParams(state)).catch((error) => {
-            console.error("Failed to apply synced state:", error);
-        });
-    });
+    await initConnectedWorkspace(applySyncedState);
 
     await applyUrlParams(new URLSearchParams(window.location.search));
 }

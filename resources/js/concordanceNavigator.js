@@ -3,7 +3,7 @@ import { appState, setAppState } from "./config.js";
 import { loadLinks } from "./linkController.js";
 import { refreshNavigatorDataFromBackend } from "./navigator.js";
 import { removeCurrentViewSubset } from "./views.js";
-import { updateConnectedWorkspaceInviteUrl, broadcastAppState } from "./connected-workspace.js";
+import { updateConnectedWorkspaceInviteUrl, notifyStateChanged } from "./connected-workspace.js";
 
 function hasConnectionId(concordances, connectionId) {
     if (!Array.isArray(concordances) || !connectionId) return false;
@@ -92,7 +92,7 @@ export async function initConcordanceNavigator(connectionId = null) {
         const connectionId = event.detail?.connectionId ?? null;
         setAppState({ connection: connectionId });
         updateConnectedWorkspaceInviteUrl();
-        broadcastAppState();
+        notifyStateChanged();
     });
     concordanceWrapper.innerHTML = ""; // Clear previous concordance content
     concordanceWrapper.appendChild(concordanceNavigatorElement);
@@ -119,6 +119,26 @@ export function navigateConcordanceNavigatorToConnection(connectionId) {
 }
 
 /**
+ * Switches the existing `<edirom-concordance-navigator>` in the page footer to its
+ * injected "Freies Erkunden" (free exploration) entry, exactly as if the user had
+ * picked it. This fires `concordance-navigator-disabled`, which
+ * `onConcordanceNavigatorDisabled` handles.
+ * @returns {boolean} `true` if the navigator is (now) in free exploration, `false`
+ *   if the element is not found or has no free-exploration entry
+ */
+export function navigateConcordanceNavigatorToDisabled() {
+    const element = document.querySelector("#footer edirom-concordance-navigator");
+    const disabledName = element?.injectDisabledConcordanceName;
+    if (!element || !disabledName) return false;
+    if (element.isDisabledConcordanceSelected()) return true;
+    if (element.concordanceSelector) {
+        element.concordanceSelector.value = disabledName;
+    }
+    element.switchConcordance(disabledName, { expand: false });
+    return true;
+}
+
+/**
  * Handles the concordance navigator being switched to its disabled ("free exploration") state.
  * Fetches a fresh navigator config, enriches it, and pushes it to the navigator.
  * @returns {Promise<void>}
@@ -128,6 +148,7 @@ async function onConcordanceNavigatorDisabled() {
     removeCurrentViewSubset();
     setAppState({ connection: null });
     updateConnectedWorkspaceInviteUrl();
+    notifyStateChanged();
     await refreshNavigatorDataFromBackend({
         setAsNavigatorDataMain: true,
         addToNavigatorDataCurrent: false

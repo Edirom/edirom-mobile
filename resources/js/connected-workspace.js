@@ -1,12 +1,13 @@
 import { appConfig, appState } from "./config.js";
 
-const SYNC_STATE_TYPE = "syncState";
-
 const CONNECTOR_MODULE_URL = "../web-components/edirom-connected-workspace/edirom-connected-workspace.js";
 
+// The keys of `appState` that are part of the session state the ws-server
+// keeps per client. The connector component owns the sync protocol; this
+// module only tells it how to read and apply these keys.
+const SYNCED_STATE_KEYS = ["edition", "work", "connection"];
+
 let connectorElement = null;
-let stateSyncHandler = null;
-let lastSyncedKey = null;
 
 // Set to true only once the connector component has actually been loaded and
 // attached to the DOM (i.e. appConfig.wsUrl was present). While false, every
@@ -19,15 +20,16 @@ function getConnectorElement() {
 }
 
 /**
- * Builds a canonical, order-independent key from a flat state object.
- * Used to detect and suppress echo loops.
- * @param {Object} state - Flat key-value state object
- * @returns {string} Sorted query-string representation
+ * Reads the synced part of the central `appState`. `null` means "not set";
+ * for `connection` it is also the "Freies Erkunden" (free exploration) state.
+ * @returns {{edition: string|null, work: string|null, connection: string|null}}
  */
-function makeStateKey(state) {
-    const params = new URLSearchParams(state);
-    params.sort();
-    return params.toString();
+export function getSyncedState() {
+    return {
+        edition: appState.edition?.id ?? null,
+        work: appState.work?.id ?? null,
+        connection: appState.connection ?? null
+    };
 }
 
 /**
@@ -36,22 +38,27 @@ function makeStateKey(state) {
  * If `appConfig.wsUrl` is empty, the entire connected workspace is skipped:
  * the component module is never loaded and no `<edirom-connected-workspace>`
  * element is added to the DOM, so none of its functionality (connection,
- * session UI, vendor-library loading) is active. Every other exported function
- * in this module becomes a no-op in that case.
+ * session UI, vendor-library loading) is active. The empty header container is
+ * removed, and every other exported function in this module becomes a no-op.
  *
  * Otherwise, the component module is loaded on demand, the element is created
- * with the configured `ws-url`, its event listeners are wired up, and it is
- * appended to `#edirom-connected-workspace-container` in the header.
+ * with the configured `ws-url`, the app's state handler is registered on it,
+ * and it is appended to `#edirom-connected-workspace-container` in the header.
  *
+ * @param {(patch: Object) => Promise<void>} applyState - Moves the app to the
+ *   state in `patch` (a subset of edition/work/connection) after the server
+ *   asked for it. Passed in by main.js, which owns the navigation logic.
  * @returns {Promise<void>} Resolves once the connector is ready (or skipped).
  */
-export async function initConnectedWorkspace() {
+export async function initConnectedWorkspace(applyState) {
+    const container = document.querySelector('#edirom-connected-workspace-container');
+
     if (!appConfig.wsUrl) {
         console.info('initConnectedWorkspace: appConfig.wsUrl is empty, connected workspace disabled.');
+        container?.remove();
         return;
     }
 
-    const container = document.querySelector('#edirom-connected-workspace-container');
     if (!container) {
         console.warn('initConnectedWorkspace: #edirom-connected-workspace-container not found in DOM.');
         return;
@@ -67,23 +74,11 @@ export async function initConnectedWorkspace() {
     const el = document.createElement('edirom-connected-workspace');
     el.setAttribute('ws-url', appConfig.wsUrl);
 
-    el.addEventListener('received-message', (event) => {
-        const detail = event.detail;
-        if (detail?.type === SYNC_STATE_TYPE && detail.payload) {
-            lastSyncedKey = makeStateKey(detail.payload);
-            if (stateSyncHandler) {
-                stateSyncHandler(detail.payload);
-            }
-            return;
-        }
-    });
-
-    el.addEventListener('session-joined', (event) => {
-        if (event.detail?.hasLastRelayed) return;
-        if (!event.detail?.isCreatingSession) return;
-        lastSyncedKey = null;
-        broadcastAppState();
-    });
+    if (typeof el.registerStateHandler === 'function') {
+        el.registerStateHandler({ keys: SYNCED_STATE_KEYS, get: getSyncedState, apply: applyState });
+    } else {
+        console.warn('initConnectedWorkspace: the connected workspace component has no state sync support (outdated version); sessions will not sync state.');
+    }
 
     container.appendChild(el);
     connectorElement = el;
@@ -129,41 +124,13 @@ export function applyWorkspaceSession(sessionId) {
 }
 
 /**
- * Registers the handler that receives the synced state from other session
- * clients. The handler is called with a flat key-value object.
- * @param {(state: Object) => void} handler - Called for each received state sync
+ * Tells the connected workspace that the synced part of `appState` may have
+ * changed. Call it at settled points (not while `appState` is mid-transition).
+ * The component drops values the server already knows, so calling it
+ * generously is harmless, and it never echoes a state that was just applied
+ * from the server.
  */
-export function setStateSyncHandler(handler) {
-    stateSyncHandler = typeof handler === "function" ? handler : null;
-}
-
-/**
- * Broadcasts the current app state (`edition`, `work`, `connection`) from the
- * central `appState` to the other clients in the session. Only truthy values
- * are included, so a client without a selected connection still syncs its
- * edition and work.
- */
-export function broadcastAppState() {
+export function notifyStateChanged() {
     if (!connectedWorkspaceEnabled) return;
-    const state = {};
-    if (appState.edition?.id) state.edition = appState.edition.id;
-    if (appState.work?.id) state.work = appState.work.id;
-    if (appState.connection) state.connection = appState.connection;
-    if (Object.keys(state).length === 0) return;
-    broadcastStateSync(state);
-}
-
-/**
- * Sends a state object to the other session clients as a generic `syncState`
- * message. Any flat key-value object is allowed.
- * @param {Object} state - Flat key-value state object
- */
-export function broadcastStateSync(state) {
-    if (!connectedWorkspaceEnabled) return;
-    const el = getConnectorElement();
-    if (!el || !state) return;
-    const key = makeStateKey(state);
-    if (key === lastSyncedKey) return;
-    lastSyncedKey = key;
-    el.sendMessage(SYNC_STATE_TYPE, state);
+    getConnectorElement()?.updateState?.(getSyncedState());
 }
