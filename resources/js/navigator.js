@@ -1,5 +1,7 @@
-import { loadLinks, parseTargets, getUriType, buildTargetsStringWithConfig } from "./linkController.js";
-import { getNavigatorConfig, getLinkTarget } from "./api.js";
+import { loadLinks, getUriType } from "./linkController.js";
+import { parseTargets, buildTargetsStringWithConfig } from "./targets.js";
+import { buildConcordanceNavigatorData, splitUri } from "./concordanceNavigatorData.js";
+import { getNavigatorConfig, getLinkTargets } from "./api.js";
 import { appConfig, appState, setAppState } from "./config.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
 
@@ -39,22 +41,63 @@ export async function refreshNavigatorDataFromBackend({
 } = {}) {
     const loadingToken = showContentLoading();
     try {
-        const navigatorData = await getNavigatorConfig(
-            appState.edition.doc,
-            appState.work.id,
-            appState.language,
-            appState.edition.doc
-        );
-        const filteredAndEnrichedNavigatorData = await filterAndEnrichNavigatorData(navigatorData);
-        setNavigatorData(filteredAndEnrichedNavigatorData, setAsNavigatorDataMain, addToNavigatorDataCurrent);
-        updateNavigatorData(filteredAndEnrichedNavigatorData, navigatorElement);
-        return filteredAndEnrichedNavigatorData;
+        const navigatorData = await fetchEnrichedNavigatorConfig();
+        setAppState({ navigatorData: { ...appState.navigatorData, config: navigatorData } });
+        setNavigatorData(navigatorData, setAsNavigatorDataMain, addToNavigatorDataCurrent);
+        updateNavigatorData(navigatorData, navigatorElement);
+        return navigatorData;
     } catch (error) {
         console.error("Failed to refresh navigator data:", error);
         throw error;
     } finally {
         hideContentLoading(loadingToken);
     }
+}
+
+/**
+ * Fetches the navigator config of the current work from the backend and enriches it.
+ * @returns {Promise<Object|null>} The enriched navigator data, or null if the request failed
+ */
+async function fetchEnrichedNavigatorConfig() {
+    const navigatorData = await getNavigatorConfig(
+        appState.edition.doc,
+        appState.work.id,
+        appState.language,
+        appState.edition.doc
+    );
+    return enrichNavigatorData(navigatorData);
+}
+
+/**
+ * Returns the edition's enriched navigator config of the current work. It is kept in
+ * `appState.navigatorData.config` because the main navigator data gets replaced when a concordance
+ * connection is shown. Fetches it if it has not been loaded yet (the first connection can be shown
+ * before the first navigator refresh has finished).
+ * @returns {Promise<Object>} The navigator data, or an empty one if the config is not available
+ */
+export async function ensureNavigatorConfig() {
+    if (appState.navigatorData.config) return appState.navigatorData.config;
+
+    const workId = appState.work.id;
+    const navigatorData = await fetchEnrichedNavigatorConfig();
+    if (navigatorData && appState.work.id === workId) {
+        setAppState({ navigatorData: { ...appState.navigatorData, config: navigatorData } });
+    }
+    return navigatorData ?? EMPTY_NAVIGATOR_DATA;
+}
+
+const CONCORDANCE_LABELS = { additionalDocuments: "Weitere Dokumente", additionalResources: "Weitere Ressourcen" };
+
+/**
+ * Builds the navigator data for a concordance connection: its members are placed in the structure of the
+ * edition's navigator config, the others are collected in "Weitere Dokumente" / "Weitere Ressourcen".
+ * Names that neither the config nor the connection provides are fetched from the backend.
+ * @param {string} plist - The plist of the connection
+ * @returns {Promise<Object>} The enriched navigator data
+ */
+export async function buildConcordanceNavigatorDataFromPlist(plist) {
+    const config = await ensureNavigatorConfig();
+    return enrichNavigatorData(buildConcordanceNavigatorData(plist, config.navigatorDefinition, CONCORDANCE_LABELS));
 }
 
 /**
@@ -157,127 +200,128 @@ function onNavigatorDataChanged() {
 }
 
 /**
- * Enriches a navigator data object by resolving missing item names and collecting
+ * Enriches a navigator data object by filling in missing item names and collecting the
  * available view icons from the backend.
  *
- * Recursively walks the full navigator data structure at any depth. For every node
- * of type `"navigatorItem"` that has a non-empty `targets` value, the function:
+ * For every item of type `"navigatorItem"` that has a non-empty `targets` value, the function:
  *   - Resolves a title for each target URI and sets `item.name` if it is currently
  *     missing or empty.
  *   - Collects icon strings for each target's available views and appends any new
  *     values to `item.icons` (duplicates are removed; existing entries are preserved).
  *
  * Title/icon resolution per target URI:
- *   - URIs of type `"doc"` (`xmldb:exist://...`): fetched from the backend via a
- *     single `getLinkTarget` call that supplies both `title` and `views`.
- *     If the request fails, the target contributes `null` title and no icons.
+ *   - URIs of type `"doc"` (`xmldb:exist://...`): looked up in the backend. All documents of
+ *     all items that lack a name or icons are resolved with a single `getLinkTargets` request.
+ *     Items that already have both are not looked up. If the request fails, the target
+ *     contributes no title and no icons.
  *   - URIs of type `"externalLink"`: title is the URI string itself; icon is `"open_in_new"`.
- *
- * All backend requests are fired in parallel via a single `Promise.all` call to
- * minimise total wait time.
+ *   - URIs of type `"selfLink"`: title is the URI string itself; icon is `"refresh"`.
  *
  * If a `targets` value resolves to more than one URI, the titles of all URIs are
  * joined with ` & ` (e.g. `"Title A & Title B"`).
  *
- * After enrichment, `item.targets` is rewritten using `buildTargetsStringWithConfig`
+ * Afterwards, `item.targets` is rewritten using `buildTargetsStringWithConfig`
  * so that the stored targets string carries the correct `behaviour` config
  * (`"updateViewOrCreateViewWindowOrSwitchToNavigator"`). For multi-target items,
  * `addToCurrentNavigation: true` is also injected. The `behaviour`,
  * `setAsMainNavigation`, and `addToCurrentNavigation` keys from the original
  * plist config are replaced in this process.
  *
- * @param {Object} navigatorData - The navigator data object, e.g. `{ navigatorDefinition: [...] }`.
+ * Categories without any item are removed.
+ *
+ * @param {Object|null} navigatorData - The navigator data object, e.g. `{ navigatorDefinition: [...] }`.
  *   Categories and items may be nested arbitrarily deep.
- * @returns {Promise<Object>} The same `navigatorData` object with `name`, `icons`,
+ * @returns {Promise<Object|null>} The same `navigatorData` object with `name`, `icons`,
  *   and `targets` fields enriched.
  */
-export async function filterAndEnrichNavigatorData(navigatorData) {
-    const tasks = [];
+export async function enrichNavigatorData(navigatorData) {
+    if (!navigatorData?.navigatorDefinition) return navigatorData;
 
-    function collectItems(node) {
-        if (!node || typeof node !== "object") return;
-        if (Array.isArray(node)) {
-            node.forEach(collectItems);
-            return;
+    const parsedTargetsByItem = new Map(collectNavigatorItems(navigatorData.navigatorDefinition)
+        .map(item => [item, parseTargets(item.targets)])
+        .filter(([, parsedTargets]) => parsedTargets.length > 0));
+    const items = [...parsedTargetsByItem.keys()];
+    const docInfos = await fetchDocInfos(items.filter(item => !item.name || !item.icons?.length)
+        .flatMap(item => parsedTargetsByItem.get(item))
+        .filter(({ target }) => getUriType(target) === "doc")
+        .map(({ target }) => splitUri(target).doc));
+
+    for (const item of items) {
+        const parsedTargets = parsedTargetsByItem.get(item);
+        const infos = parsedTargets.map(({ target }) => getTargetInfo(target, docInfos));
+
+        if (!item.name) {
+            item.name = infos.map(info => info.title).filter(Boolean).join(" & ");
         }
-        if (node.type === "navigatorItem" && node.targets) {
-            const parsedTargets = parseTargets(node.targets);
-            const promises = parsedTargets.map(pt =>
-                getUriType(pt.target) === "doc"
-                    ? getLinkTarget(pt.target, appState.language, appState.edition.doc)
-                        .then(data => ({
-                            title: data?.title || null,
-                            icons: (data?.views || []).filter(v => appConfig.availableViews.some(av => av.view === v.type)).map(v => appConfig.availableViews.find(av => av.view === v.type)?.icon).filter(Boolean),
-                        }))
-                        .catch(() => ({ title: null, icons: [] }))
-                    : getUriType(pt.target) === "selfLink"
-                        ? Promise.resolve({ title: pt.target, icons: ["refresh"] })
-                        : Promise.resolve({ title: pt.target, icons: ["open_in_new"] })
-            );
-            tasks.push({ item: node, promises, parsedTargets });
-        }
-        Object.values(node).forEach(collectItems);
+        item.icons = [...new Set([...(item.icons ?? []), ...infos.flatMap(info => info.icons)])];
+        item.targets = buildItemTargets(parsedTargets);
     }
 
-    collectItems(navigatorData);
-
-    if (tasks.length === 0) return navigatorData;
-
-    const allPromises = tasks.flatMap(t => t.promises);
-    const allResults = await Promise.all(allPromises);
-
-    const itemsToRemove = new Set();
-    let offset = 0;
-    for (const { item, promises, parsedTargets } of tasks) {
-        const results = allResults.slice(offset, offset + promises.length);
-
-        const hasExternalLink = parsedTargets.some(pt => getUriType(pt.target) === "externalLink");
-        const hasSelfLink = parsedTargets.some(pt => getUriType(pt.target) === "selfLink");
-        const hasDocWithViews = results.some((r, i) => getUriType(parsedTargets[i].target) === "doc" && r.icons.length > 0);
-
-        if (!hasExternalLink && !hasSelfLink && !hasDocWithViews) {
-            itemsToRemove.add(item);
-        } else {
-            if (!item.name) {
-                const titles = results.map(r => r.title).filter(Boolean);
-                item.name = titles.join(" & ");
-            }
-
-            const newIcons = results.flatMap(r => r.icons);
-            item.icons = [...new Set([...(item.icons ?? []), ...newIcons])];
-
-            const newConfig = { ...parsedTargets[0].config };
-            delete newConfig.behaviour;
-            delete newConfig.setAsMainNavigation;
-            delete newConfig.addToCurrentNavigation;
-            newConfig.behaviour = "updateViewOrCreateViewWindowOrSwitchToNavigator";
-            if (parsedTargets.length > 1) {
-                newConfig.addToCurrentNavigation = true;
-            }
-            const targetUris = parsedTargets.map(pt => pt.target);
-            item.targets = buildTargetsStringWithConfig(targetUris[0], newConfig) +
-                (targetUris.length > 1 ? " " + targetUris.slice(1).join(" ") : "");
-        }
-
-        offset += promises.length;
-    }
-
-    function filterNode(node) {
-        if (node.type === "navigatorItem") {
-            return itemsToRemove.has(node) ? null : node;
-        }
-        if (node.type === "navigatorCategory") {
-            node.items = node.items.map(filterNode).filter(Boolean);
-            return node.items.length === 0 ? null : node;
-        }
-        return node;
-    }
-
-    if (navigatorData.navigatorDefinition) {
-        navigatorData.navigatorDefinition = navigatorData.navigatorDefinition.map(filterNode).filter(Boolean);
-    }
-
+    navigatorData.navigatorDefinition = removeEmptyCategories(navigatorData.navigatorDefinition);
     return navigatorData;
+}
+
+/** All items with targets of a navigatorDefinition, at any depth. */
+function collectNavigatorItems(nodes) {
+    return nodes.flatMap(node => {
+        if (node.type === "navigatorCategory") return collectNavigatorItems(node.items ?? []);
+        return node.type === "navigatorItem" && node.targets ? [node] : [];
+    });
+}
+
+/** Removes categories that have no items left, at any depth. */
+function removeEmptyCategories(nodes) {
+    return nodes.flatMap(node => {
+        if (node.type !== "navigatorCategory") return [node];
+        node.items = removeEmptyCategories(node.items ?? []);
+        return node.items.length ? [node] : [];
+    });
+}
+
+/**
+ * Looks up the title and the icons of the views of documents with a single request.
+ * @param {string[]} docs - Document URIs, duplicates are fine
+ * @returns {Promise<Map<string, {title: string|null, icons: string[]}>>} Keyed by document URI
+ */
+async function fetchDocInfos(docs) {
+    const uniqueDocs = [...new Set(docs)];
+    const infos = new Map();
+    if (uniqueDocs.length === 0) return infos;
+
+    const linkTargets = await getLinkTargets(uniqueDocs, appState.language, appState.edition.doc);
+    for (const linkTarget of linkTargets ?? []) {
+        infos.set(linkTarget.uri, { title: linkTarget.title || null, icons: getViewIcons(linkTarget.views) });
+    }
+    return infos;
+}
+
+/** The icons of the views that the app can show. */
+function getViewIcons(views) {
+    return (views ?? [])
+        .map(view => appConfig.availableViews.find(availableView => availableView.view === view.type)?.icon)
+        .filter(Boolean);
+}
+
+/** Title and icons of one target URI. Documents that were not looked up yield neither. */
+function getTargetInfo(target, docInfos) {
+    const uriType = getUriType(target);
+    if (uriType === "doc") return docInfos.get(splitUri(target).doc) ?? { title: null, icons: [] };
+    return { title: target, icons: [uriType === "selfLink" ? "refresh" : "open_in_new"] };
+}
+
+/** The targets string of an item, carrying the `behaviour` that opens its target(s). */
+function buildItemTargets(parsedTargets) {
+    const config = { ...parsedTargets[0].config };
+    delete config.behaviour;
+    delete config.setAsMainNavigation;
+    delete config.addToCurrentNavigation;
+    config.behaviour = "updateViewOrCreateViewWindowOrSwitchToNavigator";
+    if (parsedTargets.length > 1) {
+        config.addToCurrentNavigation = true;
+    }
+    const targetUris = parsedTargets.map(({ target }) => target);
+    return buildTargetsStringWithConfig(targetUris[0], config) +
+        (targetUris.length > 1 ? " " + targetUris.slice(1).join(" ") : "");
 }
 
 /**

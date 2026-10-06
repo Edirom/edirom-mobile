@@ -4,12 +4,13 @@ import { getContentSignal } from "./loading.js";
 /**
  * Fetches JSON data from a URL and returns it as a JavaScript object
  * @param {string} url - The URL to fetch JSON from
+ * @param {RequestInit} [options] - Additional `fetch` options, e.g. `method` and `body`
  * @returns {Promise<any>} A promise that resolves to the parsed JSON object
  * @throws {Error} If the request fails or the response is not valid JSON
  */
-async function fetchJSON(url) {
+async function fetchJSON(url, options = {}) {
     try {
-        const response = await fetch(url, { signal: getContentSignal() });
+        const response = await fetch(url, { signal: getContentSignal(), ...options });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -249,4 +250,21 @@ export function getLinkTarget(uri, lang, edition, backendUrl = appConfig.backend
     url.searchParams.append("edition", edition);
     url = url.toString();
     return fetchJSON(url);
+}
+
+/**
+ * Fetches the metadata (title, available views, ...) of several link target URIs in one request.
+ * Sent as POST, so the number of URIs is not limited by the URL length.
+ * @param {string[]} uris - The target URIs
+ * @param {string} lang - The language code
+ * @param {string} edition - The edition URI
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
+ * @returns {Promise<Object[]|null>} One `getLinkTarget` result (plus the requested `uri`) per URI, in request order; null on error
+ */
+export function getLinkTargets(uris, lang, edition, backendUrl = appConfig.backendUrl) {
+    const body = new URLSearchParams();
+    uris.forEach(uri => body.append("uri", uri));
+    body.append("lang", lang);
+    body.append("edition", edition);
+    return fetchJSON(`${backendUrl}data/xql/getLinkTargets.xql`, { method: "POST", body });
 }

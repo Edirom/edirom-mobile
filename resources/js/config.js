@@ -43,6 +43,7 @@ export const appState = {
     connection: null, // ID of the currently shown concordance connection, or null
     language: DEFAULT_LANGUAGE,
     navigatorData: {
+        config: null, // the edition's navigatorConfig for the current work, kept apart because `main` gets replaced by concordance data
         main: null,
         current: [] // history of navigator data states for "back" navigation
     },

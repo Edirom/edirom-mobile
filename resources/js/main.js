@@ -114,7 +114,7 @@ export async function initWork(workId = null, connectionId = null) {
     setAppState({
         work: {},
         connection: null,
-        navigatorData: { main: null, current: [] }
+        navigatorData: { config: null, main: null, current: [] }
     });
 
     if (workId) {
