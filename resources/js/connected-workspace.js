@@ -1,6 +1,8 @@
 import { appConfig, appState } from "./config.js";
 
-const CONNECTOR_MODULE_URL = "../web-components/edirom-connected-workspace/edirom-connected-workspace.js";
+// Resolved relative to this module (<frontend>/mobile/resources/js/), so three levels up is the
+// Frontend root, where the component lives as a submodule in resources/js/.
+const CONNECTOR_MODULE_URL = "../../../resources/js/edirom-connected-workspace/edirom-connected-workspace.js";
 
 // The keys of `appState` that are part of the session state the ws-server
 // keeps per client. The connector component owns the sync protocol; this
@@ -73,6 +75,8 @@ export async function initConnectedWorkspace(applyState) {
 
     const el = document.createElement('edirom-connected-workspace');
     el.setAttribute('ws-url', appConfig.wsUrl);
+    // The component defaults to English; Mobile's UI language is appState.language ("de" by default).
+    el.setAttribute('lang', appState.language);
 
     if (typeof el.registerStateHandler === 'function') {
         el.registerStateHandler({ keys: SYNCED_STATE_KEYS, get: getSyncedState, apply: applyState });

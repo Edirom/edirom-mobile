@@ -6,17 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Edirom Mobile</title>
     <script src="resources/js/main.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-concordance-navigator/concordanceNavigatorElement.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-navigator/navigator.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-annotation-view/edirom-annotation-view.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-text-viewer/edirom-text-viewer.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-image-viewer/edirom-image-viewer.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-videoplayer/videoplayer.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-controls/edirom-control-bar.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-controls/edirom-spacer-widget.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-controls/edirom-button-widget.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-controls/edirom-spin-box-widget.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-qr-code-scanner/edirom-qr-code-scanner.js" type="module"></script>
+    <!-- The web components are submodules of Edirom-Frontend (resources/js/), not of this
+         repository. This page is served from <frontend>/mobile/, so they are one level up.
+         They must stay siblings: they import each other as ../edirom-core-web-components/... -->
+    <script defer src="../resources/js/edirom-concordance-navigator/concordanceNavigatorElement.js" type="module"></script>
+    <script defer src="../resources/js/edirom-navigator/navigator.js" type="module"></script>
+    <script defer src="../resources/js/edirom-annotation-view/edirom-annotation-view.js" type="module"></script>
+    <script defer src="../resources/js/edirom-text-viewer/edirom-text-viewer.js" type="module"></script>
+    <script defer src="../resources/js/edirom-image-viewer/edirom-image-viewer.js" type="module"></script>
+    <script defer src="../resources/js/edirom-controls/edirom-control-bar.js" type="module"></script>
+    <script defer src="../resources/js/edirom-controls/edirom-spacer-widget.js" type="module"></script>
+    <script defer src="../resources/js/edirom-controls/edirom-button-widget.js" type="module"></script>
+    <script defer src="../resources/js/edirom-controls/edirom-spin-box-widget.js" type="module"></script>
+    <script defer src="../resources/js/edirom-qr-code-scanner/edirom-qr-code-scanner.js" type="module"></script>
     <!-- edirom-connected-workspace is loaded on demand by initConnectedWorkspace(),
          only when appConfig.wsUrl is set. -->
     <link rel="stylesheet" href="resources/css/styles.css">

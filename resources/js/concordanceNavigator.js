@@ -33,7 +33,7 @@ function hasConnectionId(concordances, connectionId) {
  * Initializes the concordance navigator component in the page footer.
  * Fetches concordance data for the current work, creates the
  * `<edirom-concordance-navigator>` web component, and wires up event
- * listeners for connection requests and the disabled state.
+ * listeners for connection changes, QR scans, and the disabled state.
  * @param {string|null} [connectionId=null] - Optional connection ID to preselect
  * @returns {Promise<{initialConnectionResolved: boolean}>} Whether startup connection deep-link was resolved
  */
@@ -76,23 +76,22 @@ export async function initConcordanceNavigator(connectionId = null) {
     concordanceNavigatorElement.addEventListener("load-links-request", (event) => {
         loadLinks(event.detail, { behaviour: "updateViewOrSwitchToNavigator" });
     });
-    concordanceNavigatorElement.addEventListener("show-connection-request", async (event) => {
-        await loadLinks(event.detail.plist, { "setAsMainNavigation": true, "behaviour": "updateViewOrSwitchToNavigator" });
-        concordanceNavigatorElement.closeScannerPopover();
-        if (resolveInitialConnection) {
-            resolveInitialConnection(true);
-        }
-    });
     concordanceNavigatorElement.addEventListener("concordance-navigator-disabled", () => {
         onConcordanceNavigatorDisabled().catch((error) => {
             console.error("Failed to refresh navigator after disabling concordance navigator:", error);
         });
     });
-    concordanceNavigatorElement.addEventListener("connection-changed", (event) => {
+    concordanceNavigatorElement.addEventListener("connection-changed", async (event) => {
         const connectionId = event.detail?.connectionId ?? null;
         setAppState({ connection: connectionId });
         updateConnectedWorkspaceInviteUrl();
         notifyStateChanged();
+
+        await loadLinks(event.detail.plist, { "setAsMainNavigation": true, "behaviour": "updateViewOrSwitchToNavigator" });
+        concordanceNavigatorElement.closeScannerPopover();
+        if (resolveInitialConnection) {
+            resolveInitialConnection(true);
+        }
     });
     concordanceWrapper.innerHTML = ""; // Clear previous concordance content
     concordanceWrapper.appendChild(concordanceNavigatorElement);

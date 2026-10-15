@@ -2,11 +2,9 @@
 /.vscode
 .DS_Store
 *.mov
-videoplayer.js
 *.webm
 *.mkv
 data/measures.json
 measures_robin_hood.txt
-env-config.js
 resources/i-takt35.jpg
 resources/h-takt35.jpg
