@@ -7,11 +7,34 @@ import { resetContentLoadingState } from "./loading.js";
 // Flag to skip the next popstate event (set when we call history.go(1) ourselves)
 let skipNextPopstate = false;
 
+// One-shot flag: lets a deliberate, app-initiated navigation (e.g. "switch to desktop")
+// pass the beforeunload guard once. Consumed by handleBeforeUnload.
+let allowUnload = false;
+
+/**
+ * Lets the next page unload pass without the native "Leave site?" dialog.
+ * Call immediately before an intentional navigation away from the app. The
+ * exemption is one-shot and also expires after a short timeout, so a navigation
+ * that never happens cannot leave the guard disabled. Back-navigation, reload
+ * and tab close are unaffected.
+ */
+export function allowNextUnload() {
+    allowUnload = true;
+    setTimeout(() => {
+        allowUnload = false;
+    }, 1000);
+}
+
 // Handler for beforeunload event - shows browser's native "Leave site?" dialog
 /**
- * Triggers the browser's native "Leave site?" dialog on page unload.
+ * Triggers the browser's native "Leave site?" dialog on page unload,
+ * unless the unload was explicitly allowed via allowNextUnload().
  */
 function handleBeforeUnload(event) {
+    if (allowUnload) {
+        allowUnload = false;
+        return;
+    }
     event.preventDefault();
     event.returnValue = '';
     return '';

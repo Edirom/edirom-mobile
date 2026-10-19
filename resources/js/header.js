@@ -1,4 +1,4 @@
-import { switchPage, buildAboutEdiromMobilePage, buildEditionSelectionPage } from "./pages.js";
+import { switchPage, buildAboutEdiromMobilePage, buildEditionSelectionPage, allowNextUnload } from "./pages.js";
 import { appState } from "./config.js";
 import { initWork } from "./main.js";
 
@@ -86,6 +86,8 @@ function buildHeaderMenu() {
         if (appState.edition?.id) params.set("edition", appState.edition.id);
         if (appState.work?.id) params.set("work", appState.work.id);
 
+        // Deliberate exit: skip the "Leave site?" dialog for this navigation only
+        allowNextUnload();
         window.location.href = "../index.html?" + params.toString();
     });
     switchToDesktopLi.appendChild(switchToDesktopLink);
