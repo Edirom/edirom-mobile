@@ -79,8 +79,6 @@ function buildHeaderMenu() {
     switchToDesktopLink.setAttribute("role", "button");
     switchToDesktopLink.setAttribute("tabindex", "0");
     switchToDesktopLink.addEventListener("click", (event) => {
-        localStorage.setItem("edirom-ui-mode", "desktop");
-
         const params = new URLSearchParams();
         params.set("ui", "desktop");
         if (appState.edition?.id) params.set("edition", appState.edition.id);
