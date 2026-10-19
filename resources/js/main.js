@@ -6,6 +6,7 @@ import { switchPage, buildEditionSelectionPage, showNavigator } from "./pages.js
 import { initConcordanceNavigator, navigateConcordanceNavigatorToConnection, navigateConcordanceNavigatorToDisabled } from "./concordanceNavigator.js";
 import { initConnectedWorkspace, updateConnectedWorkspaceInviteUrl, applyWorkspaceSession, notifyStateChanged, getSyncedState } from "./connected-workspace.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
+import { loadLanguageStrings } from "./about.js";
 
 
 /**
@@ -286,6 +287,7 @@ async function initApp() {
     console.log("Initializing Edirom Mobile App");
 
     await loadAppConfig();
+    await loadLanguageStrings(appState.language);
 
     setupHeaderMenu();
     registerLayoutListeners();

@@ -1,4 +1,5 @@
-import { switchPage, buildAboutEdiromMobilePage, buildEditionSelectionPage, allowNextUnload } from "./pages.js";
+import { switchPage, buildEditionSelectionPage, allowNextUnload } from "./pages.js";
+import { buildAboutPage, getLangString } from "./about.js";
 import { appState } from "./config.js";
 import { initWork } from "./main.js";
 
@@ -46,13 +47,13 @@ function buildHeaderMenu() {
     const aboutLi = document.createElement("li");
     const aboutLink = document.createElement("a");
     const aboutIcon = document.createElement("edirom-icon");
-    aboutIcon.setAttribute("name", "info");
+    aboutIcon.setAttribute("name", "eo_about");
     aboutLink.appendChild(aboutIcon);
-    aboutLink.appendChild(document.createTextNode("Über Edirom Mobile"));
+    aboutLink.appendChild(document.createTextNode(getLangString("view.desktop.TaskBar_about", "About")));
     aboutLink.setAttribute("role", "button");
     aboutLink.setAttribute("tabindex", "0");
     aboutLink.addEventListener("click", (event) => {
-        switchPage("about-edirom-mobile", buildAboutEdiromMobilePage());
+        switchPage("about", buildAboutPage());
     });
     aboutLi.appendChild(aboutLink);
     listEl.appendChild(aboutLi);
