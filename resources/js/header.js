@@ -3,14 +3,9 @@ import { buildAboutPage, getLangString } from "./about.js";
 import { appState } from "./config.js";
 import { initWork } from "./main.js";
 
-const HEADER_MENU_URLS = [
-    { label: "Korngold Werkausgabe", href: "https://korngold-werkausgabe.de" }
-];
-
 /**
  * Builds the header navigation menu as a `<ul>` element containing links for
- * edition selection, settings, the about page, and any external URLs defined
- * in `HEADER_MENU_URLS`.
+ * edition selection, the about page, and switching to the desktop view.
  * @returns {HTMLUListElement} The populated menu list element
  */
 function buildHeaderMenu() {
@@ -30,20 +25,6 @@ function buildHeaderMenu() {
     editionsLi.appendChild(editionsLink);
     listEl.appendChild(editionsLi);
 
-    const settingsLi = document.createElement("li");
-    const settingsLink = document.createElement("a");
-    const settingsIcon = document.createElement("edirom-icon");
-    settingsIcon.setAttribute("name", "settings");
-    settingsLink.appendChild(settingsIcon);
-    settingsLink.appendChild(document.createTextNode("Einstellungen"));
-    settingsLink.setAttribute("role", "button");
-    settingsLink.setAttribute("tabindex", "0");
-    settingsLink.addEventListener("click", (event) => {
-        switchPage("settings", buildSettingsPage());
-    });
-    settingsLi.appendChild(settingsLink);
-    listEl.appendChild(settingsLi);
-
     const aboutLi = document.createElement("li");
     const aboutLink = document.createElement("a");
     const aboutIcon = document.createElement("edirom-icon");
@@ -57,19 +38,6 @@ function buildHeaderMenu() {
     });
     aboutLi.appendChild(aboutLink);
     listEl.appendChild(aboutLi);
-
-    HEADER_MENU_URLS.forEach(({ label, href }) => {
-        const listItem = document.createElement("li");
-        const link = document.createElement("a");
-        const linkIcon = document.createElement("edirom-icon");
-        linkIcon.setAttribute("name", "open_in_new");
-        link.appendChild(linkIcon);
-        link.appendChild(document.createTextNode(label));
-        link.setAttribute("href", href);
-        link.setAttribute("target", "_blank");
-        listItem.appendChild(link);
-        listEl.appendChild(listItem);
-    });
 
     const switchToDesktopLi = document.createElement("li");
     const switchToDesktopLink = document.createElement("a");
