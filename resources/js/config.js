@@ -34,6 +34,20 @@ export async function loadAppConfig() {
     }
 }
 
+/**
+ * The state of the navigator, which shows tabs like the Navigator of Edirom-Frontend.
+ * @returns {{config: Object|null, concordance: Object|null, activeTab: string, subNavigators: Object[]}}
+ *   `config`: the edition's navigatorConfig for the current work, in the "main" tab.
+ *   `concordance`: the members of the shown concordance connection, arranged like `config`, in the
+ *   "concordance" tab; null in free exploration, when the tab does not exist.
+ *   `activeTab`: the id of the tab that is shown.
+ *   `subNavigators`: the lists opened from items with several targets, for "back" navigation. The
+ *   last one is shown instead of the tabs.
+ */
+export function createNavigatorData() {
+    return { config: null, concordance: null, activeTab: "main", subNavigators: [] };
+}
+
 export const appState = {
     page: "",
     allEditions: [], // List of all editions from the configured backend
@@ -42,11 +56,7 @@ export const appState = {
     work: {},
     connection: null, // ID of the currently shown concordance connection, or null
     language: DEFAULT_LANGUAGE,
-    navigatorData: {
-        config: null, // the edition's navigatorConfig for the current work, kept apart because `main` gets replaced by concordance data
-        main: null,
-        current: [] // history of navigator data states for "back" navigation
-    },
+    navigatorData: createNavigatorData(),
     viewWindow: {
         view: null,
         target: null

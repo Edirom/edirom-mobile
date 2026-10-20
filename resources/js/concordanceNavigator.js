@@ -1,9 +1,9 @@
 import { getConcordances } from "./api.js";
 import { appState, setAppState } from "./config.js";
 import { loadLinks } from "./linkController.js";
-import { refreshNavigatorDataFromBackend } from "./navigator.js";
+import { clearConcordanceFromNavigator } from "./navigator.js";
 import { removeCurrentViewSubset } from "./views.js";
-import { updateConnectedWorkspaceInviteUrl, notifyStateChanged } from "./connected-workspace.js";
+import { updateConnectedWorkspaceInviteUrl, notifyStateChanged, isApplyingRemoteState } from "./connected-workspace.js";
 
 function hasConnectionId(concordances, connectionId) {
     if (!Array.isArray(concordances) || !connectionId) return false;
@@ -76,18 +76,20 @@ export async function initConcordanceNavigator(connectionId = null) {
     concordanceNavigatorElement.addEventListener("load-links-request", (event) => {
         loadLinks(event.detail, { behaviour: "updateViewOrSwitchToNavigator" });
     });
-    concordanceNavigatorElement.addEventListener("concordance-navigator-disabled", () => {
-        onConcordanceNavigatorDisabled().catch((error) => {
-            console.error("Failed to refresh navigator after disabling concordance navigator:", error);
-        });
-    });
+    concordanceNavigatorElement.addEventListener("concordance-navigator-disabled", onConcordanceNavigatorDisabled);
     concordanceNavigatorElement.addEventListener("connection-changed", async (event) => {
+        // Read before anything is awaited: it is only true while the workspace sync is applying its state
+        const changedByUser = !isApplyingRemoteState();
         const connectionId = event.detail?.connectionId ?? null;
         setAppState({ connection: connectionId });
         updateConnectedWorkspaceInviteUrl();
         notifyStateChanged();
 
-        await loadLinks(event.detail.plist, { "setAsMainNavigation": true, "behaviour": "updateViewOrSwitchToNavigator" });
+        // Shows the members of the connection in the navigator's concordance tab. The navigator switches to
+        // that tab, unless the workspace sync changed the connection: it must not pull the user around.
+        await loadLinks(event.detail.plist,
+            { "setAsConcordanceNavigation": true, "behaviour": "updateViewOrSwitchToNavigator" },
+            { selectConcordanceTab: changedByUser });
         concordanceNavigatorElement.closeScannerPopover();
         if (resolveInitialConnection) {
             resolveInitialConnection(true);
@@ -139,19 +141,15 @@ export function navigateConcordanceNavigatorToDisabled() {
 
 /**
  * Handles the concordance navigator being switched to its disabled ("free exploration") state.
- * Fetches a fresh navigator config, enriches it, and pushes it to the navigator.
- * @returns {Promise<void>}
+ * Removes the navigator's concordance tab, so that only the edition's navigator config is left.
  */
-async function onConcordanceNavigatorDisabled() {
+function onConcordanceNavigatorDisabled() {
     console.log("Concordance navigator disabled");
     removeCurrentViewSubset();
     setAppState({ connection: null });
     updateConnectedWorkspaceInviteUrl();
     notifyStateChanged();
-    await refreshNavigatorDataFromBackend({
-        setAsNavigatorDataMain: true,
-        addToNavigatorDataCurrent: false
-    });
+    clearConcordanceFromNavigator();
 
     // TODO: Break Views from restriction
 }

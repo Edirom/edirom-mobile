@@ -2,56 +2,75 @@ import { loadLinks, getUriType } from "./linkController.js";
 import { parseTargets, buildTargetsStringWithConfig } from "./targets.js";
 import { buildConcordanceNavigatorData, splitUri } from "./concordanceNavigatorData.js";
 import { getNavigatorConfig, getLinkTargets } from "./api.js";
-import { appConfig, appState, setAppState } from "./config.js";
+import { appConfig, appState, setAppState, createNavigatorData } from "./config.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
-
-const EMPTY_NAVIGATOR_DATA = { navigatorDefinition: [] };
-
+import { getLangString } from "./about.js";
 
 /**
- * Serializes `data` as JSON and sets it as the `navigator-data` attribute on
- * the `<edirom-navigator>` element. If no element is provided, the first one
- * found in the document is used.
- * @param {Object} data - The navigator data to serialize
- * @param {HTMLElement|null} [navigatorElement] - The target element; queried from DOM if null
+ * The navigator has two tabs, like the Navigator of Edirom-Frontend: the edition's navigator config ("main",
+ * always there) and the members of the shown concordance connection ("concordance", only while a connection
+ * is shown). The state is kept in `appState.navigatorData` (see `createNavigatorData`) and pushed to the
+ * `<edirom-navigator>` element by `renderNavigator`. Unlike in Edirom-Frontend, the navigator switches to the
+ * "concordance" tab when the user changes the concordance data (but not when the workspace sync does).
  */
-function updateNavigatorData(data, navigatorElement = null) {
-    if (!navigatorElement) {
-        navigatorElement = document.querySelector("edirom-navigator");
-    }
-    if (!navigatorElement) {
-        return;
-    }
-    navigatorElement.setAttribute("navigator-data", JSON.stringify(data ?? EMPTY_NAVIGATOR_DATA));
+const MAIN_TAB = "main";
+const CONCORDANCE_TAB = "concordance";
+
+/** Identifies the latest request for concordance data, so that the results of superseded ones are dropped. */
+let concordanceRequestId = 0;
+
+/** Merges `updates` into `appState.navigatorData`. */
+function updateNavigatorState(updates) {
+    setAppState({ navigatorData: { ...appState.navigatorData, ...updates } });
 }
 
 /**
- * Fetches navigator configuration from backend, enriches it and pushes the
- * result into app navigator state.
- * @param {Object} [options]
- * @param {boolean} [options.setAsNavigatorDataMain=true] - Store as main navigation root
- * @param {boolean} [options.addToNavigatorDataCurrent=false] - Push onto current stack
- * @param {HTMLElement|null} [options.navigatorElement=null] - Optional explicit target element
- * @returns {Promise<Object>} The loaded and enriched navigator data
+ * Empties the navigator state, for a new work. Concordance data that is still being built is discarded.
  */
-export async function refreshNavigatorDataFromBackend({
-    setAsNavigatorDataMain = true,
-    addToNavigatorDataCurrent = false,
-    navigatorElement = null,
-} = {}) {
-    const loadingToken = showContentLoading();
-    try {
-        const navigatorData = await fetchEnrichedNavigatorConfig();
-        setAppState({ navigatorData: { ...appState.navigatorData, config: navigatorData } });
-        setNavigatorData(navigatorData, setAsNavigatorDataMain, addToNavigatorDataCurrent);
-        updateNavigatorData(navigatorData, navigatorElement);
-        return navigatorData;
-    } catch (error) {
-        console.error("Failed to refresh navigator data:", error);
-        throw error;
-    } finally {
-        hideContentLoading(loadingToken);
+export function resetNavigatorData() {
+    concordanceRequestId++;
+    setAppState({ navigatorData: createNavigatorData() });
+}
+
+/**
+ * The tabs of the navigator for the current state, as `navigator-data` of `<edirom-navigator>` expects them.
+ * @returns {Array<{id: string, name: string, navigatorDefinition: Array}>}
+ */
+function getNavigatorTabs() {
+    const { config, concordance } = appState.navigatorData;
+    const tabs = [{
+        id: MAIN_TAB,
+        name: getLangString("controller.navigator.Navigator_NavigationTab", "Navigation"),
+        navigatorDefinition: config?.navigatorDefinition ?? []
+    }];
+    if (concordance) {
+        tabs.push({
+            id: CONCORDANCE_TAB,
+            name: getLangString("controller.navigator.Navigator_ConcordanceTab", "Konkordanz"),
+            navigatorDefinition: concordance.navigatorDefinition ?? []
+        });
     }
+    return tabs;
+}
+
+/**
+ * Pushes the navigator state to an `<edirom-navigator>` element: the tabs and the active tab, or the last
+ * sub-navigator (without tabs) while there is one.
+ * @param {HTMLElement|null} [navigatorElement] - The target element; the one in the content container if omitted.
+ *   Does nothing if there is none, i.e. if the navigator page is not shown.
+ */
+function renderNavigator(navigatorElement = document.querySelector("#content-container edirom-navigator")) {
+    if (!navigatorElement) return;
+
+    const { subNavigators, activeTab } = appState.navigatorData;
+    if (subNavigators.length > 0) {
+        navigatorElement.setAttribute("navigator-data", JSON.stringify(subNavigators[subNavigators.length - 1]));
+        return;
+    }
+
+    const tabs = getNavigatorTabs();
+    navigatorElement.setAttribute("navigator-data", JSON.stringify(tabs));
+    navigatorElement.setAttribute("active-tab", tabs.some(tab => tab.id === activeTab) ? activeTab : MAIN_TAB);
 }
 
 /**
@@ -69,24 +88,53 @@ async function fetchEnrichedNavigatorConfig() {
 }
 
 /**
- * Returns the edition's enriched navigator config of the current work. It is kept in
- * `appState.navigatorData.config` because the main navigator data gets replaced when a concordance
- * connection is shown. Fetches it if it has not been loaded yet (the first connection can be shown
- * before the first navigator refresh has finished).
- * @returns {Promise<Object>} The navigator data, or an empty one if the config is not available
+ * Fetches the enriched navigator config of the current work and stores it in the navigator state,
+ * unless the work has changed in the meantime.
+ * @returns {Promise<Object|null>} The enriched navigator data, or null if the request failed
  */
-export async function ensureNavigatorConfig() {
-    if (appState.navigatorData.config) return appState.navigatorData.config;
-
+async function loadNavigatorConfig() {
     const workId = appState.work.id;
     const navigatorData = await fetchEnrichedNavigatorConfig();
     if (navigatorData && appState.work.id === workId) {
-        setAppState({ navigatorData: { ...appState.navigatorData, config: navigatorData } });
+        updateNavigatorState({ config: navigatorData });
     }
-    return navigatorData ?? EMPTY_NAVIGATOR_DATA;
+    return navigatorData;
 }
 
-const CONCORDANCE_LABELS = { additionalDocuments: "Weitere Dokumente", additionalResources: "Weitere Ressourcen" };
+/**
+ * Loads the navigator config of the current work from the backend into the "main" tab.
+ * @returns {Promise<Object|null>} The loaded and enriched navigator data
+ */
+export async function refreshNavigatorDataFromBackend() {
+    const loadingToken = showContentLoading();
+    try {
+        const navigatorData = await loadNavigatorConfig();
+        renderNavigator();
+        return navigatorData;
+    } catch (error) {
+        console.error("Failed to refresh navigator data:", error);
+        throw error;
+    } finally {
+        hideContentLoading(loadingToken);
+    }
+}
+
+/**
+ * Returns the edition's enriched navigator config of the current work. Fetches it if it has not been
+ * loaded yet (the first connection can be shown before the first navigator refresh has finished).
+ * @returns {Promise<Object>} The navigator data, or an empty one if the config is not available
+ */
+export async function ensureNavigatorConfig() {
+    return appState.navigatorData.config ?? await loadNavigatorConfig() ?? { navigatorDefinition: [] };
+}
+
+/** The names of the two trailing categories of the concordance tab. */
+function getConcordanceLabels() {
+    return {
+        additionalDocuments: getLangString("controller.navigator.Navigator_ConcordanceDocuments", "Weitere Dokumente"),
+        additionalResources: getLangString("controller.navigator.Navigator_ConcordanceExternalResources", "Weitere Ressourcen")
+    };
+}
 
 /**
  * Builds the navigator data for a concordance connection: its members are placed in the structure of the
@@ -97,32 +145,78 @@ const CONCORDANCE_LABELS = { additionalDocuments: "Weitere Dokumente", additiona
  */
 export async function buildConcordanceNavigatorDataFromPlist(plist) {
     const config = await ensureNavigatorConfig();
-    return enrichNavigatorData(buildConcordanceNavigatorData(plist, config.navigatorDefinition, CONCORDANCE_LABELS));
+    return enrichNavigatorData(buildConcordanceNavigatorData(plist, config.navigatorDefinition, getConcordanceLabels()));
 }
 
 /**
- * Creates and returns an `<edirom-navigator>` web component pre-populated with
- * the given navigator data and a listener for `load-links-request` events.
- * @param {Object} [navigatorData] - The navigator data to display. Defaults to
- *   the last entry in `appState.navigatorData.current`, or `appState.navigatorData.main`
- *   if the current history is empty.
+ * Shows the members of a concordance connection in the "concordance" tab, which is created if there was none.
+ * If a newer connection (or free exploration) comes in while this one is being built, the result is dropped.
+ * @param {string} plist - The plist of the connection
+ * @param {Object} [options]
+ * @param {boolean} [options.selectTab=true] - Switch to the concordance tab, closing any open sub-navigator.
+ *   If false, the navigator stays on the tab (or sub-navigator) it shows: the tab is only updated in the
+ *   background, and a new one is announced by the tab bar.
+ * @returns {Promise<void>}
+ */
+export async function showConcordanceInNavigator(plist, { selectTab = true } = {}) {
+    const requestId = ++concordanceRequestId;
+    const loadingToken = showContentLoading();
+    let concordance;
+    try {
+        concordance = await buildConcordanceNavigatorDataFromPlist(plist);
+    } finally {
+        hideContentLoading(loadingToken);
+    }
+    if (requestId !== concordanceRequestId) return;
+
+    updateNavigatorState(selectTab
+        ? { concordance, activeTab: CONCORDANCE_TAB, subNavigators: [] }
+        : { concordance });
+    renderNavigator();
+}
+
+/**
+ * Removes the "concordance" tab, for free exploration. The navigator is back on the "main" tab.
+ */
+export function clearConcordanceFromNavigator() {
+    concordanceRequestId++;
+    updateNavigatorState({ concordance: null, activeTab: MAIN_TAB, subNavigators: [] });
+    renderNavigator();
+}
+
+/**
+ * Opens a sub-navigator that lists the given targets (one document or link per entry) instead of the tabs.
+ * "Back" closes it again, see `navigateBackInNavigator`.
+ * @param {Array<{target: string, config: Object}>} parsedTargets - The parsed target objects
+ * @returns {Promise<void>}
+ */
+export async function showSubNavigator(parsedTargets) {
+    const loadingToken = showContentLoading();
+    let navigatorData;
+    try {
+        navigatorData = await enrichNavigatorData(buildNavigatorDataFromParsedTargets(parsedTargets));
+    } finally {
+        hideContentLoading(loadingToken);
+    }
+
+    updateNavigatorState({ subNavigators: [...appState.navigatorData.subNavigators, navigatorData] });
+    renderNavigator();
+}
+
+/**
+ * Creates and returns an `<edirom-navigator>` web component showing the current navigator state and
+ * a listener for `load-links-request` events. Loads the navigator config if it is not there yet.
  * @returns {Promise<HTMLElement>} The configured navigator element
  */
-export async function buildNavigator(navigatorData = appState.navigatorData.current[appState.navigatorData.current.length - 1] || appState.navigatorData.main) {
+export async function buildNavigator() {
     const navigatorElement = document.createElement("edirom-navigator");
     navigatorElement.classList.add("web-component");
     navigatorElement.setAttribute("layout-mode", "mobile");
     navigatorElement.setAttribute("no-content-message", "(Noch) keine Inhalte für diesen Kontext verfügbar.");
+    renderNavigator(navigatorElement);
 
-    const hasExistingNavigatorData = navigatorData !== null && navigatorData !== undefined;
-    updateNavigatorData(hasExistingNavigatorData ? navigatorData : EMPTY_NAVIGATOR_DATA, navigatorElement);
-
-    if (!hasExistingNavigatorData) {
-        refreshNavigatorDataFromBackend({
-            setAsNavigatorDataMain: true,
-            addToNavigatorDataCurrent: false,
-            navigatorElement
-        }).catch(() => {
+    if (!appState.navigatorData.config) {
+        refreshNavigatorDataFromBackend().catch(() => {
             // On failure, loading is cleared in refreshNavigatorDataFromBackend.
         });
     }
@@ -131,72 +225,25 @@ export async function buildNavigator(navigatorData = appState.navigatorData.curr
         loadLinks(event.detail, { "behaviour": "updateViewOrSwitchToNavigator" });
 
     });
+    // The navigator is rebuilt whenever the page is shown again; it should come up on the tab the user left it on
+    navigatorElement.addEventListener("active-tab-changed", (event) => {
+        updateNavigatorState({ activeTab: event.detail.activeTab });
+    });
     return navigatorElement;
 }
 
 /**
- * Updates the navigator data in `appState` and triggers a live update of the
- * navigator component if the navigator page is currently active.
- * @param {Object} data - The new navigator data
- * @param {boolean} [setAsNavigatorDataMain=false] - If true, sets `data` as the
- *   main navigator data and resets the current navigation history to `[data]`.
- * @param {boolean} [addToNavigatorDataCurrent=false] - If true, appends `data`
- *   to the current navigation history stack (for "back" navigation).
- */
-export function setNavigatorData(data, setAsNavigatorDataMain = false, addToNavigatorDataCurrent = false) {
-    if (setAsNavigatorDataMain) {
-        setAppState({
-            navigatorData: {
-                ...appState.navigatorData,
-                main: data,
-                current: [data]
-            }
-        });
-    }
-    else if (addToNavigatorDataCurrent) {
-        setAppState({
-            navigatorData: {
-                ...appState.navigatorData,
-                current: [...appState.navigatorData.current, data]
-            }
-        });
-    }
-    onNavigatorDataChanged();
-}
-
-/**
- * Pops the last entry from `appState.navigatorData.current` to navigate back
- * to the previous sub-navigator level. If the stack has more than one entry,
- * pops the top and updates the navigator DOM. If only one entry remains (the
- * main level), does nothing and returns `false`.
- * @returns {boolean} `true` if a level was popped, `false` if already at main level
+ * Closes the last sub-navigator to navigate back to the level before it. If there is none (the tabs
+ * are shown), does nothing and returns `false`.
+ * @returns {boolean} `true` if a sub-navigator was closed, `false` if the tabs were shown already
  */
 export function navigateBackInNavigator() {
-    if (appState.navigatorData.current.length > 1) {
-        setAppState({
-            navigatorData: {
-                ...appState.navigatorData,
-                current: appState.navigatorData.current.slice(0, -1)
-            }
-        });
-        onNavigatorDataChanged();
-        return true;
-    }
-    return false;
-}
+    const { subNavigators } = appState.navigatorData;
+    if (subNavigators.length === 0) return false;
 
-/**
- * Pushes the most recent entry from `appState.navigatorData.current` (or
- * `appState.navigatorData.main` as a fallback) to the `<edirom-navigator>` DOM
- * element if the navigator page is active. No-op otherwise.
- */
-function onNavigatorDataChanged() {
-    if (appState.page === "navigator") {
-        const navigatorElement = document.querySelector("edirom-navigator");
-        if (navigatorElement) {
-            updateNavigatorData(appState.navigatorData.current[appState.navigatorData.current.length - 1] || appState.navigatorData.main, navigatorElement);
-        }
-    }
+    updateNavigatorState({ subNavigators: subNavigators.slice(0, -1) });
+    renderNavigator();
+    return true;
 }
 
 /**
@@ -224,7 +271,7 @@ function onNavigatorDataChanged() {
  * so that the stored targets string carries the correct `behaviour` config
  * (`"updateViewOrCreateViewWindowOrSwitchToNavigator"`). For multi-target items,
  * `addToCurrentNavigation: true` is also injected. The `behaviour`,
- * `setAsMainNavigation`, and `addToCurrentNavigation` keys from the original
+ * `setAsConcordanceNavigation`, and `addToCurrentNavigation` keys from the original
  * plist config are replaced in this process.
  *
  * Categories without any item are removed.
@@ -313,7 +360,7 @@ function getTargetInfo(target, docInfos) {
 function buildItemTargets(parsedTargets) {
     const config = { ...parsedTargets[0].config };
     delete config.behaviour;
-    delete config.setAsMainNavigation;
+    delete config.setAsConcordanceNavigation;
     delete config.addToCurrentNavigation;
     config.behaviour = "updateViewOrCreateViewWindowOrSwitchToNavigator";
     if (parsedTargets.length > 1) {

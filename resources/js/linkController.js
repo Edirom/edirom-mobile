@@ -2,10 +2,9 @@ import { appState } from "./config.js";
 import { parseTargets, buildTargetsStringWithConfig } from "./targets.js";
 import { createViewWindow, updateCurrentView } from "./views.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
-import { buildNavigatorDataFromParsedTargets, buildConcordanceNavigatorDataFromPlist, enrichNavigatorData, setNavigatorData } from "./navigator.js";
+import { showConcordanceInNavigator, showSubNavigator } from "./navigator.js";
 import { showNavigator } from "./pages.js";
 import { applyUrlParams } from "./main.js";
-import { showContentLoading, hideContentLoading } from "./loading.js";
 
 /**
  * Resolves a plist targets string and handles navigation based on the
@@ -17,24 +16,30 @@ import { showContentLoading, hideContentLoading } from "./loading.js";
  * - `"updateViewOrCreateViewWindow"` – update in-place or open a new window.
  * - `"updateViewOrCreateViewWindowOrSwitchToNavigator"` – update, create, or
  *   fall back to the navigator.
- * If `setAsMainNavigation` or `addToCurrentNavigation` is set in the config,
- * the resolved targets are also pushed to the navigator data store.
+ * If `setAsConcordanceNavigation` or `addToCurrentNavigation` is set in the config,
+ * the resolved targets are also shown in the navigator: as the content of its
+ * concordance tab (which the navigator switches to, see `options`), or as a sub-navigator.
  * @param {string} plist - A targets string as accepted by `parseTargets`
  * @param {Object} [additionalConfig={}] - Extra key-value pairs merged into the
  *   parsed config (existing plist keys take precedence)
+ * @param {Object} [options={}]
+ * @param {boolean} [options.selectConcordanceTab=true] - Whether showing the targets in the concordance tab
+ *   also switches the navigator to that tab. Pass false if the user did not cause the change.
  * @returns {Promise<void>}
  */
-export async function loadLinks(plist, additionalConfig = {}) {
+export async function loadLinks(plist, additionalConfig = {}, { selectConcordanceTab = true } = {}) {
     console.log("Loading links from plist:", plist);
     let parsedTargets = parseTargets(plist, additionalConfig);
 
     if (parsedTargets.length === 0) {
         const configuredBehaviour = additionalConfig?.behaviour;
-        const setAsMainNavigation = additionalConfig?.setAsMainNavigation || false;
+        const setAsConcordanceNavigation = additionalConfig?.setAsConcordanceNavigation || false;
         const addToCurrentNavigation = additionalConfig?.addToCurrentNavigation || false;
 
-        if (setAsMainNavigation || addToCurrentNavigation) {
-            setNavigatorData({ navigatorDefinition: [] }, setAsMainNavigation, addToCurrentNavigation);
+        if (setAsConcordanceNavigation) {
+            await showConcordanceInNavigator(plist, { selectTab: selectConcordanceTab });
+        } else if (addToCurrentNavigation) {
+            await showSubNavigator(parsedTargets);
         }
 
         const shouldSwitchToNavigator = [
@@ -49,15 +54,10 @@ export async function loadLinks(plist, additionalConfig = {}) {
         return;
     }
 
-    let shouldSetNavigatorData = true;
     let shouldSwitchToNavigator = false;
 
-    let setAsMainNavigation = parsedTargets[0]?.config?.setAsMainNavigation || false;
+    let setAsConcordanceNavigation = parsedTargets[0]?.config?.setAsConcordanceNavigation || false;
     let addToCurrentNavigation = parsedTargets[0]?.config?.addToCurrentNavigation || false;
-
-    if (!setAsMainNavigation && !addToCurrentNavigation) {
-        shouldSetNavigatorData = false;
-    }
 
     const configuredBehaviour = parsedTargets[0]?.config?.behaviour;
     switch (configuredBehaviour) {
@@ -91,18 +91,11 @@ export async function loadLinks(plist, additionalConfig = {}) {
 
     }
 
-    if (shouldSetNavigatorData) {
-        const loadingToken = showContentLoading();
-        let navigatorData;
-        try {
-            // The main navigation is the concordance connection: its members are arranged like the edition's navigator config
-            navigatorData = setAsMainNavigation
-                ? await buildConcordanceNavigatorDataFromPlist(plist)
-                : await enrichNavigatorData(buildNavigatorDataFromParsedTargets(parsedTargets));
-        } finally {
-            hideContentLoading(loadingToken);
-        }
-        setNavigatorData(navigatorData, setAsMainNavigation, addToCurrentNavigation);
+    if (setAsConcordanceNavigation) {
+        // The members of the concordance connection get their own tab, arranged like the edition's navigator config
+        await showConcordanceInNavigator(plist, { selectTab: selectConcordanceTab });
+    } else if (addToCurrentNavigation) {
+        await showSubNavigator(parsedTargets);
     }
     if (shouldSwitchToNavigator) {
         await showNavigator();

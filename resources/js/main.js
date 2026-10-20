@@ -7,6 +7,7 @@ import { initConcordanceNavigator, navigateConcordanceNavigatorToConnection, nav
 import { initConnectedWorkspace, updateConnectedWorkspaceInviteUrl, applyWorkspaceSession, notifyStateChanged, getSyncedState } from "./connected-workspace.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
 import { loadLanguageStrings } from "./about.js";
+import { resetNavigatorData } from "./navigator.js";
 
 
 /**
@@ -114,9 +115,9 @@ export async function initWork(workId = null, connectionId = null) {
     let foundWorkId = "";
     setAppState({
         work: {},
-        connection: null,
-        navigatorData: { config: null, main: null, current: [] }
+        connection: null
     });
+    resetNavigatorData();
 
     if (workId) {
         const matchedWork = findWorkInEdition(workId);

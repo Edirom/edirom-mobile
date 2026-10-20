@@ -11,6 +11,10 @@ const SYNCED_STATE_KEYS = ["edition", "work", "connection"];
 
 let connectorElement = null;
 
+// True while the app is being moved to a state the ws-server asked for. Everything that happens in the
+// meantime (e.g. a `connection-changed` event of the concordance navigator) was not done by the user.
+let applyingRemoteState = false;
+
 // Set to true only once the connector component has actually been loaded and
 // attached to the DOM (i.e. appConfig.wsUrl was present). While false, every
 // exported function below is a no-op, so the whole connected workspace
@@ -32,6 +36,16 @@ export function getSyncedState() {
         work: appState.work?.id ?? null,
         connection: appState.connection ?? null
     };
+}
+
+/**
+ * Whether the app is currently being moved to a state that the ws-server asked for (the workspace sync),
+ * as opposed to a change that the user made. Read it synchronously where a change is noticed, e.g. in the
+ * event handler of the concordance navigator: the changes that a sync causes all happen before it is done.
+ * @returns {boolean}
+ */
+export function isApplyingRemoteState() {
+    return applyingRemoteState;
 }
 
 /**
@@ -78,8 +92,18 @@ export async function initConnectedWorkspace(applyState) {
     // The component defaults to English; Mobile's UI language is appState.language ("de" by default).
     el.setAttribute('lang', appState.language);
 
+    // The component applies one patch at a time per handler, so a flag (no counter) is enough.
+    const applyRemoteState = async (patch) => {
+        applyingRemoteState = true;
+        try {
+            await applyState(patch);
+        } finally {
+            applyingRemoteState = false;
+        }
+    };
+
     if (typeof el.registerStateHandler === 'function') {
-        el.registerStateHandler({ keys: SYNCED_STATE_KEYS, get: getSyncedState, apply: applyState });
+        el.registerStateHandler({ keys: SYNCED_STATE_KEYS, get: getSyncedState, apply: applyRemoteState });
     } else {
         console.warn('initConnectedWorkspace: the connected workspace component has no state sync support (outdated version); sessions will not sync state.');
     }

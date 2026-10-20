@@ -210,9 +210,8 @@ export async function buildEditionSelectionPage() {
  * @returns {boolean}
  */
 function canShowNavigator() {
-    const hasNavigatorData =
-        appState.navigatorData.current.length > 0 ||
-        appState.navigatorData.main !== null;
+    const { config, concordance, subNavigators } = appState.navigatorData;
+    const hasNavigatorData = config !== null || concordance !== null || subNavigators.length > 0;
     const canFetchNavigatorData = !!(appState.edition?.doc && appState.work?.id);
     return hasNavigatorData || canFetchNavigatorData;
 }
@@ -250,7 +249,7 @@ window.addEventListener("popstate", async (event) => {
                 // Popped a level - stay on navigator with updated data
                 return;
             }
-            // Already at main navigator - block further back navigation
+            // Already at the tabs - block further back navigation
             skipNextPopstate = true;
             window.history.go(1);
             return;
