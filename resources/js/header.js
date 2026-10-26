@@ -1,6 +1,8 @@
 import { switchPage, buildEditionSelectionPage, allowNextUnload } from "./pages.js";
-import { buildAboutPage, getLangString } from "./about.js";
+import { buildAboutPage } from "./about.js";
 import { appState } from "./config.js";
+import { getLangString } from "./languageController.js";
+import { getExplicitLanguage } from "./preferenceController.js";
 import { initWork } from "./main.js";
 
 /**
@@ -16,7 +18,7 @@ function buildHeaderMenu() {
     const editionsIcon = document.createElement("edirom-icon");
     editionsIcon.setAttribute("name", "newsstand");
     editionsLink.appendChild(editionsIcon);
-    editionsLink.appendChild(document.createTextNode("Editionen"));
+    editionsLink.appendChild(document.createTextNode(getLangString("mobile.Header_editions", "Editions")));
     editionsLink.setAttribute("role", "button");
     editionsLink.setAttribute("tabindex", "0");
     editionsLink.addEventListener("click", (event) => {
@@ -30,7 +32,7 @@ function buildHeaderMenu() {
     const aboutIcon = document.createElement("edirom-icon");
     aboutIcon.setAttribute("name", "eo_about");
     aboutLink.appendChild(aboutIcon);
-    aboutLink.appendChild(document.createTextNode(getLangString("view.desktop.TaskBar_about", "About")));
+    aboutLink.appendChild(document.createTextNode(getLangString("mobile.Header_about", "About")));
     aboutLink.setAttribute("role", "button");
     aboutLink.setAttribute("tabindex", "0");
     aboutLink.addEventListener("click", (event) => {
@@ -44,7 +46,7 @@ function buildHeaderMenu() {
     const switchToDesktopIcon = document.createElement("edirom-icon");
     switchToDesktopIcon.setAttribute("name", "devices");
     switchToDesktopLink.appendChild(switchToDesktopIcon);
-    switchToDesktopLink.appendChild(document.createTextNode("Zur Desktop-Ansicht"));
+    switchToDesktopLink.appendChild(document.createTextNode(getLangString("mobile.Header_switchToDesktop", "Switch to desktop view")));
     switchToDesktopLink.setAttribute("role", "button");
     switchToDesktopLink.setAttribute("tabindex", "0");
     switchToDesktopLink.addEventListener("click", (event) => {
@@ -52,6 +54,10 @@ function buildHeaderMenu() {
         params.set("ui", "desktop");
         if (appState.edition?.id) params.set("edition", appState.edition.id);
         if (appState.work?.id) params.set("work", appState.work.id);
+        // Only a language that was asked for in the URL is passed on: Desktop decides on its own otherwise, from
+        // the same edition preference.
+        const lang = getExplicitLanguage();
+        if (lang) params.set("lang", lang);
 
         // Deliberate exit: skip the "Leave site?" dialog for this navigation only
         allowNextUnload();
@@ -64,9 +70,30 @@ function buildHeaderMenu() {
 }
 
 /**
+ * (Re)builds the entries of the header menu and the labels of the menu and burger button in the current language.
+ * Does not touch the event listeners of the burger menu, so it can be called again when the language changes.
+ * Does nothing if the burger or menu element is missing from the DOM.
+ */
+export function renderHeaderMenu() {
+    const burger = document.getElementById("header-burger-menu");
+    const menu = document.getElementById("header-menu");
+
+    if (!burger || !menu) {
+        return;
+    }
+
+    const menuLabel = getLangString("mobile.Header_mainMenu", "Main menu");
+    burger.setAttribute("aria-label", menuLabel);
+    menu.setAttribute("aria-label", menuLabel);
+
+    menu.innerHTML = "";
+    menu.appendChild(buildHeaderMenu());
+}
+
+/**
  * Initializes the burger menu in the page header. Populates the menu with
  * navigation links and wires up all toggle, close-on-outside-click, and
- * close-on-resize event listeners.
+ * close-on-resize event listeners. Call it once; `renderHeaderMenu` updates the entries.
  * Does nothing if the burger or menu element is missing from the DOM.
  */
 export function setupHeaderMenu() {
@@ -77,9 +104,7 @@ export function setupHeaderMenu() {
         return;
     }
 
-    menu.innerHTML = "";
-    const listEl = buildHeaderMenu();
-    menu.appendChild(listEl);
+    renderHeaderMenu();
 
     burger.setAttribute("role", "button");
     burger.setAttribute("aria-controls", "header-menu");

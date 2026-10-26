@@ -69,28 +69,46 @@ async function fetchText(url) {
     }
 }
 
+/**
+ * Builds the URL of a backend XQuery endpoint. Like Edirom-Frontend's `doAJAXRequest`, which adds `lang` to every
+ * request, this is the one place where the language is put on a request: `lang` is the current
+ * `appState.language`, unless the caller passes one. Parameters that are `undefined` or `null` are left out.
+ * @param {string} endpoint - The file name below `data/xql/`, e.g. `"getPages.xql"`
+ * @param {Object<string, any>} [params] - The query parameters, in the order they should appear
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
+ * @returns {string} The URL including the query string
+ */
+function buildUrl(endpoint, params = {}, backendUrl = appConfig.backendUrl) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null) query.append(key, value);
+    }
+    if (!query.has("lang")) query.set("lang", appState.language);
+    return `${backendUrl}data/xql/${endpoint}?${query}`;
+}
+
 export async function getPages(uri, edition, backendUrl = appConfig.backendUrl) {
-    const pagesData = await fetchJSON(`${backendUrl}data/xql/getPages.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(appState.language)}`);
+    const pagesData = await fetchJSON(buildUrl("getPages.xql", { edition, uri }, backendUrl));
     return pagesData;
 }
 
 export async function getMovements(uri, edition, backendUrl = appConfig.backendUrl) {
-    const movementsData = await fetchJSON(`${backendUrl}data/xql/getMovements.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(appState.language)}`);
+    const movementsData = await fetchJSON(buildUrl("getMovements.xql", { edition, uri }, backendUrl));
     return movementsData;
 }
 
 export async function getMeasures(uri, edition, mdiv, backendUrl = appConfig.backendUrl) {
-    const measuresData = await fetchJSON(`${backendUrl}data/xql/getMeasures.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&mdiv=${encodeURIComponent(mdiv)}&lang=${encodeURIComponent(appState.language)}`);
+    const measuresData = await fetchJSON(buildUrl("getMeasures.xql", { edition, uri, mdiv }, backendUrl));
     return measuresData;
 }
 
 export async function getMeasurePage(id, edition, measure, measureCount = 1, backendUrl = appConfig.backendUrl) {
-    const measurePageData = await fetchJSON(`${backendUrl}data/xql/getMeasurePage.xql?edition=${encodeURIComponent(edition)}&id=${encodeURIComponent(id)}&measure=${encodeURIComponent(measure)}&measureCount=${encodeURIComponent(measureCount)}&lang=${encodeURIComponent(appState.language)}`);
+    const measurePageData = await fetchJSON(buildUrl("getMeasurePage.xql", { edition, id, measure, measureCount }, backendUrl));
     return measurePageData;
 }
 
 export async function getMeasuresOnPage(uri, pageId, edition, backendUrl = appConfig.backendUrl) {
-    const data = await fetchJSON(`${backendUrl}data/xql/getMeasuresOnPage.xql?uri=${encodeURIComponent(uri)}&pageId=${encodeURIComponent(pageId)}&edition=${encodeURIComponent(edition)}&lang=${encodeURIComponent(appState.language)}`);
+    const data = await fetchJSON(buildUrl("getMeasuresOnPage.xql", { uri, pageId, edition }, backendUrl));
     return data;
 }
 
@@ -103,7 +121,7 @@ export async function getMeasuresOnPage(uri, pageId, edition, backendUrl = appCo
  * @returns {Promise<string|null>} The rendered HTML string, or null on error
  */
 export async function getText(uri, edition, idPrefix = "textView_", backendUrl = appConfig.backendUrl) {
-    const textData = await fetchHtml(`${backendUrl}data/xql/getText.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&idPrefix=${encodeURIComponent(idPrefix)}&lang=${encodeURIComponent(appState.language)}`);
+    const textData = await fetchHtml(buildUrl("getText.xql", { edition, uri, idPrefix }, backendUrl));
     return textData;
 }
 
@@ -115,7 +133,7 @@ export async function getText(uri, edition, idPrefix = "textView_", backendUrl =
  * @returns {Promise<Object|null>} The annotations data object, or null on error
  */
 export async function getAnnotations(edition, uri, backendUrl = appConfig.backendUrl) {
-    const annotationsData = await fetchJSON(`${backendUrl}data/xql/getAnnotations.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(appState.language)}`);
+    const annotationsData = await fetchJSON(buildUrl("getAnnotations.xql", { edition, uri }, backendUrl));
     return annotationsData;
 }
 
@@ -128,7 +146,7 @@ export async function getAnnotations(edition, uri, backendUrl = appConfig.backen
  * @returns {Promise<string|null>} The annotation HTML text, or null on error
  */
 export async function getAnnotationText(edition, uri, lang, backendUrl = appConfig.backendUrl) {
-    const annotationText = await fetchHtml(`${backendUrl}data/xql/getAnnotationText.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(lang)}`);
+    const annotationText = await fetchHtml(buildUrl("getAnnotationText.xql", { edition, uri, lang }, backendUrl));
     return annotationText;
 }
 
@@ -141,7 +159,7 @@ export async function getAnnotationText(edition, uri, lang, backendUrl = appConf
  * @returns {Promise<Object|null>} The annotation previews data, or null on error
  */
 export async function getAnnotationPreviews(edition, uri, lang, backendUrl = appConfig.backendUrl) {
-    const annotationPreviews = await fetchJSON(`${backendUrl}data/xql/getAnnotationPreviews.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(lang)}`);
+    const annotationPreviews = await fetchJSON(buildUrl("getAnnotationPreviews.xql", { edition, uri, lang }, backendUrl));
     return annotationPreviews;
 }
 
@@ -153,7 +171,7 @@ export async function getAnnotationPreviews(edition, uri, lang, backendUrl = app
  * @returns {Promise<Object|null>} The concordance data, or null on error
  */
 export async function getConcordances(editionUri, workId, backendUrl = appConfig.backendUrl) {
-    const concordanceData = await fetchJSON(`${backendUrl}data/xql/getConcordances.xql?workId=${encodeURIComponent(workId)}&id=${encodeURIComponent(editionUri)}&edition=${encodeURIComponent(editionUri)}`);
+    const concordanceData = await fetchJSON(buildUrl("getConcordances.xql", { workId, id: editionUri, edition: editionUri }, backendUrl));
     return concordanceData;
 }
 
@@ -164,7 +182,7 @@ export async function getConcordances(editionUri, workId, backendUrl = appConfig
  * @returns {Promise<Object|null>} The edition data object, or null on error
  */
 export async function getEdition(editionUri, backendUrl = appConfig.backendUrl) {
-    const editionData = await fetchJSON(`${backendUrl}data/xql/getEdition.xql?id=${encodeURIComponent(editionUri)}`);
+    const editionData = await fetchJSON(buildUrl("getEdition.xql", { id: editionUri }, backendUrl));
     return editionData;
 }
 
@@ -175,7 +193,7 @@ export async function getEdition(editionUri, backendUrl = appConfig.backendUrl) 
  * @returns {Promise<string|null>} The edition URI string, or null on error
  */
 export async function getEditionUri(editionId, backendUrl = appConfig.backendUrl) {
-    const editionUriData = await fetchText(`${backendUrl}data/xql/getEditionURI.xql?id=${encodeURIComponent(editionId)}`);
+    const editionUriData = await fetchText(buildUrl("getEditionURI.xql", { id: editionId }, backendUrl));
     return editionUriData;
 }
 
@@ -186,7 +204,7 @@ export async function getEditionUri(editionId, backendUrl = appConfig.backendUrl
  * @returns {Promise<Object[]|null>} An array of edition objects, or null on error
  */
 export async function getEditions(backendUrl = appConfig.backendUrl) {
-    const editionsData = await fetchJSON(`${backendUrl}data/xql/getEditions.xql`);
+    const editionsData = await fetchJSON(buildUrl("getEditions.xql", {}, backendUrl));
 
     // if the data is only a single object, wrap in an array
     if (editionsData && !Array.isArray(editionsData)) {
@@ -215,7 +233,7 @@ export async function getAllEditions() {
  * @returns {Promise<Object[]|null>} An array of work objects, or null on error
  */
 export async function getWorks(editionDoc, backendUrl = appConfig.backendUrl) {
-    const worksData = await fetchJSON(`${backendUrl}data/xql/getWorks.xql?editionId=${encodeURIComponent(editionDoc)}`);
+    const worksData = await fetchJSON(buildUrl("getWorks.xql", { editionId: editionDoc }, backendUrl));
     return worksData;
 }
 
@@ -231,7 +249,7 @@ export async function getWorks(editionDoc, backendUrl = appConfig.backendUrl) {
  */
 export async function getNavigatorConfig(editionId, workId, lang, edition, backendUrl = appConfig.backendUrl) {
     console.log("editionId", editionId);
-    const navigatorConfig = await fetchJSON(`${backendUrl}data/xql/getNavigatorConfig.xql?editionId=${encodeURIComponent(editionId)}&workId=${encodeURIComponent(workId)}&lang=${encodeURIComponent(lang)}&edition=${encodeURIComponent(edition)}&mode=json`);
+    const navigatorConfig = await fetchJSON(buildUrl("getNavigatorConfig.xql", { editionId, workId, lang, edition, mode: "json" }, backendUrl));
     return navigatorConfig;
 }
 
@@ -244,12 +262,7 @@ export async function getNavigatorConfig(editionId, workId, lang, edition, backe
  * @returns {Promise<Object|null>} The link target data object, or null on error
  */
 export function getLinkTarget(uri, lang, edition, backendUrl = appConfig.backendUrl) {
-    var url = new URL(`${backendUrl}data/xql/getLinkTarget.xql`);
-    url.searchParams.append("uri", uri);
-    url.searchParams.append("lang", lang);
-    url.searchParams.append("edition", edition);
-    url = url.toString();
-    return fetchJSON(url);
+    return fetchJSON(buildUrl("getLinkTarget.xql", { uri, lang, edition }, backendUrl));
 }
 
 /**
@@ -264,7 +277,33 @@ export function getLinkTarget(uri, lang, edition, backendUrl = appConfig.backend
 export function getLinkTargets(uris, lang, edition, backendUrl = appConfig.backendUrl) {
     const body = new URLSearchParams();
     uris.forEach(uri => body.append("uri", uri));
-    body.append("lang", lang);
+    body.append("lang", lang ?? appState.language);
     body.append("edition", edition);
+    // The parameters are in the body, so the URL is just the endpoint.
     return fetchJSON(`${backendUrl}data/xql/getLinkTargets.xql`, { method: "POST", body });
+}
+
+/**
+ * Fetches the preferences of an edition (Edirom-Frontend's `initPreferences`): the backend's default preferences
+ * with the preferences of the edition's project on top, as a flat key-value object. Without an edition, only the
+ * defaults are returned.
+ * @param {string} [editionUri] - The edition URI, or empty for the default preferences
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
+ * @returns {Promise<Object<string, any>|null>} The preferences, or null on error
+ */
+export function getPreferences(editionUri = "", backendUrl = appConfig.backendUrl) {
+    // Not tied to the content loading, which is aborted when the page changes: the language is needed regardless.
+    return fetchJSON(buildUrl("getPreferences.xql", { mode: "json", edition: editionUri }, backendUrl), { signal: null });
+}
+
+/**
+ * Fetches a language file (Edirom-Frontend's `initLangFile`): the backend's translations for the UI, with the
+ * translations of the edition's project merged in.
+ * @param {string} lang - The language code, e.g. "de" or "en"
+ * @param {string} [editionUri] - The edition URI, or empty for the backend's own translations only
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
+ * @returns {Promise<{lang: string, version: string, keys: Object<string, string>}|null>} The language file, or null on error
+ */
+export function getLanguageFile(lang, editionUri = "", backendUrl = appConfig.backendUrl) {
+    return fetchJSON(buildUrl("getLanguageFile.xql", { lang, mode: "json", edition: editionUri }, backendUrl), { signal: null });
 }

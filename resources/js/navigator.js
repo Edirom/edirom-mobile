@@ -4,7 +4,7 @@ import { buildConcordanceNavigatorData, splitUri } from "./concordanceNavigatorD
 import { getNavigatorConfig, getLinkTargets } from "./api.js";
 import { appConfig, appState, setAppState, createNavigatorData } from "./config.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
-import { getLangString } from "./about.js";
+import { getLangString } from "./languageController.js";
 
 /**
  * The navigator has two tabs, like the Navigator of Edirom-Frontend: the edition's navigator config ("main",
@@ -46,7 +46,7 @@ function getNavigatorTabs() {
     if (concordance) {
         tabs.push({
             id: CONCORDANCE_TAB,
-            name: getLangString("controller.navigator.Navigator_ConcordanceTab", "Konkordanz"),
+            name: getLangString("controller.navigator.Navigator_ConcordanceTab", "Concordance"),
             navigatorDefinition: concordance.navigatorDefinition ?? []
         });
     }
@@ -131,14 +131,14 @@ export async function ensureNavigatorConfig() {
 /** The names of the two trailing categories of the concordance tab. */
 function getConcordanceLabels() {
     return {
-        additionalDocuments: getLangString("controller.navigator.Navigator_ConcordanceDocuments", "Weitere Dokumente"),
-        additionalResources: getLangString("controller.navigator.Navigator_ConcordanceExternalResources", "Weitere Ressourcen")
+        additionalDocuments: getLangString("controller.navigator.Navigator_ConcordanceDocuments", "Additional documents"),
+        additionalResources: getLangString("controller.navigator.Navigator_ConcordanceExternalResources", "Additional resources")
     };
 }
 
 /**
  * Builds the navigator data for a concordance connection: its members are placed in the structure of the
- * edition's navigator config, the others are collected in "Weitere Dokumente" / "Weitere Ressourcen".
+ * edition's navigator config, the others are collected in "Additional documents" / "Additional resources".
  * Names that neither the config nor the connection provides are fetched from the backend.
  * @param {string} plist - The plist of the connection
  * @returns {Promise<Object>} The enriched navigator data
@@ -212,7 +212,7 @@ export async function buildNavigator() {
     const navigatorElement = document.createElement("edirom-navigator");
     navigatorElement.classList.add("web-component");
     navigatorElement.setAttribute("layout-mode", "mobile");
-    navigatorElement.setAttribute("no-content-message", "(Noch) keine Inhalte für diesen Kontext verfügbar.");
+    navigatorElement.setAttribute("no-content-message", getLangString("controller.navigator.Navigator_NoContent", "No entries available."));
     renderNavigator(navigatorElement);
 
     if (!appState.navigatorData.config) {
@@ -404,8 +404,8 @@ function buildNavigatorDataFromUrisData(urisData) {
     console.log("Building navigator data from urisData", urisData);
 
     const categories = [
-        { key: "docs", name: "Dokumente" },
-        { key: "externalLinks", name: "Externe Ressourcen" }
+        { key: "docs", name: getLangString("mobile.Navigator_documents", "Documents") },
+        { key: "externalLinks", name: getLangString("mobile.Navigator_externalResources", "External resources") }
     ];
 
     const navigatorDefinition = categories

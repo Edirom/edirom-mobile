@@ -1,5 +1,6 @@
 import { getConcordances } from "./api.js";
 import { appState, setAppState } from "./config.js";
+import { getLangString } from "./languageController.js";
 import { loadLinks } from "./linkController.js";
 import { clearConcordanceFromNavigator } from "./navigator.js";
 import { removeCurrentViewSubset } from "./views.js";
@@ -61,7 +62,7 @@ export async function initConcordanceNavigator(connectionId = null) {
     concordanceNavigatorElement.setAttribute("layout-mode", "mobile");
     concordanceNavigatorElement.setAttribute('enable-qr-code-scanner', 'true');
     concordanceNavigatorElement.setAttribute("concordances-data", JSON.stringify(concordances));
-    concordanceNavigatorElement.setAttribute("inject-disabled-concordance", "Freies Erkunden");
+    concordanceNavigatorElement.setAttribute("inject-disabled-concordance", getLangString("mobile.ConcordanceNavigator_freeExploration", "Free exploration"));
     // Arrow navigation skips connections with no targets; explicit selection (slider, text
     // input, deep-link) still lands on them.
     concordanceNavigatorElement.setAttribute("skip-empty-connections", "");

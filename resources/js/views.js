@@ -1,6 +1,7 @@
 import { appConfig, appState, setAppState } from "./config.js";
 import { switchPage } from "./pages.js";
 import { getLinkTarget } from "./api.js";
+import { getLangString } from "./languageController.js";
 import { buildAnnotationView } from "./annotationView.js";
 import { buildImageView } from "./imageView.js";
 import { buildTextView } from "./textView.js";
@@ -175,7 +176,7 @@ function buildViewHeader(linkData, availableViews, activeView) {
     selectContainer.appendChild(viewIcon);
 
     const viewSelect = document.createElement("select");
-    viewSelect.setAttribute("aria-label", "Select view");
+    viewSelect.setAttribute("aria-label", getLangString("view.window.TopBar_View", "View"));
 
     availableViews.forEach(view => {
         const option = document.createElement("option");
@@ -362,7 +363,7 @@ function reduceToAvailableViews(views) {
         if (configView) {
             availableViews.push({
                 ...view,
-                label: view.label || configView.label,
+                label: view.label || getLangString(configView.labelKey, configView.label),
                 icon: configView.icon
             });
         }

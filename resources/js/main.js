@@ -1,12 +1,12 @@
 import { appState, setAppState, loadAppConfig } from "./config.js";
 import { getAllEditions, getWorks } from "./api.js";
-import { setupHeaderMenu, setWorkTitle } from "./header.js";
+import { setupHeaderMenu, renderHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
 import { switchPage, buildEditionSelectionPage, showNavigator } from "./pages.js";
 import { initConcordanceNavigator, navigateConcordanceNavigatorToConnection, navigateConcordanceNavigatorToDisabled } from "./concordanceNavigator.js";
-import { initConnectedWorkspace, updateConnectedWorkspaceInviteUrl, applyWorkspaceSession, notifyStateChanged, getSyncedState } from "./connected-workspace.js";
+import { initConnectedWorkspace, updateConnectedWorkspaceInviteUrl, applyWorkspaceSession, notifyStateChanged, getSyncedState, setConnectedWorkspaceLanguage } from "./connected-workspace.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
-import { loadLanguageStrings } from "./about.js";
+import { applyLanguage, onLanguageApplied } from "./languageController.js";
 import { resetNavigatorData } from "./navigator.js";
 
 
@@ -90,6 +90,10 @@ export async function initEdition({ editionId = null, workId = null, connectionI
         switchPage("edition-selection", buildEditionSelectionPage());
         return;
     }
+
+    // The edition's preferences can set another language than the default preferences did at startup (like in
+    // Edirom-Frontend's loadEdiromForEdition). Settle the language before anything is requested for the edition.
+    await applyLanguage(appState.edition.doc);
 
     const worksInEdition = await getWorks(appState.edition.doc);
     setAppState({ worksInEdition });
@@ -288,8 +292,14 @@ async function initApp() {
     console.log("Initializing Edirom Mobile App");
 
     await loadAppConfig();
-    await loadLanguageStrings(appState.language);
+    // Without an edition yet, the language comes from ?lang= or the backend's default preferences.
+    await applyLanguage();
 
+    // What is built from translations once (the header menu, the workspace) follows later language changes.
+    onLanguageApplied((language) => {
+        renderHeaderMenu();
+        setConnectedWorkspaceLanguage(language);
+    });
     setupHeaderMenu();
     registerLayoutListeners();
     await initConnectedWorkspace(applySyncedState);

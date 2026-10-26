@@ -1,4 +1,5 @@
 import { appState } from "./config.js";
+import { getLangString } from "./languageController.js";
 import { getPages, getMovements, getMeasures, getMeasurePage, getMeasuresOnPage } from "./api.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
 
@@ -103,7 +104,7 @@ export function buildImageView(target, config = {}) {
 
     const spinBox = document.createElement("edirom-spin-box-widget");
     spinBox.id = "image-step-spin-box";
-    spinBox.setAttribute("label", "Seite");
+    spinBox.setAttribute("label", getLangString("mobile.ImageView_page", "Page"));
 
     // Spin box → viewer: only set attribute on component, never update spin box directly.
     spinBox.addEventListener("spin-box-step-requested", async (event) => {
@@ -201,7 +202,7 @@ export function buildImageView(target, config = {}) {
         }
         _currentSequenceIndex = idx;
 
-        spinBox.setAttribute("label", "Seite");
+        spinBox.setAttribute("label", getLangString("mobile.ImageView_page", "Page"));
         spinBox.setAttribute("steps-data", JSON.stringify(_pageLabels));
         spinBox.setAttribute("current-step", _pageLabels[idx]);
         imageViewComponent.setAttribute("pagenumber", String(_pageIdToIndex.get(_pageSequenceData[idx].id)));
@@ -242,7 +243,7 @@ export function buildImageView(target, config = {}) {
         if (idx < 0 || idx >= _measureSequenceData.length) idx = 0;
         _currentSequenceIndex = idx;
 
-        spinBox.setAttribute("label", "Takt");
+        spinBox.setAttribute("label", getLangString("view.window.source.SourceView_GotoMsg_Measure", "Measure"));
         spinBox.setAttribute("steps-data", JSON.stringify(_measureLabels));
         spinBox.setAttribute("current-step", _measureLabels[idx]);
         viewModeButton.setAttribute("current-state", "measure-view");

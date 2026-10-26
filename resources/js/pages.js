@@ -1,4 +1,5 @@
 import { appState, setAppState } from "./config.js";
+import { getLangString } from "./languageController.js";
 import { buildNavigator, navigateBackInNavigator } from "./navigator.js";
 import { getAllEditions } from "./api.js";
 import { initEdition } from "./main.js";
@@ -170,7 +171,7 @@ export async function buildEditionSelectionPage() {
     editionSelectionContainer.id = "edition-selection-page";
 
     const heading = document.createElement("h1");
-    heading.textContent = "Edition auswählen";
+    heading.textContent = getLangString("mobile.Pages_selectEdition", "Select edition");
     editionSelectionContainer.appendChild(heading);
 
     const editionList = document.createElement("ul");

@@ -1,8 +1,21 @@
-const DEFAULT_LANGUAGE = "de";
+/**
+ * The languages Mobile can show: the backend has a `data/locale/edirom-lang-xx.xml` for each, and Edirom-Frontend
+ * loads the same two (Application.js).
+ */
+export const SUPPORTED_LANGUAGES = ["de", "en"];
+/**
+ * The language until the preferences are loaded. Edirom-Frontend's `getLanguage()` also returns "en" before its
+ * preferences are available.
+ */
+const DEFAULT_LANGUAGE = "en";
+/**
+ * `labelKey` is the backend language key of the label, `label` the fallback for a language file without it (the
+ * English text of the key). The label is resolved when the views are listed, so that it follows the language.
+ */
 const DEFAULT_AVAILABLE_VIEWS = [
-    { "view": "annotationView", "label": "Annotationen", "icon": "list" },
-    { "view": "sourceView", "label": "Faksimile", "icon": "image" },
-    { "view": "textView", "label": "Text", "icon": "text_fields" }
+    { "view": "annotationView", "labelKey": "controller.window.Window_annotationView", "label": "Annotations", "icon": "list" },
+    { "view": "sourceView", "labelKey": "controller.window.Window_sourceView", "label": "Facsimile", "icon": "image" },
+    { "view": "textView", "labelKey": "controller.window.Window_textView", "label": "Text", "icon": "text_fields" }
 ];
 const DEFAULT_VIEW_HEADER_ID = "view-header";
 

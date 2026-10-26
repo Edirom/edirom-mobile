@@ -1,4 +1,5 @@
 import { appState } from "./config.js";
+import { getLangString } from "./languageController.js";
 import { getAnnotations, getAnnotationText, getAnnotationPreviews } from "./api.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
@@ -38,7 +39,7 @@ export function buildAnnotationView(target, config = {}) {
 
     const spinBox = document.createElement("edirom-spin-box-widget");
     spinBox.id = "annotation-step-spin-box";
-    spinBox.setAttribute("label", "Annotation");
+    spinBox.setAttribute("label", getLangString("Annotation", "Annotation"));
     spinBox.classList.add("hidden");
 
     async function navigateToAnnotation(annotation) {

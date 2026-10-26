@@ -1,37 +1,7 @@
 import { appConfig } from "./config.js";
+import { getLangString } from "./languageController.js";
 
 const ISSUES_URL = "https://github.com/Edirom/Edirom-Online/issues/new/choose";
-
-let langKeys = {};
-
-/**
- * Loads the backend's language file (the same one Desktop's LanguageController
- * uses) and caches its keys for `getLangString`. Failures are logged and leave
- * the cache empty, so callers fall back to their default strings.
- * @param {string} lang - The language code, e.g. "de" or "en"
- * @returns {Promise<void>}
- */
-export async function loadLanguageStrings(lang) {
-    try {
-        const url = `${appConfig.backendUrl}data/xql/getLanguageFile.xql?lang=${encodeURIComponent(lang)}&mode=json`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Status: ${response.status}`);
-        const data = await response.json();
-        langKeys = data.keys ?? {};
-    } catch (e) {
-        console.warn("Failed to load language strings:", e);
-    }
-}
-
-/**
- * Returns the localized string for a backend language key.
- * @param {string} key - The language key, e.g. "view.desktop.TaskBar_about"
- * @param {string} [fallback=key] - Returned when the key has no loaded string
- * @returns {string}
- */
-export function getLangString(key, fallback = key) {
-    return langKeys[key] ?? fallback;
-}
 
 /**
  * Escapes a string for safe insertion into HTML.
@@ -79,21 +49,22 @@ export function parseCitation(text) {
  */
 function buildCitationHtml({ title, abstract, version, releaseDate, license, repoUrl, doi, commit }) {
     const repoPath = repoUrl?.replace(/^https?:\/\/github.com\//, "");
+    const label = (key, fallback) => escapeHtml(getLangString(key, fallback));
     const rows = [
         abstract && `<p>${escapeHtml(abstract)}</p>`,
-        version && `<p>Version: ${escapeHtml(version)}</p>`,
-        releaseDate && `<p>Date: ${escapeHtml(releaseDate)}</p>`,
-        doi && `<p>DOI: <a target="_blank" href="https://doi.org/${escapeHtml(doi)}">${escapeHtml(doi)}</a></p>`,
-        license && `<p>${escapeHtml(getLangString("view.window.about.AboutWindow_License", "License"))}: ${escapeHtml(license)}</p>`,
-        repoUrl && `<p>GitHub: <a target="_blank" href="${escapeHtml(repoUrl)}">${escapeHtml(repoUrl)}</a></p>`,
-        repoUrl && commit && `<p>Revision: <a target="_blank" href="${escapeHtml(repoUrl)}/tree/${escapeHtml(commit)}">${escapeHtml(commit.substring(0, 7))}...</a></p>`,
-        repoUrl && `<p>Contributors: <br/>
+        version && `<p>${label("mobile.About_version", "Version")}: ${escapeHtml(version)}</p>`,
+        releaseDate && `<p>${label("mobile.About_date", "Date")}: ${escapeHtml(releaseDate)}</p>`,
+        doi && `<p>${label("mobile.About_doi", "DOI")}: <a target="_blank" href="https://doi.org/${escapeHtml(doi)}">${escapeHtml(doi)}</a></p>`,
+        license && `<p>${label("view.window.about.AboutWindow_License", "License")}: ${escapeHtml(license)}</p>`,
+        repoUrl && `<p>${label("mobile.About_github", "GitHub")}: <a target="_blank" href="${escapeHtml(repoUrl)}">${escapeHtml(repoUrl)}</a></p>`,
+        repoUrl && commit && `<p>${label("mobile.About_revision", "Revision")}: <a target="_blank" href="${escapeHtml(repoUrl)}/tree/${escapeHtml(commit)}">${escapeHtml(commit.substring(0, 7))}...</a></p>`,
+        repoUrl && `<p>${label("mobile.About_contributors", "Contributors")}: <br/>
             <a target="_blank" href="${escapeHtml(repoUrl)}/graphs/contributors">
-                <img height="50px" src="https://contrib.rocks/image?repo=${escapeHtml(repoPath)}&amp;max=14&amp;columns=7" alt="Avatars of contributors to ${escapeHtml(title ?? repoPath)} in GitHub" />
+                <img height="50px" src="https://contrib.rocks/image?repo=${escapeHtml(repoPath)}&amp;max=14&amp;columns=7" alt="${escapeHtml(getLangString("mobile.About_contributorsAlt", "Avatars of contributors to {0} in GitHub", title ?? repoPath))}" />
             </a></p>`
     ].filter(Boolean).join("\n");
 
-    return `<h2>About ${escapeHtml(title ?? "")}</h2><section>${rows}</section>`;
+    return `<h2>${escapeHtml(getLangString("mobile.About_title", "About {0}", title ?? ""))}</h2><section>${rows}</section>`;
 }
 
 /**
@@ -121,15 +92,8 @@ export async function buildAboutPage() {
     const intro = `
         <h1>${escapeHtml(getLangString("view.window.about.AboutWindow_Title", "About Edirom Online"))}</h1>
         <section>
-            <p>
-                Edirom-Online is a web-based platform for the collaborative editing of complex scholarly digital editions.
-                It is based on the TEI XML standard and provides a rich set of tools for the collaborative editing of texts, images, and other media.
-                Edirom-Online is developed by the Edirom Project.
-            </p>
-            <p>
-                The software consists of two main modules: the frontend and the backend.
-                Information about the parts of the software can be found below.
-            </p>
+            <p>${escapeHtml(getLangString("mobile.About_intro1", "Edirom-Online is a web-based platform for the collaborative editing of complex scholarly digital editions. It is based on the TEI XML standard and provides a rich set of tools for the collaborative editing of texts, images, and other media. Edirom-Online is developed by the Edirom Project."))}</p>
+            <p>${escapeHtml(getLangString("mobile.About_intro2", "The software consists of two main modules: the frontend and the backend. Information about the parts of the software can be found below."))}</p>
         </section>`;
 
     let body;
@@ -143,10 +107,10 @@ export async function buildAboutPage() {
         console.error("Error fetching CITATION.cff files:", error);
         body = `
             <section>
-                <p>Error fetching content from CITATION.cff files.</p>
-                <p>URL of backend CITATION.cff file: ${escapeHtml(backendCitationUrl)}</p>
-                <p>URL of frontend CITATION.cff file: ${escapeHtml(frontendCitationUrl)}</p>
-                <p>When encountering this or other issues persistently, please create a report on <a href="${ISSUES_URL}" target="_blank">${ISSUES_URL}</a></p>
+                <p>${escapeHtml(getLangString("mobile.About_loadError", "Error fetching content from CITATION.cff files."))}</p>
+                <p>${escapeHtml(getLangString("mobile.About_backendUrl", "URL of backend CITATION.cff file:"))} ${escapeHtml(backendCitationUrl)}</p>
+                <p>${escapeHtml(getLangString("mobile.About_frontendUrl", "URL of frontend CITATION.cff file:"))} ${escapeHtml(frontendCitationUrl)}</p>
+                <p>${escapeHtml(getLangString("mobile.About_reportIssue", "When encountering this or other issues persistently, please create a report on"))} <a href="${ISSUES_URL}" target="_blank">${ISSUES_URL}</a></p>
             </section>`;
     }
 

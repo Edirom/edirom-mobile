@@ -1,4 +1,5 @@
 import { appConfig, appState } from "./config.js";
+import { getExplicitLanguage } from "./preferenceController.js";
 
 // Resolved relative to this module (<frontend>/mobile/resources/js/), so three levels up is the
 // Frontend root, where the component lives as a submodule in resources/js/.
@@ -89,7 +90,8 @@ export async function initConnectedWorkspace(applyState) {
 
     const el = document.createElement('edirom-connected-workspace');
     el.setAttribute('ws-url', appConfig.wsUrl);
-    // The component defaults to English; Mobile's UI language is appState.language ("de" by default).
+    // The component defaults to English; Mobile's UI language is appState.language. It is kept up to date by
+    // `setConnectedWorkspaceLanguage`, since the edition's preferences can change the language later.
     el.setAttribute('lang', appState.language);
 
     // The component applies one patch at a time per handler, so a flag (no counter) is enough.
@@ -117,8 +119,9 @@ export async function initConnectedWorkspace(applyState) {
  * Builds and sets the invite-url attribute on the connected workspace element,
  * reflecting the current edition/work/connection context from appState.
  * The invite URL is the current app URL (origin + pathname) with edition, work,
- * and connection parameters set if available, followed by "workspaceSession="
- * (without a value). The connector appends its own session ID to complete the URL.
+ * and connection parameters set if available (and `lang`, if the current URL
+ * asked for a language), followed by "workspaceSession=" (without a value).
+ * The connector appends its own session ID to complete the URL.
  */
 export function updateConnectedWorkspaceInviteUrl() {
     if (!connectedWorkspaceEnabled) return;
@@ -131,12 +134,26 @@ export function updateConnectedWorkspaceInviteUrl() {
     if (appState.edition?.id) params.set('edition', appState.edition.id);
     if (appState.work?.id) params.set('work', appState.work.id);
     if (appState.connection) params.set('connection', appState.connection);
+    // Like Edirom-Frontend, only a language that the URL asked for is passed on; otherwise the invited client
+    // decides on its own, from the same edition preference.
+    const lang = getExplicitLanguage();
+    if (lang) params.set('lang', lang);
 
     const paramStr = params.toString();
     const separator = paramStr ? '&' : '?';
     const inviteUrl = base + (paramStr ? '?' + paramStr : '') + separator + 'workspaceSession=';
 
     el.setAttribute('invite-url', inviteUrl);
+}
+
+/**
+ * Sets the language of the connected workspace's texts. The component re-translates itself when its `lang`
+ * attribute changes. Does nothing while the connected workspace is disabled.
+ * @param {string} language - The language code, e.g. "de" or "en"
+ */
+export function setConnectedWorkspaceLanguage(language) {
+    if (!connectedWorkspaceEnabled) return;
+    getConnectorElement()?.setAttribute('lang', language);
 }
 
 /**
