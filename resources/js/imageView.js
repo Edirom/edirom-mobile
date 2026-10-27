@@ -147,8 +147,13 @@ export function buildImageView(target, config = {}) {
     let _showAnnotations = false;
     let _viewerPageNumber = 1;        // 1-based page the viewer currently shows, in every view mode
 
-    // Resolved once the viewer has drawn its first tile. A page or zone set earlier is lost (or lands on the
-    // wrong page), because the viewer is created asynchronously after `tilesources` is set.
+    // Counts navigations (spin box steps, view activations, zone jumps). A zone jump that waits for the viewer or
+    // for data applies only if no other navigation came in meanwhile.
+    let _navigationId = 0;
+
+    // Resolved once the viewer has loaded its first tile (or after a timeout, should `image-ready` not come). A
+    // zone can only be applied to an open image, and the viewer is created asynchronously after `tilesources`.
+    // A page needs no waiting: the viewer opens on the page requested before it exists.
     let _imageReady = Promise.resolve();
     function resetImageReady() {
         _imageReady = new Promise(resolve => {
@@ -190,6 +195,7 @@ export function buildImageView(target, config = {}) {
         const idx = findNearestIndex(_labels, label, _currentSequenceIndex);
         if (idx === -1) return;
         _currentSequenceIndex = idx;
+        _navigationId++;
         const step = _sequenceData[idx];
         if (step.type === "page") {
             imageViewComponent.setAttribute("pagenumber", String(_pageIdToIndex.get(step.id)));
@@ -376,8 +382,11 @@ export function buildImageView(target, config = {}) {
 
     // Navigates the viewer to a measure zone, after loading it if necessary.
     async function gotoZone(measureId) {
+        const navigationId = ++_navigationId;
         await ensureZoneLoaded(measureId);
         await _imageReady;
+        // The user stepped elsewhere while the zone was loading or the viewer was opening.
+        if (navigationId !== _navigationId) return;
         if (_viewMode !== "measure-view") return;
         if (!_navZones[measureId]) {
             console.warn(`Image view: no zone found for measure "${measureId}".`);
@@ -440,10 +449,10 @@ export function buildImageView(target, config = {}) {
         spinBox.setAttribute("current-step", _pageLabels[idx]);
         viewModeButton.setAttribute("current-state", "page-view");
 
-        const pageNumber = String(_pageIdToIndex.get(_pageSequenceData[idx].id));
-        await _imageReady;
-        if (_viewMode !== "page-view") return;
-        imageViewComponent.setAttribute("pagenumber", pageNumber);
+        // Set at once: the viewer opens on a page requested before it exists, so there is nothing to wait for
+        // (and a late write would undo a page the user has stepped to in the meantime).
+        _navigationId++;
+        imageViewComponent.setAttribute("pagenumber", String(_pageIdToIndex.get(_pageSequenceData[idx].id)));
     }
 
     // --- activateMeasureView ---
