@@ -113,6 +113,21 @@ export async function getMeasuresOnPage(uri, pageId, edition, backendUrl = appCo
 }
 
 /**
+ * Fetches the annotations that refer to the measures or zones on a page of a source, as the image viewer
+ * shows them (Edirom-Frontend's `SourceView` controller).
+ * @param {string} uri - The URI of the source document
+ * @param {string} pageId - The xml:id of the page (surface)
+ * @param {string} edition - The edition URI
+ * @param {string} [backendUrl] - The backend base URL
+ * @returns {Promise<Array<{id: string, uri: string, plist: Array<{id: string, type: string, ulx: number, uly: number, lrx: number, lry: number}>, priority: string, categories: string}>|null>}
+ *   The annotations, or null on error
+ */
+export async function getAnnotationsOnPage(uri, pageId, edition, backendUrl = appConfig.backendUrl) {
+    const data = await fetchJSON(buildUrl("getAnnotationsOnPage.xql", { uri, pageId, edition }, backendUrl));
+    return data;
+}
+
+/**
  * Fetches the rendered HTML text for a document URI within an edition.
  * @param {string} uri - The document URI to fetch text for
  * @param {string} edition - The edition URI

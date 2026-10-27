@@ -1,7 +1,43 @@
 import { appState } from "./config.js";
 import { getLangString } from "./languageController.js";
-import { getPages, getMovements, getMeasures, getMeasurePage, getMeasuresOnPage } from "./api.js";
+import { getPages, getMovements, getMeasures, getMeasurePage, getMeasuresOnPage, getAnnotationsOnPage } from "./api.js";
+import { getPreference } from "./preferenceController.js";
+import { buildTileSource, resolveImagePrefix } from "./imageServer.js";
+import { loadLinks } from "./linkController.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
+
+// How long a fresh viewer may take to draw its first tile before the initial page/zone is applied anyway.
+const IMAGE_READY_TIMEOUT_MS = 5000;
+
+// Annotation category -> host-supplied icon markup, the same as Edirom-Frontend's ImageViewer.js: the viewer
+// has no icon knowledge and inserts whatever zone.iconHtml it is given.
+const ANNOTATION_ICON_MARKUP = {
+    "annotation.category.beschreibung": '<edirom-icon name="description"></edirom-icon>',
+    "annotation.category.rasurTektur": '<edirom-icon name="ink_eraser"></edirom-icon>'
+};
+
+// Annotation badges: the scale they have when the whole page is shown, and the largest scale they reach when
+// zoomed in (see updateBadgeScale).
+const BADGE_SCALE_MIN = 0.6;
+const BADGE_SCALE_MAX = 1.5;
+
+/**
+ * The URL of the Frontend root. Mobile is served from its `mobile/` directory, and relative URLs in the
+ * preferences (image_prefix, additional_css_path) are written for the Frontend page, like `../config.json`.
+ * @returns {string}
+ */
+function getFrontendBaseUrl() {
+    return new URL("../", document.baseURI).href;
+}
+
+/**
+ * Destroys the OpenSeadragon viewers inside `root`. The viewer element does not do that when it is removed,
+ * which would leave its WebGL context behind.
+ * @param {ParentNode} root - The element that is about to be emptied or replaced
+ */
+export function disposeImageViewers(root) {
+    root?.querySelectorAll?.("edirom-image-viewer").forEach(viewer => viewer.openSeaDragon?.destroy());
+}
 
 /**
  * Returns the index of the occurrence of `value` in `arr` (compared as strings)
@@ -46,6 +82,17 @@ export function buildImageView(target, config = {}) {
     imageViewComponent.setAttribute("sequencemode", "true");
     // Hide OSD's built-in sequence controls; the spin box handles navigation.
     imageViewComponent.setAttribute("showsequencecontrol", "false");
+    // Host stylesheets that are cloned into the viewer's shadow root: the measure number / annotation badge
+    // rules of the Frontend, Mobile's touch adjustments, and the edition's own CSS (like Edirom-Frontend).
+    const overlayStylesheets = [
+        new URL("resources/css/annotation-style.css", getFrontendBaseUrl()).href,
+        new URL("resources/css/image-overlays.css", document.baseURI).href
+    ];
+    const additionalCssPath = getPreference("additional_css_path");
+    if (typeof additionalCssPath === "string" && additionalCssPath.includes("/db/")) {
+        overlayStylesheets.push(new URL(additionalCssPath.split("/db/")[1], getFrontendBaseUrl()).href);
+    }
+    imageViewComponent.setAttribute("overlay-stylesheets", JSON.stringify(overlayStylesheets));
 
     const content = document.createElement("div");
     content.id = "view-content";
@@ -84,6 +131,37 @@ export function buildImageView(target, config = {}) {
     let _doc = "";
     let _edition = "";
 
+    // Zones pushed to the viewer's zones-data. Navigation targets (keyed by the raw measure id, without a
+    // `type`, so never drawn) are kept apart from overlays (measure numbers, annotation badges), which carry a
+    // `type` and are only drawn while that type is in the viewer's visible-types.
+    let _navZones = {};               // measureXmlId → { page, ulx, uly, lrx, lry }
+    let _overlayZones = {};           // zone key → zone with `type` "measure" or "annotation"
+    // The key last written to the viewer's `zone`. The viewer re-applies its active zone on every zones-data
+    // push (and never clears it), so this key is left out of pushes unless it is the one being navigated to.
+    let _activeZoneKey = null;
+    let _pageAnnotationsCache = new Map(); // pageId → Promise of getAnnotationsOnPage response
+    let _docGeneration = 0;          // incremented per document, so late responses of an old one are dropped
+
+    // Overlay toggles (per view, not remembered)
+    let _showMeasures = false;
+    let _showAnnotations = false;
+    let _viewerPageNumber = 1;        // 1-based page the viewer currently shows, in every view mode
+
+    // Resolved once the viewer has drawn its first tile. A page or zone set earlier is lost (or lands on the
+    // wrong page), because the viewer is created asynchronously after `tilesources` is set.
+    let _imageReady = Promise.resolve();
+    function resetImageReady() {
+        _imageReady = new Promise(resolve => {
+            const done = () => {
+                clearTimeout(timer);
+                imageViewComponent.removeEventListener("image-ready", done);
+                resolve();
+            };
+            const timer = setTimeout(done, IMAGE_READY_TIMEOUT_MS);
+            imageViewComponent.addEventListener("image-ready", done);
+        });
+    }
+
     // --- getEffectiveMeasuresData ---
     // Returns _measuresData filtered to the active subset, or the full array.
     function getEffectiveMeasuresData() {
@@ -116,13 +194,15 @@ export function buildImageView(target, config = {}) {
         if (step.type === "page") {
             imageViewComponent.setAttribute("pagenumber", String(_pageIdToIndex.get(step.id)));
         } else if (step.type === "zone") {
-            await ensureZoneLoaded(step.id);
-            imageViewComponent.setAttribute("zone", step.id);
+            await gotoZone(step.id);
         }
     });
 
     // Viewer → spin box: update spin box only via viewer feedback events.
     imageViewComponent.addEventListener("page-changed", (event) => {
+        // The shown page is tracked in every view mode, because the overlays belong to it.
+        _viewerPageNumber = event.detail.pageNumber;
+        loadOverlaysForCurrentPage();
         if (_viewMode !== "page-view") return;
         const pageNumber = event.detail.pageNumber;
         const idx = _sequenceData.findIndex(
@@ -144,6 +224,47 @@ export function buildImageView(target, config = {}) {
         }
     });
 
+    // Tapping an annotation badge opens the annotation (the viewer's zone-click does not bubble).
+    imageViewComponent.addEventListener("zone-click", (event) => {
+        const { type, id } = event.detail;
+        if (type === "annotation" && id) {
+            loadLinks(id, { behaviour: "updateViewOrCreateViewWindow" });
+        }
+    });
+
+    // --- Overlay toggle buttons (measure numbers, annotations) ---
+    // Like the toggle buttons of Edirom-Frontend, they keep their icon and show whether they are switched on
+    // by their background: both states have the same icon, and styles.css colours `current-state="on"`.
+    function buildToggleButton(buttonId, iconName, titleKey, titleFallback, setOverlayVisible) {
+        const button = document.createElement("edirom-button-widget");
+        button.id = buttonId;
+        button.setAttribute("states-data", JSON.stringify([
+            { name: "off", iconName },
+            { name: "on", iconName }
+        ]));
+        button.setAttribute("current-state", "off");
+        button.title = getLangString(titleKey, titleFallback);
+        button.addEventListener("button-state-requested", (event) => {
+            event.stopPropagation();
+            const requestedState = event.detail.requestedState;
+            button.setAttribute("current-state", requestedState);
+            setOverlayVisible(requestedState === "on");
+            applyVisibleTypes();
+            loadOverlaysForCurrentPage();
+        });
+        return button;
+    }
+
+    const measureToggleButton = buildToggleButton(
+        "image-measure-toggle-button", "eo_toggle_measures",
+        "view.window.source.SourceView_showMeasures", "Show/hide measures",
+        (visible) => { _showMeasures = visible; });
+
+    const annotationToggleButton = buildToggleButton(
+        "image-annotation-toggle-button", "eo_toggle_annotations",
+        "view.window.source.SourceView_showAnnotations", "Show/hide annotations",
+        (visible) => { _showAnnotations = visible; });
+
     // --- View mode toggle button ---
     const viewModeButton = document.createElement("edirom-button-widget");
     viewModeButton.id = "image-view-mode-button";
@@ -158,8 +279,10 @@ export function buildImageView(target, config = {}) {
     });
 
     // --- Control bar layout ---
-    // [ spacer ] [ viewModeButton ] [ spinBox ]
+    // [ spacer ] [ measureToggle ] [ annotationToggle ] [ viewModeButton ] [ spinBox ]
     controlBar.appendChild(spacer);
+    controlBar.appendChild(measureToggleButton);
+    controlBar.appendChild(annotationToggleButton);
     controlBar.appendChild(viewModeButton);
     controlBar.appendChild(spinBox);
 
@@ -168,29 +291,139 @@ export function buildImageView(target, config = {}) {
     controlBarContainer.appendChild(controlBar);
 
     // --- fetchAndCachePageMeasures ---
-    async function fetchAndCachePageMeasures(pageId) {
-        if (_pageMeasuresCache.has(pageId)) return _pageMeasuresCache.get(pageId);
-        const measures = await getMeasuresOnPage(_doc, pageId, _edition);
-        const result = measures || [];
-        _pageMeasuresCache.set(pageId, result);
+    // Fetches the measures on a page once (concurrent callers share the request) and registers them as
+    // navigation targets and, for the measure numbers, as overlay zones.
+    function fetchAndCachePageMeasures(pageId) {
+        if (!_pageMeasuresCache.has(pageId)) {
+            _pageMeasuresCache.set(pageId, loadPageMeasures(pageId));
+        }
+        return _pageMeasuresCache.get(pageId);
+    }
+
+    async function loadPageMeasures(pageId) {
+        const generation = _docGeneration;
+        const result = (await getMeasuresOnPage(_doc, pageId, _edition)) || [];
+        if (generation !== _docGeneration) return result;
         const page = _pageIdToIndex.get(pageId);
-        const zonesData = JSON.parse(imageViewComponent.getAttribute("zones-data") || "{}");
         for (const m of result) {
             _measurePageIdCache.set(m.id, pageId);
-            zonesData[m.id] = {
-                page,
-                ulx: Number(m.ulx),
-                uly: Number(m.uly),
-                lrx: Number(m.lrx),
-                lry: Number(m.lry)
-            };
+            const rect = { ulx: Number(m.ulx), uly: Number(m.uly), lrx: Number(m.lrx), lry: Number(m.lry) };
+            _navZones[m.id] = { page, ...rect };
+
+            // One number per zone: part-wise sources list several measures (one per part) for the same zone.
+            if (m.name) {
+                const key = `measure:${m.zoneId ?? m.id}`;
+                _overlayZones[key] = {
+                    type: "measure", page, ...rect,
+                    containerClass: "measure", innerClass: "measureInner",
+                    label: String(m.name), group: key
+                };
+            }
         }
-        imageViewComponent.setAttribute("zones-data", JSON.stringify(zonesData));
+        pushZones();
         return result;
     }
 
+    // Fetches the annotations on a page once and registers one badge zone per annotated region.
+    function fetchAndCachePageAnnotations(pageId) {
+        if (!_pageAnnotationsCache.has(pageId)) {
+            _pageAnnotationsCache.set(pageId, loadPageAnnotations(pageId));
+        }
+        return _pageAnnotationsCache.get(pageId);
+    }
+
+    async function loadPageAnnotations(pageId) {
+        const generation = _docGeneration;
+        const annotations = (await getAnnotationsOnPage(_doc, pageId, _edition)) || [];
+        if (generation !== _docGeneration) return annotations;
+        const page = _pageIdToIndex.get(pageId);
+        for (const annotation of annotations) {
+            const categories = (annotation.categories || "").trim();
+            const priority = (annotation.priority || "").trim();
+            const iconHtml = categories.split(/\s+/).map(c => ANNOTATION_ICON_MARKUP[c]).find(Boolean) || "";
+            for (const shape of annotation.plist || []) {
+                const rect = [shape.ulx, shape.uly, shape.lrx, shape.lry];
+                if (rect.some(v => v == null || v === "")) continue;
+                // Annotations on the same region share a container, so their badges stack.
+                const group = `annotation:${shape.id}`;
+                _overlayZones[`${group}:${annotation.id}`] = {
+                    type: "annotation", page,
+                    ulx: Number(shape.ulx), uly: Number(shape.uly), lrx: Number(shape.lrx), lry: Number(shape.lry),
+                    containerClass: "annotation",
+                    innerClass: ["annotIcon", categories, priority, shape.type].filter(Boolean).join(" "),
+                    iconHtml, group,
+                    // zone-click reports this; it is the URI loadLinks needs to open the annotation.
+                    dataId: annotation.uri,
+                    filters: [categories, priority].filter(Boolean).join(" ")
+                };
+            }
+        }
+        pushZones();
+        return annotations;
+    }
+
+    // Writes zones-data from the navigation and overlay zones. The key last navigated to is left out (see
+    // _activeZoneKey) unless it is `targetKey`, which is about to be navigated to.
+    function pushZones(targetKey = null) {
+        const zones = {};
+        for (const [key, zone] of Object.entries(_navZones)) {
+            if (key === _activeZoneKey && key !== targetKey) continue;
+            zones[key] = zone;
+        }
+        Object.assign(zones, _overlayZones);
+        imageViewComponent.setAttribute("zones-data", JSON.stringify(zones));
+    }
+
+    // Navigates the viewer to a measure zone, after loading it if necessary.
+    async function gotoZone(measureId) {
+        await ensureZoneLoaded(measureId);
+        await _imageReady;
+        if (_viewMode !== "measure-view") return;
+        if (!_navZones[measureId]) {
+            console.warn(`Image view: no zone found for measure "${measureId}".`);
+            return;
+        }
+        pushZones(measureId);
+        imageViewComponent.setAttribute("zone", measureId);
+        _activeZoneKey = measureId;
+    }
+
+    // Sets the size of the annotation badges (--badge-scale on the viewer, used by image-overlays.css).
+    // Edirom-Frontend draws them at a fixed size, which suits a large screen. On a phone the whole page is only
+    // a few hundred pixels wide, so full-size badges would cover the measures of a page view. The scale is the
+    // same for all badges: small while the whole page is shown, growing with the square root of how far the user
+    // has zoomed in (relative to the whole page), up to a maximum.
+    function updateBadgeScale() {
+        const viewport = imageViewComponent.openSeaDragon?.viewport;
+        if (!viewport) return;
+        const relativeZoom = viewport.getZoom(true) / viewport.getHomeZoom();
+        if (!(relativeZoom > 0)) return;
+        const scale = Math.min(BADGE_SCALE_MAX, Math.max(BADGE_SCALE_MIN, BADGE_SCALE_MIN * Math.sqrt(relativeZoom)));
+        imageViewComponent.style.setProperty("--badge-scale", scale.toFixed(2));
+    }
+    imageViewComponent.style.setProperty("--badge-scale", String(BADGE_SCALE_MIN));
+    imageViewComponent.addEventListener("zoom", updateBadgeScale);
+    imageViewComponent.addEventListener("image-ready", updateBadgeScale);
+
+    function applyVisibleTypes() {
+        const types = [];
+        if (_showMeasures) types.push("measure");
+        if (_showAnnotations) types.push("annotation");
+        imageViewComponent.setAttribute("visible-types", JSON.stringify(types));
+    }
+
+    // Loads the overlay data of the page the viewer shows, for the overlays that are switched on.
+    async function loadOverlaysForCurrentPage() {
+        const pageId = _fullPages[_viewerPageNumber - 1]?.id;
+        if (!pageId) return;
+        const loads = [];
+        if (_showMeasures) loads.push(fetchAndCachePageMeasures(pageId));
+        if (_showAnnotations) loads.push(fetchAndCachePageAnnotations(pageId));
+        await Promise.all(loads);
+    }
+
     // --- activatePageView ---
-    function activatePageView(targetPageId) {
+    async function activatePageView(targetPageId) {
         _viewMode = "page-view";
         _sequenceData = _pageSequenceData;
         _labels = _pageLabels;
@@ -205,8 +438,12 @@ export function buildImageView(target, config = {}) {
         spinBox.setAttribute("label", getLangString("mobile.ImageView_page", "Page"));
         spinBox.setAttribute("steps-data", JSON.stringify(_pageLabels));
         spinBox.setAttribute("current-step", _pageLabels[idx]);
-        imageViewComponent.setAttribute("pagenumber", String(_pageIdToIndex.get(_pageSequenceData[idx].id)));
         viewModeButton.setAttribute("current-state", "page-view");
+
+        const pageNumber = String(_pageIdToIndex.get(_pageSequenceData[idx].id));
+        await _imageReady;
+        if (_viewMode !== "page-view") return;
+        imageViewComponent.setAttribute("pagenumber", pageNumber);
     }
 
     // --- activateMeasureView ---
@@ -250,15 +487,12 @@ export function buildImageView(target, config = {}) {
 
         // Ensure zone is loaded and navigate
         const step = _measureSequenceData[idx];
-        await ensureZoneLoaded(step.id);
-        imageViewComponent.setAttribute("zone", step.id);
+        await gotoZone(step.id);
     }
 
     // --- ensureZoneLoaded ---
     async function ensureZoneLoaded(measureId) {
-        // Check if zone already in viewer's zones-data
-        const existing = JSON.parse(imageViewComponent.getAttribute("zones-data") || "{}");
-        if (existing[measureId]) return;
+        if (_navZones[measureId]) return;
 
         // Try bulk-fetch via cached pageId
         const cachedPageId = _measurePageIdCache.get(measureId);
@@ -401,6 +635,11 @@ export function buildImageView(target, config = {}) {
                 _measureLabels = [];
                 _measurePageIdCache = new Map();
                 _pageMeasuresCache = new Map();
+                _pageAnnotationsCache = new Map();
+                _navZones = {};
+                _overlayZones = {};
+                _activeZoneKey = null;
+                _docGeneration++;
 
                 const [pagesData, movementsData] = await Promise.all([
                     getPages(doc, _edition),
@@ -416,25 +655,24 @@ export function buildImageView(target, config = {}) {
                 // Build _pageIdToIndex from ALL pages (needed for OSD page numbers)
                 _pageIdToIndex = new Map(pagesData.map((page, index) => [page.id, index + 1]));
 
-                // Build tile sources from ALL pages
-                let tileSources = pagesData.map(page => {
-                    if (page.path && page.path.startsWith("http")) {
-                        return {
-                            "@context": "http://iiif.io/api/image/2/context.json",
-                            "@id": page.path,
-                            "height": Number(page.height),
-                            "width": Number(page.width),
-                            "profile": ["http://iiif.io/api/image/2/level2.json"],
-                            "protocol": "http://iiif.io/api/image",
-                            "tiles": [{ "scaleFactors": [1, 2, 4, 8, 16, 32], "width": 1024 }]
-                        };
-                    }
-                    return page.path;
-                });
+                // Build tile sources from ALL pages, for the edition's image server
+                const imagePrefix = getPreference("image_prefix");
+                const imageSettings = {
+                    imageServer: getPreference("image_server"),
+                    imagePrefix: imagePrefix == null ? undefined : resolveImagePrefix(imagePrefix, getFrontendBaseUrl())
+                };
+                const tileSources = pagesData.map(page =>
+                    buildTileSource(page.path, page.width, page.height, imageSettings));
+
+                // Clear the viewer's zones before it is rebuilt, so that its old active zone cannot be
+                // applied to the new document.
+                _viewerPageNumber = 1;
+                imageViewComponent.setAttribute("zones-data", "{}");
+
                 // Setting tilesources re-initialises the OSD viewer, so only do it when the
                 // document actually changes.
+                resetImageReady();
                 imageViewComponent.setAttribute("tilesources", JSON.stringify(tileSources));
-                imageViewComponent.setAttribute("zones-data", "{}");
             }
 
             // --- Subset logic ---

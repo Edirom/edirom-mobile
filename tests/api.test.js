@@ -31,6 +31,7 @@ const REQUESTS = [
     ["getMeasures.xql", () => api.getMeasures("uri", "ed", "mdiv")],
     ["getMeasurePage.xql", () => api.getMeasurePage("id", "ed", "1")],
     ["getMeasuresOnPage.xql", () => api.getMeasuresOnPage("uri", "page", "ed")],
+    ["getAnnotationsOnPage.xql", () => api.getAnnotationsOnPage("uri", "page", "ed")],
     ["getText.xql", () => api.getText("uri", "ed")],
     ["getAnnotations.xql", () => api.getAnnotations("ed", "uri")],
     ["getConcordances.xql", () => api.getConcordances("ed", "work")],

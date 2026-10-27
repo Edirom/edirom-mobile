@@ -4,6 +4,7 @@ import { buildNavigator, navigateBackInNavigator } from "./navigator.js";
 import { getAllEditions } from "./api.js";
 import { initEdition } from "./main.js";
 import { resetContentLoadingState } from "./loading.js";
+import { disposeImageViewers } from "./imageView.js";
 
 // Flag to skip the next popstate event (set when we call history.go(1) ourselves)
 let skipNextPopstate = false;
@@ -97,6 +98,7 @@ export async function switchPage(pageName, newContent, { pushState = true, repla
     const resolvedContent = await newContent;
 
     const contentContainer = document.getElementById("content-container");
+    disposeImageViewers(contentContainer);
     contentContainer.innerHTML = "";
     contentContainer.appendChild(resolvedContent);
     setAppState({ page: pageName });

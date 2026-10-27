@@ -3,7 +3,7 @@ import { switchPage } from "./pages.js";
 import { getLinkTarget } from "./api.js";
 import { getLangString } from "./languageController.js";
 import { buildAnnotationView } from "./annotationView.js";
-import { buildImageView } from "./imageView.js";
+import { buildImageView, disposeImageViewers } from "./imageView.js";
 import { buildTextView } from "./textView.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
 import { showContentLoading, hideContentLoading, resetContentLoadingState } from "./loading.js";
@@ -284,7 +284,9 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
     currentViewControlBarWidget = view.controlBarWidget;
     currentViewControlBarWidget.classList.remove("filtered-state");
 
-    viewsContainer.querySelector("#view-content").replaceWith(view.content);
+    const previousContent = viewsContainer.querySelector("#view-content");
+    disposeImageViewers(previousContent);
+    previousContent.replaceWith(view.content);
 
     const controlBarSlot = viewsContainer.querySelector("#view-control-bar-wrapper");
     controlBarSlot.innerHTML = "";

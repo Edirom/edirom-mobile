@@ -551,6 +551,12 @@ edirom-button-widget {
   --secondary-color: color-mix(in oklch, var(--edirom-mobile-secondary-color) 95%, black);
 }
 
+/* A switched-on toggle button (state "on", e.g. measure numbers, annotations) has a darker background, like
+   the pressed buttons of Edirom-Frontend. */
+edirom-button-widget[current-state="on"] {
+  --secondary-color: color-mix(in oklch, var(--edirom-mobile-secondary-color) 75%, black);
+}
+
 edirom-spin-box-widget {
   --primary-color: color-mix(in oklch, var(--edirom-mobile-secondary-color) 95%, black);
   --spin-box-input-width: 4ch;
