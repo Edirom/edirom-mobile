@@ -59,8 +59,8 @@ export function isApplyingRemoteState() {
  * removed, and every other exported function in this module becomes a no-op.
  *
  * Otherwise, the component module is loaded on demand, the element is created
- * with the configured `ws-url`, the app's state handler is registered on it,
- * and it is appended to `#edirom-connected-workspace-container` in the header.
+ * with the configured `ws-url`, appended to `#edirom-connected-workspace-container`
+ * in the header, and the app's state handler is registered on it.
  *
  * @param {(patch: Object) => Promise<void>} applyState - Moves the app to the
  *   state in `patch` (a subset of edition/work/connection) after the server
@@ -104,46 +104,58 @@ export async function initConnectedWorkspace(applyState) {
         }
     };
 
+    container.appendChild(el);
+    connectorElement = el;
+    connectedWorkspaceEnabled = true;
+
+    // Like Edirom-Frontend, wait until the element is upgraded before using its methods.
+    await customElements.whenDefined('edirom-connected-workspace');
     if (typeof el.registerStateHandler === 'function') {
         el.registerStateHandler({ keys: SYNCED_STATE_KEYS, get: getSyncedState, apply: applyRemoteState });
     } else {
         console.warn('initConnectedWorkspace: the connected workspace component has no state sync support (outdated version); sessions will not sync state.');
     }
-
-    container.appendChild(el);
-    connectorElement = el;
-    connectedWorkspaceEnabled = true;
 }
 
 /**
- * Builds and sets the invite-url attribute on the connected workspace element,
- * reflecting the current edition/work/connection context from appState.
- * The invite URL is the current app URL (origin + pathname) with edition, work,
- * and connection parameters set if available (and `lang`, if the current URL
- * asked for a language), followed by "workspaceSession=" (without a value).
- * The connector appends its own session ID to complete the URL.
+ * Builds and sets the invite-url attribute on the connected workspace element.
+ * Like Edirom-Frontend, the invite URL has only `edition`, `work` and `lang` (if the current URL asked for a
+ * language) set. It points to the Frontend's index.html and not to Mobile's own page, so that the joining device
+ * gets the UI that fits it (see device-gateway.js, which keeps the query string). The connection is not part of
+ * it: a joining client
+ * receives it through the session state sync. The connector appends its own `session` parameter, which both
+ * Edirom-Frontend and Edirom Mobile join automatically on startup.
+ *
+ * Unlike Frontend, edition and work come from `appState` and not from the current URL, because Mobile does not
+ * update its location when the user navigates.
  */
 export function updateConnectedWorkspaceInviteUrl() {
     if (!connectedWorkspaceEnabled) return;
-    const el = document.querySelector('edirom-connected-workspace');
+    const el = getConnectorElement();
     if (!el) return;
 
-    const base = window.location.origin + window.location.pathname;
+    el.setAttribute('invite-url', buildInviteUrl());
+}
+
+/**
+ * The invite URL for the current context, see `updateConnectedWorkspaceInviteUrl`.
+ * @returns {string}
+ */
+export function buildInviteUrl() {
     const params = new URLSearchParams();
 
     if (appState.edition?.id) params.set('edition', appState.edition.id);
     if (appState.work?.id) params.set('work', appState.work.id);
-    if (appState.connection) params.set('connection', appState.connection);
-    // Like Edirom-Frontend, only a language that the URL asked for is passed on; otherwise the invited client
-    // decides on its own, from the same edition preference.
+    // Only a language that the URL asked for is passed on; otherwise the invited client decides on its own,
+    // from the same edition preference.
     const lang = getExplicitLanguage();
     if (lang) params.set('lang', lang);
 
-    const paramStr = params.toString();
-    const separator = paramStr ? '&' : '?';
-    const inviteUrl = base + (paramStr ? '?' + paramStr : '') + separator + 'workspaceSession=';
-
-    el.setAttribute('invite-url', inviteUrl);
+    // Not Mobile's own page (<frontend>/mobile/index.html), which would open the mobile UI on every device.
+    // The Frontend's index.html decides by device type, like it does for a link that Desktop creates.
+    const frontendIndex = new URL('../index.html', window.location.origin + window.location.pathname);
+    for (const [name, value] of params) frontendIndex.searchParams.set(name, value);
+    return frontendIndex.toString();
 }
 
 /**
@@ -157,13 +169,13 @@ export function setConnectedWorkspaceLanguage(language) {
 }
 
 /**
- * Instructs the connected workspace to join an existing session by ID.
- * If the element or session ID is not available, this is a no-op.
+ * Instructs the connected workspace to join an existing session by ID (the `session` URL parameter of an
+ * invite link). If the element or session ID is not available, this is a no-op.
  * @param {string|null} sessionId - The session ID to join
  */
 export function applyWorkspaceSession(sessionId) {
     if (!connectedWorkspaceEnabled) return;
-    const el = document.querySelector('edirom-connected-workspace');
+    const el = getConnectorElement();
     if (!el || !sessionId) return;
     el.setAttribute('session', sessionId);
 }

@@ -95,6 +95,17 @@ header > div:last-child {
   align-items: center;
 }
 
+/* Only present when a WebSocket URL is configured (see connected-workspace.js). The component fills its
+   container (height: 100%, and its button 100% of that), so without a size here it would collapse to nothing;
+   Edirom-Frontend sizes it the same way (24x24). The size matches the burger icon.
+   The component takes its colors from --primary/secondary/tertiary-color above; --quaternary-color
+   (disconnected icon) falls back to --secondary-color, which is readable on the header. */
+#edirom-connected-workspace-container {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+}
+
 #view-header {
   display: flex;
   align-items: center;

@@ -171,20 +171,39 @@ function normalizeParam(value) {
     return trimmedValue === "" ? null : trimmedValue;
 }
 
+// The end of the last navigation started through `applyUrlParams`. A state the ws-server asks for can arrive
+// while the startup navigation is still loading the edition; both must not run at the same time.
+let navigationQueue = Promise.resolve();
+
 /**
  * Applies a set of URL search parameters to initialize the app in the
  * corresponding state. Enforces the `edition > work > connection` hierarchy
  * (work requires edition; connection requires both) and delegates to
  * `initEdition`. This is the single point where URL parameters are translated
- * into app state, used both on startup and when a self-link is activated.
+ * into app state, used on startup, when a self-link is activated and when the
+ * connected workspace moves the app to a synced state. Calls are run one after
+ * the other.
+ *
+ * A `session` parameter (the invite link of a connected workspace session, like
+ * in Edirom-Frontend) joins that session, but only after the navigation is done:
+ * the first state that the ws-server sends to a joiner must not race it.
  * @param {URLSearchParams} urlParams - The parameters to apply
  * @returns {Promise<void>}
  */
-export async function applyUrlParams(urlParams) {
+export function applyUrlParams(urlParams) {
+    const run = navigationQueue.then(async () => {
+        await runUrlParams(urlParams);
+        applyWorkspaceSession(normalizeParam(urlParams.get("session")));
+    });
+    // A failed navigation must not block the ones after it
+    navigationQueue = run.catch(() => {});
+    return run;
+}
+
+async function runUrlParams(urlParams) {
     const editionId = normalizeParam(urlParams.get("edition"));
     let workId = normalizeParam(urlParams.get("work"));
     let connectionId = normalizeParam(urlParams.get("connection"));
-    const workspaceSession = normalizeParam(urlParams.get("workspaceSession"));
 
     // Enforce URL parameter hierarchy without failing startup.
     // work requires edition, and connection requires both edition and work.
@@ -205,7 +224,6 @@ export async function applyUrlParams(urlParams) {
         const navigated = navigateConcordanceNavigatorToConnection(connectionId);
         if (navigated) {
             updateConnectedWorkspaceInviteUrl();
-            if (workspaceSession) applyWorkspaceSession(workspaceSession);
             return;
         }
         // Connection not found in current concordance data — fall through to full reinitialisation.
@@ -219,7 +237,6 @@ export async function applyUrlParams(urlParams) {
         appState.worksInEdition?.length > 0) {
         await initWork(workId, connectionId);
         updateConnectedWorkspaceInviteUrl();
-        if (workspaceSession) applyWorkspaceSession(workspaceSession);
         return;
     }
 
@@ -229,7 +246,6 @@ export async function applyUrlParams(urlParams) {
         connectionId
     });
     updateConnectedWorkspaceInviteUrl();
-    if (workspaceSession) applyWorkspaceSession(workspaceSession);
 }
 
 /**
