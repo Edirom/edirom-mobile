@@ -16,11 +16,6 @@ const ANNOTATION_ICON_MARKUP = {
     "annotation.category.rasurTektur": '<edirom-icon name="ink_eraser"></edirom-icon>'
 };
 
-// Annotation badges: the scale they have when the whole page is shown, and the largest scale they reach when
-// zoomed in (see updateBadgeScale).
-const BADGE_SCALE_MIN = 0.6;
-const BADGE_SCALE_MAX = 1.5;
-
 /**
  * The URL of the Frontend root. Mobile is served from its `mobile/` directory, and relative URLs in the
  * preferences (image_prefix, additional_css_path) are written for the Frontend page, like `../config.json`.
@@ -396,23 +391,6 @@ export function buildImageView(target, config = {}) {
         imageViewComponent.setAttribute("zone", measureId);
         _activeZoneKey = measureId;
     }
-
-    // Sets the size of the annotation badges (--badge-scale on the viewer, used by image-overlays.css).
-    // Edirom-Frontend draws them at a fixed size, which suits a large screen. On a phone the whole page is only
-    // a few hundred pixels wide, so full-size badges would cover the measures of a page view. The scale is the
-    // same for all badges: small while the whole page is shown, growing with the square root of how far the user
-    // has zoomed in (relative to the whole page), up to a maximum.
-    function updateBadgeScale() {
-        const viewport = imageViewComponent.openSeaDragon?.viewport;
-        if (!viewport) return;
-        const relativeZoom = viewport.getZoom(true) / viewport.getHomeZoom();
-        if (!(relativeZoom > 0)) return;
-        const scale = Math.min(BADGE_SCALE_MAX, Math.max(BADGE_SCALE_MIN, BADGE_SCALE_MIN * Math.sqrt(relativeZoom)));
-        imageViewComponent.style.setProperty("--badge-scale", scale.toFixed(2));
-    }
-    imageViewComponent.style.setProperty("--badge-scale", String(BADGE_SCALE_MIN));
-    imageViewComponent.addEventListener("zoom", updateBadgeScale);
-    imageViewComponent.addEventListener("image-ready", updateBadgeScale);
 
     function applyVisibleTypes() {
         const types = [];

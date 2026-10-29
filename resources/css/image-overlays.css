@@ -1,17 +1,8 @@
 /*
- * Touch adjustments for the overlays of <edirom-image-viewer> (measure numbers, annotation badges).
+ * Touch adjustments for the overlays of <edirom-image-viewer> (measure numbers).
  * Not linked from index.html: the image view lists it in the viewer's `overlay-stylesheets`, which clones it
  * into the viewer's shadow root after the Frontend's annotation-style.css, whose rules it builds on.
  */
-
-/* The badges have a fixed size in CSS pixels, while the regions they sit in grow and shrink with the zoom.
-   imageView.js sets --badge-scale on the viewer (small while the whole page is shown, up to 1.5 when zoomed
-   in), which is inherited into the shadow root. `zoom` scales the box together with the category glyphs inside
-   it, whose positions annotation-style.css tunes for the unscaled box, and keeps the stacking of several badges
-   right. */
-.annotation .annotIcon {
-    zoom: var(--badge-scale, 1);
-}
 
 .measureInner {
     font-size: 14px;

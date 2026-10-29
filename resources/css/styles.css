@@ -1,5 +1,15 @@
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap");
 
+/* Bravura draws the musical symbols in the annotation badges of <edirom-image-viewer>. The badge rules
+   (annotation-style.css) are cloned into the viewer's shadow root, but a @font-face only takes effect in the
+   main document, from where the family is available to the shadow root as well. The font files are the
+   Frontend's (this page is served from <frontend>/mobile/); the Frontend declares it the same way in its theme. */
+@font-face {
+  font-family: 'Bravura';
+  src: url('../../../resources/fonts/bravura/woff/Bravura.woff') format('woff'),
+       url('../../../resources/fonts/bravura/otf/Bravura.otf') format('opentype');
+}
+
 :root {
   --edirom-filtered-highlight: #ff1a01;
   --edirom-mobile-primary-color: #232a44;
