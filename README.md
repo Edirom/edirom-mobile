@@ -28,3 +28,19 @@ Example:
 ```text
 http://localhost:8089/mobile/index.html?edition=edirom_edition_example&work=edirom_work_291f7ad8-9bb8-45eb-9186-801dec2f80d9&connection=test2
 ```
+
+## Preferences
+
+Edirom Mobile reads the edition's preferences (`prefs.xml`, see `resources/js/preferenceController.js`). Options of the `<web-components>` section are read with `getWebComponentOption` / `getWebComponentFlag`.
+
+- `edirom_concordance_navigator` → `enable_qr_code_scanner`: the QR-code scanner of the Concordance Navigator is **off by default**. It is only enabled if the edition sets `value="true"`:
+
+  ```xml
+  <web-components>
+      <web-component key="edirom_concordance_navigator">
+          <option key="enable_qr_code_scanner" value="true"/>
+      </web-component>
+  </web-components>
+  ```
+
+  Boolean options are opt-in: anything but `true` (case-insensitive) counts as off.

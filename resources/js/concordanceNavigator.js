@@ -1,6 +1,7 @@
 import { getConcordances } from "./api.js";
 import { appState, setAppState } from "./config.js";
 import { getLangString } from "./languageController.js";
+import { getWebComponentFlag } from "./preferenceController.js";
 import { loadLinks } from "./linkController.js";
 import { clearConcordanceFromNavigator } from "./navigator.js";
 import { removeCurrentViewSubset } from "./views.js";
@@ -34,7 +35,8 @@ function hasConnectionId(concordances, connectionId) {
  * Initializes the concordance navigator component in the page footer.
  * Fetches concordance data for the current work, creates the
  * `<edirom-concordance-navigator>` web component, and wires up event
- * listeners for connection changes, QR scans, and the disabled state.
+ * listeners for connection changes, QR scans, and the disabled state. The QR scanner is only enabled if the
+ * edition's preferences set the `enable_qr_code_scanner` option of `edirom_concordance_navigator` to "true".
  * @param {string|null} [connectionId=null] - Optional connection ID to preselect
  * @returns {Promise<{initialConnectionResolved: boolean}>} Whether startup connection deep-link was resolved
  */
@@ -60,17 +62,21 @@ export async function initConcordanceNavigator(connectionId = null) {
         : Promise.resolve(true);
 
     concordanceNavigatorElement.setAttribute("layout-mode", "mobile");
-    concordanceNavigatorElement.setAttribute('enable-qr-code-scanner', 'true');
     concordanceNavigatorElement.setAttribute("concordances-data", JSON.stringify(concordances));
     concordanceNavigatorElement.setAttribute("inject-disabled-concordance", getLangString("mobile.ConcordanceNavigator_freeExploration", "Free exploration"));
     // Arrow navigation skips connections with no targets; explicit selection (slider, text
     // input, deep-link) still lands on them.
     concordanceNavigatorElement.setAttribute("skip-empty-connections", "");
-    // Build a regex that matches only URLs sharing the current client's origin and pathname,
-    // so the embedded QR scanner filters at scan time and only self-links fire qr-code-scanned.
-    const escapedOrigin = window.location.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const escapedPathname = window.location.pathname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    concordanceNavigatorElement.setAttribute("qr-regex", `^${escapedOrigin}${escapedPathname}`);
+    // The QR scanner is opt-in: the edition's preferences have to enable it explicitly. The attribute is a
+    // presence flag in the component (`enable-qr-code-scanner="false"` would enable it too), so it is only set when on.
+    if (getWebComponentFlag("edirom_concordance_navigator", "enable_qr_code_scanner")) {
+        concordanceNavigatorElement.setAttribute("enable-qr-code-scanner", "");
+        // Build a regex that matches only URLs sharing the current client's origin and pathname,
+        // so the embedded QR scanner filters at scan time and only self-links fire qr-code-scanned.
+        const escapedOrigin = window.location.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapedPathname = window.location.pathname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        concordanceNavigatorElement.setAttribute("qr-regex", `^${escapedOrigin}${escapedPathname}`);
+    }
     if (connectionExists) {
         concordanceNavigatorElement.setAttribute("current-connection", connectionId);
     }

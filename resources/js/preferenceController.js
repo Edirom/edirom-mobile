@@ -71,3 +71,26 @@ export function getPreference(key) {
     }
     return preferences?.[key];
 }
+
+/**
+ * Returns an option of a web component from the `<web-components>` section of the preferences, e.g. the `url`
+ * option of `edirom_keycloak_handler`. The backend serialises every value as a string.
+ * @param {string} componentKey - The `key` of the `<web-component>`, e.g. "edirom_concordance_navigator"
+ * @param {string} optionKey - The `key` of its `<option>`, e.g. "enable_qr_code_scanner"
+ * @returns {string|undefined} The option value, or undefined if the preferences don't set it
+ */
+export function getWebComponentOption(componentKey, optionKey) {
+    return preferences?.["web-components"]?.[componentKey]?.[optionKey];
+}
+
+/**
+ * Reads a boolean option of a web component. It is opt-in: only the value "true" (ignoring case and
+ * surrounding whitespace) turns it on; a missing option, "false" or anything else leaves it off.
+ * @param {string} componentKey - The `key` of the `<web-component>`
+ * @param {string} optionKey - The `key` of its `<option>`
+ * @returns {boolean} Whether the option is explicitly enabled
+ */
+export function getWebComponentFlag(componentKey, optionKey) {
+    const value = getWebComponentOption(componentKey, optionKey);
+    return typeof value === "string" && value.trim().toLowerCase() === "true";
+}

@@ -6,7 +6,9 @@ import {
     getURLParameter,
     getExplicitLanguage,
     initPreferences,
-    getPreference
+    getPreference,
+    getWebComponentOption,
+    getWebComponentFlag
 } from "../resources/js/preferenceController.js";
 
 const realFetch = globalThis.fetch;
@@ -133,4 +135,36 @@ test("getExplicitLanguage only knows what the URL asks for", async () => {
     assert.equal(getExplicitLanguage(), null);
     setSearch("?lang=en");
     assert.equal(getExplicitLanguage(), "en");
+});
+
+test("web component options are read from the web-components section", async () => {
+    stubPreferences({
+        "web-components": { edirom_concordance_navigator: { enable_qr_code_scanner: "true", other: "x" } }
+    });
+    await initPreferences("ed");
+    assert.equal(getWebComponentOption("edirom_concordance_navigator", "other"), "x");
+    assert.equal(getWebComponentOption("edirom_concordance_navigator", "missing"), undefined);
+    assert.equal(getWebComponentOption("missing_component", "other"), undefined);
+});
+
+test("web component options are undefined, and flags off, while no preferences are loaded or without the section", async () => {
+    stubPreferences(null);
+    await initPreferences("ed");
+    assert.equal(getWebComponentOption("edirom_concordance_navigator", "enable_qr_code_scanner"), undefined);
+    assert.equal(getWebComponentFlag("edirom_concordance_navigator", "enable_qr_code_scanner"), false);
+
+    stubPreferences({ "web-components": {} });
+    await initPreferences("ed");
+    assert.equal(getWebComponentFlag("edirom_concordance_navigator", "enable_qr_code_scanner"), false);
+});
+
+test("a web component flag is only on for an explicit \"true\"", async () => {
+    const cases = [["true", true], ["TRUE", true], [" true ", true],
+        ["false", false], ["", false], ["1", false], ["yes", false], ["tru", false], [undefined, false]];
+    for (const [value, expected] of cases) {
+        const options = value === undefined ? {} : { enable_qr_code_scanner: value };
+        stubPreferences({ "web-components": { edirom_concordance_navigator: options } });
+        await initPreferences("ed");
+        assert.equal(getWebComponentFlag("edirom_concordance_navigator", "enable_qr_code_scanner"), expected, String(value));
+    }
 });
