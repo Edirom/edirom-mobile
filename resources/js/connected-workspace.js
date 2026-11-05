@@ -169,6 +169,16 @@ export function setConnectedWorkspaceLanguage(language) {
 }
 
 /**
+ * ID of the session this device is in, or null (also while the connected workspace is disabled).
+ * Passed on when switching to the Desktop UI, so the device stays in the session.
+ * @returns {string|null}
+ */
+export function getWorkspaceSessionId() {
+    if (!connectedWorkspaceEnabled) return null;
+    return getConnectorElement()?.sessionId ?? null;
+}
+
+/**
  * Instructs the connected workspace to join an existing session by ID (the `session` URL parameter of an
  * invite link). If the element or session ID is not available, this is a no-op.
  * @param {string|null} sessionId - The session ID to join

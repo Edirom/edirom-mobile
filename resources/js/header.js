@@ -4,6 +4,7 @@ import { appState } from "./config.js";
 import { getLangString } from "./languageController.js";
 import { getExplicitLanguage } from "./preferenceController.js";
 import { initWork } from "./main.js";
+import { getWorkspaceSessionId } from "./connected-workspace.js";
 
 /**
  * Builds the header navigation menu as a `<ul>` element containing links for
@@ -58,6 +59,10 @@ function buildHeaderMenu() {
         // the same edition preference.
         const lang = getExplicitLanguage();
         if (lang) params.set("lang", lang);
+        // Stay in the Connected Workspace session. The workspace also remembers it per tab
+        // (sessionStorage); the parameter covers a browser that blocks that.
+        const session = getWorkspaceSessionId();
+        if (session) params.set("session", session);
 
         // Deliberate exit: skip the "Leave site?" dialog for this navigation only
         allowNextUnload();
