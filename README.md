@@ -44,3 +44,17 @@ Edirom Mobile reads the edition's preferences (`prefs.xml`, see `resources/js/pr
   ```
 
   Boolean options are opt-in: anything but `true` (case-insensitive) counts as off.
+
+## Theming
+
+Colours are not hard-coded. `resources/css/theme-edirom.css` defines the palette as CSS custom properties (the Edirom grey palette, with the names used by Edirom-Frontend's `eo-palette.css`) and is loaded before `styles.css`:
+
+| Token | Default | Used for |
+|---|---|---|
+| `--eo-primary` | `#333333` | dark surfaces (header, menu, buttons, concordance bar); text on light surfaces |
+| `--eo-secondary` | `#cccccc` | text on dark surfaces, view header, control bar fills |
+| `--eo-tertiary` | `#ffffff` | page background, popovers, input fields |
+| `--eo-highlight` | `#f9d76e` | "filter active" indicator |
+| `--eo-background` | `#586e75` | not used by Mobile at the moment |
+
+`styles.css` maps these to the generic `--primary-color`, `--secondary-color` and `--tertiary-color` that the web components read. To use another colour scheme, load a file that sets the same `--eo-*` names instead of `theme-edirom.css`.

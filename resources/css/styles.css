@@ -10,15 +10,14 @@
        url('../../../resources/fonts/bravura/otf/Bravura.otf') format('opentype');
 }
 
+/* Colours: the palette (--eo-*) comes from the theme file loaded before this stylesheet
+   (theme-edirom.css). Nothing below uses a brand colour literal; the generic names are the
+   contract the web components read (--primary-color etc.), and are filled from the palette here. */
 :root {
-  --edirom-filtered-highlight: #ff1a01;
-  --edirom-mobile-primary-color: #232a44;
-  --edirom-mobile-secondary-color: #e9d9af;
-  --edirom-mobile-tertiary-color: #faf6f0;
-  --filtered-highlight: var(--edirom-filtered-highlight);
-  --primary-color: var(--edirom-mobile-primary-color);
-  --secondary-color: var(--edirom-mobile-secondary-color);
-  --tertiary-color: var(--edirom-mobile-tertiary-color);
+  --filtered-highlight: var(--eo-highlight);
+  --primary-color: var(--eo-primary);
+  --secondary-color: var(--eo-secondary);
+  --tertiary-color: var(--eo-tertiary);
   --header-height: 55px;
   --view-header-height: 0px;
   --control-bar-height: 40px;
@@ -27,15 +26,17 @@
   --viewport-height: 100dvh;
 }
 
+/* Set on the element itself (not just inherited from :root), because a component's own :host defaults
+   would win over an inherited value. They read the palette, not the generic names (that would be a cycle). */
 edirom-navigator {
-  --primary-color: var(--edirom-mobile-primary-color);
-  --secondary-color: var(--edirom-mobile-secondary-color);
-  --tertiary-color: var(--edirom-mobile-tertiary-color);
+  --primary-color: var(--eo-primary);
+  --secondary-color: var(--eo-secondary);
+  --tertiary-color: var(--eo-tertiary);
 }
 
 edirom-control-bar {
-  --primary-color: var(--edirom-mobile-primary-color);
-  --secondary-color: var(--edirom-mobile-secondary-color);
+  --primary-color: var(--eo-primary);
+  --secondary-color: var(--eo-secondary);
   --control-bar-padding: 5px 13px;
 }
 
@@ -68,8 +69,8 @@ body {
 
 header {
   position: relative;
-  background-color: var(--primary-color);
-  color: var(--secondary-color);
+  background-color: var(--mobile-bar-background);
+  color: var(--mobile-bar-color);
   height: 35px;
   padding: 10px;
   display: flex;
@@ -193,7 +194,7 @@ header > div:last-child {
 }
 
 .header-menu li + li {
-  border-top: 1px solid rgba(35, 42, 68, 0.08);
+  border-top: 1px solid color-mix(in oklch, var(--primary-color) 8%, transparent);
 }
 
 .header-menu a {
@@ -223,7 +224,7 @@ footer {
   position: fixed;
   min-height: var(--base-footer-height);
   background-color: transparent;
-  color: var(--secondary-color);
+  color: var(--mobile-bar-color);
   left: 0;
   right: 0;
   bottom: 0;
@@ -392,7 +393,7 @@ h2 {
   transform: translateX(-50%);
   background-color: var(--primary-color);
   color: var(--secondary-color);
-  border: 1px solid rgba(233, 217, 175, 0.6);
+  border: 1px solid color-mix(in oklch, var(--secondary-color) 60%, transparent);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 1em;
@@ -569,19 +570,21 @@ h2 {
 }
 
 edirom-button-widget {
-  --secondary-color: color-mix(in oklch, var(--edirom-mobile-secondary-color) 95%, black);
+  --secondary-color: color-mix(in oklch, var(--eo-secondary) 95%, black);
 }
 
 /* A switched-on toggle button (state "on", e.g. measure numbers, annotations) has a darker background, like
    the pressed buttons of Edirom-Frontend. */
 edirom-button-widget[current-state="on"] {
-  --secondary-color: color-mix(in oklch, var(--edirom-mobile-secondary-color) 75%, black);
+  --secondary-color: color-mix(in oklch, var(--eo-secondary) 75%, black);
 }
 
 edirom-spin-box-widget {
-  --primary-color: color-mix(in oklch, var(--edirom-mobile-secondary-color) 95%, black);
+  --primary-color: color-mix(in oklch, var(--eo-secondary) 95%, black);
   --spin-box-input-width: 4ch;
-  --spin-box-border-color: color-mix(in oklch, var(--edirom-mobile-secondary-color) 80%, black);
+  --spin-box-border-color: color-mix(in oklch, var(--eo-secondary) 80%, black);
+  --spin-box-input-color: var(--eo-primary);
+  --spin-box-input-background: var(--eo-tertiary);
 }
 
 edirom-control-bar.filtered-state #view-filter-button {
@@ -601,7 +604,8 @@ edirom-control-bar.filtered-state edirom-spin-box-widget {
 edirom-concordance-navigator {
   width: 100%;
   min-height: 49px;
-  --concordance-navigator-background: var(--edirom-mobile-primary-color);
+  --concordance-navigator-background: var(--mobile-bar-background);
+  --concordance-navigator-foreground: var(--mobile-bar-color);
 }
 
 /* ── About page ────────────────────────────────────────────────────── */
@@ -625,7 +629,7 @@ edirom-concordance-navigator {
   left: 0;
   right: 0;
   bottom: var(--base-footer-height);
-  background-color: color-mix(in oklch, var(--edirom-mobile-primary-color) 50%, transparent);
+  background-color: color-mix(in oklch, var(--eo-primary) 50%, transparent);
   display: none;
   align-items: center;
   justify-content: center;
@@ -638,7 +642,7 @@ edirom-concordance-navigator {
 }
 
 #content-loading-overlay edirom-icon {
-  color: var(--edirom-mobile-secondary-color);
+  color: var(--eo-secondary);
   animation: content-loading-spin 1s linear infinite;
 }
 
