@@ -560,6 +560,65 @@ h2 {
   box-shadow: rgba(0, 0, 0, 0.40) 0px 0px 2px 2px;
 }
 
+/* ── Measure view of part-wise sources: one row per voice (measureStackView.js) ── */
+
+.measure-stack {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background-color: var(--eo-primary);
+}
+
+.voice-row {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+}
+
+.voice-slice {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  background-color: var(--eo-tertiary);
+}
+
+.voice-slice edirom-image-viewer {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The voice's name, top left over the row (like Edirom-Frontend's part label). */
+.voice-row-label {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  max-width: calc(100% - 8px);
+  padding: 1px 6px;
+  border-radius: 3px;
+  background-color: color-mix(in oklch, var(--eo-primary) 75%, transparent);
+  color: var(--eo-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.measure-stack-empty {
+  margin: auto;
+  padding: 16px;
+  color: var(--eo-tertiary);
+  text-align: center;
+}
+
 #view-control-bar-container {
   height: var(--control-bar-height);
   color: var(--primary-color);
@@ -585,6 +644,29 @@ edirom-spin-box-widget {
   --spin-box-border-color: color-mix(in oklch, var(--eo-secondary) 80%, black);
   --spin-box-input-color: var(--eo-primary);
   --spin-box-input-background: var(--eo-tertiary);
+}
+
+/* Movement selector: compact in the control bar; the native picker shows the full movement names. */
+edirom-select-widget {
+  --select-widget-max-width: 16ch;
+  --select-widget-border-color: color-mix(in oklch, var(--eo-secondary) 80%, black);
+  --select-widget-color: var(--eo-primary);
+  --select-widget-background: var(--eo-tertiary);
+  flex: 0 1 auto;
+  color: var(--eo-primary);
+}
+
+/* Voice selection: the button looks like the other buttons, and is darker while not all voices are shown
+   (like a switched-on toggle). The sheet takes the palette. */
+edirom-multi-select-widget {
+  --secondary-color: color-mix(in oklch, var(--eo-secondary) 95%, black);
+  --multi-select-accent: var(--eo-primary);
+  --multi-select-panel-background: var(--eo-tertiary);
+  --multi-select-panel-color: var(--eo-primary);
+}
+
+edirom-multi-select-widget:state(partial) {
+  --secondary-color: color-mix(in oklch, var(--eo-secondary) 75%, black);
 }
 
 edirom-control-bar.filtered-state #view-filter-button {

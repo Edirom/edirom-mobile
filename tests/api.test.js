@@ -30,6 +30,8 @@ const REQUESTS = [
     ["getMovements.xql", () => api.getMovements("uri", "ed")],
     ["getMeasures.xql", () => api.getMeasures("uri", "ed", "mdiv")],
     ["getMeasurePage.xql", () => api.getMeasurePage("id", "ed", "1")],
+    ["getMeasure.xql", () => api.getMeasure("id", "ed", "measure_m1_2")],
+    ["getParts.xql", () => api.getParts("uri", "ed")],
     ["getMeasuresOnPage.xql", () => api.getMeasuresOnPage("uri", "page", "ed")],
     ["getAnnotationsOnPage.xql", () => api.getAnnotationsOnPage("uri", "page", "ed")],
     ["getText.xql", () => api.getText("uri", "ed")],
@@ -103,4 +105,14 @@ test("getPreferences and getLanguageFile ask for JSON and pass the edition", asy
         assert.equal(url.searchParams.get("mode"), "json");
         assert.equal(url.searchParams.get("edition"), "ed");
     }
+});
+
+test("getMeasure and getParts send the document and the measure reference", async () => {
+    await api.getMeasure("xmldb:exist:///db/source.xml", "ed", "measure_m1_12?tstamp2=1m+0");
+    await api.getParts("xmldb:exist:///db/source.xml", "ed");
+    assert.equal(calls[0].url.searchParams.get("id"), "xmldb:exist:///db/source.xml");
+    assert.equal(calls[0].url.searchParams.get("measureId"), "measure_m1_12?tstamp2=1m+0");
+    assert.equal(calls[0].url.searchParams.get("edition"), "ed");
+    assert.equal(calls[1].url.searchParams.get("uri"), "xmldb:exist:///db/source.xml");
+    assert.equal(calls[1].url.searchParams.get("edition"), "ed");
 });

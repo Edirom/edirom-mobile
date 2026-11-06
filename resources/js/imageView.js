@@ -1,20 +1,12 @@
 import { appState } from "./config.js";
 import { getLangString } from "./languageController.js";
-import { getPages, getMovements, getMeasures, getMeasurePage, getMeasuresOnPage, getAnnotationsOnPage } from "./api.js";
+import { getPages, getMovements, getMeasures, getMeasurePage, getMeasure, getParts } from "./api.js";
 import { getPreference } from "./preferenceController.js";
 import { buildTileSource, resolveImagePrefix } from "./imageServer.js";
-import { loadLinks } from "./linkController.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
-
-// How long a fresh viewer may take to draw its first tile before the initial page/zone is applied anyway.
-const IMAGE_READY_TIMEOUT_MS = 5000;
-
-// Annotation category -> host-supplied icon markup, the same as Edirom-Frontend's ImageViewer.js: the viewer
-// has no icon knowledge and inserts whatever zone.iconHtml it is given.
-const ANNOTATION_ICON_MARKUP = {
-    "annotation.category.beschreibung": '<edirom-icon name="description"></edirom-icon>',
-    "annotation.category.rasurTektur": '<edirom-icon name="ink_eraser"></edirom-icon>'
-};
+import { createImageDocument, createViewerSession } from "./imageViewerSession.js";
+import { createMeasureStack } from "./measureStackView.js";
+import { hasVoices, findGroupIndex, matchingGroups, defaultVoiceSelection } from "./measureVoices.js";
 
 // Overlay toggles (measure numbers, annotations) are remembered for the browser session: a freshly built image
 // view starts with whatever the user last chose, in whichever document. sessionStorage ends with the browser
@@ -36,6 +28,30 @@ function writeSessionOverlays(overlays) {
     _sessionOverlays = overlays;
     try {
         sessionStorage.setItem(OVERLAY_STORAGE_KEY, JSON.stringify(overlays));
+    } catch (e) { /* storage unavailable: the module variable still holds it */ }
+}
+
+// The voice selection of the measure-based view is remembered per source document for the browser session
+// (like Edirom-Frontend it applies to all movements of the source), with the same fallback as the overlays.
+const VOICE_STORAGE_KEY = "edirom-mobile.imageView.voices";
+let _sessionVoices = null;
+
+function readStoredVoices(doc) {
+    if (!_sessionVoices) {
+        let stored = null;
+        try {
+            stored = JSON.parse(sessionStorage.getItem(VOICE_STORAGE_KEY));
+        } catch (e) { /* storage unavailable or malformed */ }
+        _sessionVoices = stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
+    }
+    return Array.isArray(_sessionVoices[doc]) ? _sessionVoices[doc] : null;
+}
+
+function writeStoredVoices(doc, voiceIds) {
+    readStoredVoices(doc);
+    _sessionVoices[doc] = voiceIds;
+    try {
+        sessionStorage.setItem(VOICE_STORAGE_KEY, JSON.stringify(_sessionVoices));
     } catch (e) { /* storage unavailable: the module variable still holds it */ }
 }
 
@@ -88,19 +104,17 @@ function findNearestIndex(arr, value, referenceIndex) {
  * Returns the content container, control bar container, the control bar widget
  * element, an update function for fetching page data, and a setData function
  * for pushing data to the component.
+ *
+ * Page view and the measure view of a score use one viewer over all pages. The measure view of a part-wise
+ * source shows one row per selected voice instead (measureStackView.js), and offers the voice selection.
+ * Sources with several movements (mdivs) get a movement selector in measure view.
+ *
  * @param {string} target - The document URI (with optional `#id` fragment)
  * @param {Object} [config={}] - Additional link config (currently unused)
  * @returns {{ content: HTMLElement, controlBar: HTMLElement, controlBarWidget: HTMLElement, update: function, setData: function }}
  */
 export function buildImageView(target, config = {}) {
-    const imageViewComponent = document.createElement("edirom-image-viewer");
-    imageViewComponent.classList.add("web-component");
-    // Sequence mode: OSD shows one page at a time and only loads that page's
-    // tiles – the same as the desktop viewer which calls showImage() once per page.
-    imageViewComponent.setAttribute("sequencemode", "true");
-    // Hide OSD's built-in sequence controls; the spin box handles navigation.
-    imageViewComponent.setAttribute("showsequencecontrol", "false");
-    // Host stylesheets that are cloned into the viewer's shadow root: the measure number / annotation badge
+    // Host stylesheets that are cloned into the viewers' shadow roots: the measure number / annotation badge
     // rules of the Frontend, Mobile's touch adjustments, and the edition's own CSS (like Edirom-Frontend).
     const overlayStylesheets = [
         new URL("resources/css/annotation-style.css", getFrontendBaseUrl()).href,
@@ -110,16 +124,45 @@ export function buildImageView(target, config = {}) {
     if (typeof additionalCssPath === "string" && additionalCssPath.includes("/db/")) {
         overlayStylesheets.push(new URL(additionalCssPath.split("/db/")[1], getFrontendBaseUrl()).href);
     }
-    imageViewComponent.setAttribute("overlay-stylesheets", JSON.stringify(overlayStylesheets));
+
+    function configureViewer(viewer, { stacked = false } = {}) {
+        // Sequence mode: OSD shows one page at a time and only loads that page's
+        // tiles – the same as the desktop viewer which calls showImage() once per page.
+        viewer.setAttribute("sequencemode", "true");
+        // Hide OSD's built-in sequence controls; the spin box handles navigation.
+        viewer.setAttribute("showsequencecontrol", "false");
+        viewer.setAttribute("overlay-stylesheets", JSON.stringify(overlayStylesheets));
+        // The stacked voice viewers draw on a 2D canvas: one WebGL context each would soon exceed the browser's
+        // limit of live contexts (a split measure in five voices is ten viewers).
+        if (stacked) viewer.setAttribute("openseadragon-options", JSON.stringify({ drawer: "canvas" }));
+    }
+
+    // Overlay toggles, taken over from the browser session (see readSessionOverlays)
+    const imageDoc = createImageDocument({
+        showMeasures: readSessionOverlays().measures,
+        showAnnotations: readSessionOverlays().annotations
+    });
+
+    const imageViewComponent = document.createElement("edirom-image-viewer");
+    imageViewComponent.classList.add("web-component");
+    configureViewer(imageViewComponent);
+    const mainSession = createViewerSession(imageViewComponent, imageDoc);
+
+    const measureStack = createMeasureStack({
+        imageDoc,
+        configureViewer: viewer => configureViewer(viewer, { stacked: true }),
+        emptyMessage: getLangString("mobile.ImageView_noMeasureInSelectedVoices", "No measure in the selected parts")
+    });
+    measureStack.element.classList.add("display-none");
 
     const content = document.createElement("div");
     content.id = "view-content";
     content.appendChild(imageViewComponent);
+    content.appendChild(measureStack.element);
 
     // --- Closure state ---
     let _pages = [];
     let _movements = [];
-    let _pageIdToIndex = new Map();   // pageId → 1-based OSD pageNumber
 
     // Full data (set once in update, survives filter toggles)
     let _fullPages = [];
@@ -130,14 +173,20 @@ export function buildImageView(target, config = {}) {
     let _pageLabels = [];
 
     // Measure mode
-    let _measureSequenceData = [];    // [{ type: "zone", id: measureXmlId }]
+    let _measureSequenceData = [];    // [{ type: "zone", id: groupId, zoneId: first measure's xml:id, group }]
     let _measureLabels = [];
-    let _measuresData = null;         // cached getMeasures response
-    let _measurePageIdCache = new Map(); // measureXmlId → pageId
-    let _pageMeasuresCache = new Map();  // pageId → getMeasuresOnPage response
+    let _measuresByMdiv = new Map();  // mdivId → Promise of getMeasures response
+    let _currentMdivId = null;
+    let _voiceMode = false;           // the current movement's measures belong to voices (part-wise source)
 
-    // Subset state: primary measure IDs for the active subset, or null
+    // Voices (part-wise sources)
+    let _partsPromise = null;
+    let _parts = [];
+    let _selectedVoices = null;
+
+    // Subset state: group ids of the active subset and the movement they belong to, or null
     let _activeMeasureSubsetIds = null;
+    let _subsetMdivId = null;
 
     // Active sequence (points to page or measure)
     let _sequenceData = [];
@@ -145,54 +194,8 @@ export function buildImageView(target, config = {}) {
     let _currentSequenceIndex = 0;
     let _viewMode = "page-view";
 
-    // Doc/edition for lazy API calls (set in update)
-    let _doc = "";
-    let _edition = "";
-
-    // Zones pushed to the viewer's zones-data. Navigation targets (keyed by the raw measure id, without a
-    // `type`, so never drawn) are kept apart from overlays (measure numbers, annotation badges), which carry a
-    // `type` and are only drawn while that type is in the viewer's visible-types.
-    let _navZones = {};               // measureXmlId → { page, ulx, uly, lrx, lry }
-    let _overlayZones = {};           // zone key → zone with `type` "measure" or "annotation"
-    // The key last written to the viewer's `zone`. The viewer re-applies its active zone on every zones-data
-    // push (and never clears it), so this key is left out of pushes unless it is the one being navigated to.
-    let _activeZoneKey = null;
-    let _pageAnnotationsCache = new Map(); // pageId → Promise of getAnnotationsOnPage response
-    let _docGeneration = 0;          // incremented per document, so late responses of an old one are dropped
-
-    // Overlay toggles, taken over from the browser session (see readSessionOverlays)
-    let _showMeasures = readSessionOverlays().measures;
-    let _showAnnotations = readSessionOverlays().annotations;
-    let _viewerPageNumber = 1;        // 1-based page the viewer currently shows, in every view mode
-
-    // Counts navigations (spin box steps, view activations, zone jumps). A zone jump that waits for the viewer or
-    // for data applies only if no other navigation came in meanwhile.
-    let _navigationId = 0;
-
-    // Resolved once the viewer has loaded its first tile (or after a timeout, should `image-ready` not come). A
-    // zone can only be applied to an open image, and the viewer is created asynchronously after `tilesources`.
-    // A page needs no waiting: the viewer opens on the page requested before it exists.
-    let _imageReady = Promise.resolve();
-    function resetImageReady() {
-        _imageReady = new Promise(resolve => {
-            const done = () => {
-                clearTimeout(timer);
-                imageViewComponent.removeEventListener("image-ready", done);
-                resolve();
-            };
-            const timer = setTimeout(done, IMAGE_READY_TIMEOUT_MS);
-            imageViewComponent.addEventListener("image-ready", done);
-        });
-    }
-
-    // --- getEffectiveMeasuresData ---
-    // Returns _measuresData filtered to the active subset, or the full array.
-    function getEffectiveMeasuresData() {
-        if (!_measuresData) return [];
-        if (!_activeMeasureSubsetIds) return _measuresData;
-        const subsetSet = new Set(_activeMeasureSubsetIds);
-        return _measuresData.filter(group => subsetSet.has(group.measures[0].id));
-    }
+    // Counts view activations, so that a slow measure-view activation does not override a later one.
+    let _viewNavigation = 0;
 
     const controlBar = document.createElement("edirom-control-bar");
     controlBar.classList.add("web-component");
@@ -207,30 +210,27 @@ export function buildImageView(target, config = {}) {
     spinBox.id = "image-step-spin-box";
     spinBox.setAttribute("label", getLangString("mobile.ImageView_page", "Page"));
 
-    // Spin box → viewer: only set attribute on component, never update spin box directly.
+    // Spin box → viewer: only set attribute on component, never update spin box directly (the stacked voice
+    // rows have no single viewer that could report back, so there the step is confirmed by the host).
     spinBox.addEventListener("spin-box-step-requested", async (event) => {
         const label = event.detail.requestedStep;
         const idx = findNearestIndex(_labels, label, _currentSequenceIndex);
         if (idx === -1) return;
         _currentSequenceIndex = idx;
-        _navigationId++;
         const step = _sequenceData[idx];
         if (step.type === "page") {
-            imageViewComponent.setAttribute("pagenumber", String(_pageIdToIndex.get(step.id)));
+            mainSession.setPage(imageDoc.pageIdToIndex.get(step.id));
         } else if (step.type === "zone") {
-            await gotoZone(step.id);
+            await gotoMeasureStep(idx);
         }
     });
 
     // Viewer → spin box: update spin box only via viewer feedback events.
     imageViewComponent.addEventListener("page-changed", (event) => {
-        // The shown page is tracked in every view mode, because the overlays belong to it.
-        _viewerPageNumber = event.detail.pageNumber;
-        loadOverlaysForCurrentPage();
         if (_viewMode !== "page-view") return;
         const pageNumber = event.detail.pageNumber;
         const idx = _sequenceData.findIndex(
-            s => s.type === "page" && _pageIdToIndex.get(s.id) === pageNumber
+            s => s.type === "page" && imageDoc.pageIdToIndex.get(s.id) === pageNumber
         );
         if (idx !== -1) {
             _currentSequenceIndex = idx;
@@ -239,59 +239,47 @@ export function buildImageView(target, config = {}) {
     });
 
     imageViewComponent.addEventListener("zone-changed", (event) => {
-        if (_viewMode !== "measure-view") return;
+        if (_viewMode !== "measure-view" || _voiceMode) return;
         const { zoneKey } = event.detail;
-        const idx = _sequenceData.findIndex(s => s.type === "zone" && s.id === zoneKey);
+        const idx = _sequenceData.findIndex(s => s.type === "zone" && s.zoneId === zoneKey);
         if (idx !== -1) {
             _currentSequenceIndex = idx;
             spinBox.setAttribute("current-step", _labels[idx]);
         }
     });
 
-    // Tapping an annotation badge opens the annotation (the viewer's zone-click does not bubble).
-    imageViewComponent.addEventListener("zone-click", (event) => {
-        const { type, id } = event.detail;
-        if (type === "annotation" && id) {
-            loadLinks(id, { behaviour: "updateViewOrCreateViewWindow" });
-        }
-    });
-
     // --- Overlay toggle buttons (measure numbers, annotations) ---
     // Like the toggle buttons of Edirom-Frontend, they keep their icon and show whether they are switched on
     // by their background: both states have the same icon, and styles.css colours `current-state="on"`.
-    function buildToggleButton(buttonId, iconName, titleKey, titleFallback, isVisible, setOverlayVisible) {
+    function buildToggleButton(buttonId, iconName, titleKey, titleFallback, overlayKey) {
         const button = document.createElement("edirom-button-widget");
         button.id = buttonId;
         button.setAttribute("states-data", JSON.stringify([
             { name: "off", iconName },
             { name: "on", iconName }
         ]));
-        button.setAttribute("current-state", isVisible() ? "on" : "off");
+        button.setAttribute("current-state", imageDoc.overlays[overlayKey] ? "on" : "off");
         button.title = getLangString(titleKey, titleFallback);
         button.addEventListener("button-state-requested", (event) => {
             event.stopPropagation();
             const requestedState = event.detail.requestedState;
             button.setAttribute("current-state", requestedState);
-            setOverlayVisible(requestedState === "on");
-            writeSessionOverlays({ measures: _showMeasures, annotations: _showAnnotations });
-            applyVisibleTypes();
-            loadOverlaysForCurrentPage();
+            imageDoc.overlays[overlayKey] = requestedState === "on";
+            writeSessionOverlays({ measures: imageDoc.overlays.showMeasures, annotations: imageDoc.overlays.showAnnotations });
+            mainSession.applyVisibleTypes();
+            mainSession.loadOverlaysForCurrentPage();
+            measureStack.applyOverlays();
         });
         return button;
     }
 
     const measureToggleButton = buildToggleButton(
         "image-measure-toggle-button", "eo_toggle_measures",
-        "view.window.source.SourceView_showMeasures", "Show/hide measures",
-        () => _showMeasures, (visible) => { _showMeasures = visible; });
+        "view.window.source.SourceView_showMeasures", "Show/hide measures", "showMeasures");
 
     const annotationToggleButton = buildToggleButton(
         "image-annotation-toggle-button", "eo_toggle_annotations",
-        "view.window.source.SourceView_showAnnotations", "Show/hide annotations",
-        () => _showAnnotations, (visible) => { _showAnnotations = visible; });
-
-    // A new view starts with the overlays the user switched on earlier in this session.
-    applyVisibleTypes();
+        "view.window.source.SourceView_showAnnotations", "Show/hide annotations", "showAnnotations");
 
     // --- View mode toggle button ---
     const viewModeButton = document.createElement("edirom-button-widget");
@@ -306,141 +294,143 @@ export function buildImageView(target, config = {}) {
         switchViewMode(event.detail.requestedState);
     });
 
+    // --- Movement selector (measure view, sources with several movements) ---
+    const mdivSelect = document.createElement("edirom-select-widget");
+    mdivSelect.id = "image-mdiv-select";
+    mdivSelect.classList.add("display-none");
+    mdivSelect.setAttribute("label", getLangString("view.window.source.SourceView_GotoMsg_MovmentNumber", "Movement"));
+    mdivSelect.setAttribute("accessible-label",
+        getLangString("view.window.source.SourceView_MeasureBasedView_movementSelectorBox", "Select movement"));
+    mdivSelect.addEventListener("select-value-requested", (event) => {
+        const mdivId = event.detail.requestedValue;
+        if (!mdivId || mdivId === _currentMdivId) return;
+        // The select shows the confirmed movement until the new one's measures are there (activateMeasureView).
+        activateMeasureView({ mdivId, index: 0 });
+    });
+
+    // --- Voice selection (measure view, part-wise sources) ---
+    const voiceSelect = document.createElement("edirom-multi-select-widget");
+    voiceSelect.id = "image-voice-select";
+    voiceSelect.classList.add("display-none");
+    voiceSelect.setAttribute("icon", "eo_voice_filter");
+    voiceSelect.setAttribute("label", getLangString("view.window.source.SourceView_MeasureBasedView_selectVoices", "Select parts"));
+    voiceSelect.setAttribute("select-all-label", getLangString("mobile.ImageView_selectAllVoices", "All parts"));
+    voiceSelect.setAttribute("close-label", getLangString("view.desktop.Desktop_Close", "Close"));
+    voiceSelect.setAttribute("min-selected", "1");
+    voiceSelect.setAttribute("layout-mode", "mobile");
+    voiceSelect.addEventListener("multi-select-values-requested", (event) => {
+        const values = event.detail.requestedValues;
+        if (!values.length) return;
+        _selectedVoices = values;
+        voiceSelect.setAttribute("selected-values", JSON.stringify(values));
+        writeStoredVoices(imageDoc.doc, values);
+        if (_viewMode === "measure-view" && _voiceMode) gotoMeasureStep(_currentSequenceIndex);
+    });
+    // The back button/gesture first closes an open voice sheet (see pages.js requestComponentsBackHandling).
+    voiceSelect.setAttribute("data-handles-back-request", "");
+    voiceSelect.addEventListener("back-request", (event) => {
+        if (voiceSelect.open) {
+            event.preventDefault();
+            voiceSelect.hide?.();
+        }
+    });
+
     // --- Control bar layout ---
-    // [ spacer ] [ measureToggle ] [ annotationToggle ] [ viewModeButton ] [ spinBox ]
+    // [ spacer ] [ measureToggle ] [ annotationToggle ] [ viewModeButton ] [ mdivSelect ] [ voiceSelect ] [ spinBox ]
     controlBar.appendChild(spacer);
     controlBar.appendChild(measureToggleButton);
     controlBar.appendChild(annotationToggleButton);
     controlBar.appendChild(viewModeButton);
+    controlBar.appendChild(mdivSelect);
+    controlBar.appendChild(voiceSelect);
     controlBar.appendChild(spinBox);
 
     const controlBarContainer = document.createElement("div");
     controlBarContainer.id = "view-control-bar-container";
     controlBarContainer.appendChild(controlBar);
 
-    // --- fetchAndCachePageMeasures ---
-    // Fetches the measures on a page once (concurrent callers share the request) and registers them as
-    // navigation targets and, for the measure numbers, as overlay zones.
-    function fetchAndCachePageMeasures(pageId) {
-        if (!_pageMeasuresCache.has(pageId)) {
-            _pageMeasuresCache.set(pageId, loadPageMeasures(pageId));
+    // --- Measures per movement ---
+    function loadMeasures(mdivId) {
+        if (!mdivId) return Promise.resolve([]);
+        if (!_measuresByMdiv.has(mdivId)) {
+            const request = getMeasures(imageDoc.doc, imageDoc.edition, mdivId).then(data => {
+                // A failed request is not cached, so that the next activation tries again.
+                if (!Array.isArray(data)) _measuresByMdiv.delete(mdivId);
+                return Array.isArray(data) ? data : [];
+            });
+            _measuresByMdiv.set(mdivId, request);
         }
-        return _pageMeasuresCache.get(pageId);
+        return _measuresByMdiv.get(mdivId);
     }
 
-    async function loadPageMeasures(pageId) {
-        const generation = _docGeneration;
-        const result = (await getMeasuresOnPage(_doc, pageId, _edition)) || [];
-        if (generation !== _docGeneration) return result;
-        const page = _pageIdToIndex.get(pageId);
-        for (const m of result) {
-            _measurePageIdCache.set(m.id, pageId);
-            const rect = { ulx: Number(m.ulx), uly: Number(m.uly), lrx: Number(m.lrx), lry: Number(m.lry) };
-            _navZones[m.id] = { page, ...rect };
-
-            // One number per zone: part-wise sources list several measures (one per part) for the same zone.
-            if (m.name) {
-                const key = `measure:${m.zoneId ?? m.id}`;
-                _overlayZones[key] = {
-                    type: "measure", page, ...rect,
-                    containerClass: "measure", innerClass: "measureInner",
-                    label: String(m.name), group: key
-                };
-            }
+    // The movement a measure reference belongs to: from the movements loaded so far, else from the backend
+    // (getMeasure.xql knows real and virtual measure ids), else the current or first movement.
+    async function resolveMovementId(reference) {
+        for (const [mdivId, request] of _measuresByMdiv) {
+            if (findGroupIndex(await request, reference) !== -1) return mdivId;
         }
-        pushZones();
-        return result;
-    }
-
-    // Fetches the annotations on a page once and registers one badge zone per annotated region.
-    function fetchAndCachePageAnnotations(pageId) {
-        if (!_pageAnnotationsCache.has(pageId)) {
-            _pageAnnotationsCache.set(pageId, loadPageAnnotations(pageId));
+        if (reference) {
+            const result = await getMeasure(imageDoc.doc, imageDoc.edition, reference);
+            if (result?.movementId && _fullMovements.some(m => m.id === result.movementId)) return result.movementId;
         }
-        return _pageAnnotationsCache.get(pageId);
+        return _currentMdivId ?? _fullMovements[0]?.id ?? null;
     }
 
-    async function loadPageAnnotations(pageId) {
-        const generation = _docGeneration;
-        const annotations = (await getAnnotationsOnPage(_doc, pageId, _edition)) || [];
-        if (generation !== _docGeneration) return annotations;
-        const page = _pageIdToIndex.get(pageId);
-        for (const annotation of annotations) {
-            const categories = (annotation.categories || "").trim();
-            const priority = (annotation.priority || "").trim();
-            const iconHtml = categories.split(/\s+/).map(c => ANNOTATION_ICON_MARKUP[c]).find(Boolean) || "";
-            for (const shape of annotation.plist || []) {
-                const rect = [shape.ulx, shape.uly, shape.lrx, shape.lry];
-                if (rect.some(v => v == null || v === "")) continue;
-                // Annotations on the same region share a container, so their badges stack.
-                const group = `annotation:${shape.id}`;
-                _overlayZones[`${group}:${annotation.id}`] = {
-                    type: "annotation", page,
-                    ulx: Number(shape.ulx), uly: Number(shape.uly), lrx: Number(shape.lrx), lry: Number(shape.lry),
-                    containerClass: "annotation",
-                    innerClass: ["annotIcon", categories, priority, shape.type].filter(Boolean).join(" "),
-                    iconHtml, group,
-                    // zone-click reports this; it is the URI loadLinks needs to open the annotation.
-                    dataId: annotation.uri,
-                    filters: [categories, priority].filter(Boolean).join(" ")
-                };
-            }
+    // The parts of the source, fetched once per document the first time a part-wise measure view opens.
+    function ensureParts() {
+        if (!_partsPromise) {
+            const doc = imageDoc.doc;
+            _partsPromise = getParts(imageDoc.doc, imageDoc.edition).then(parts => {
+                if (doc !== imageDoc.doc) return _parts;
+                _parts = Array.isArray(parts) ? parts : [];
+                _selectedVoices = defaultVoiceSelection(_parts, readStoredVoices(doc));
+                voiceSelect.setAttribute("options-data", JSON.stringify(_parts.map(p => ({ value: p.id, label: p.label }))));
+                voiceSelect.setAttribute("selected-values", JSON.stringify(_selectedVoices));
+                return _parts;
+            });
         }
-        pushZones();
-        return annotations;
+        return _partsPromise;
     }
 
-    // Writes zones-data from the navigation and overlay zones. The key last navigated to is left out (see
-    // _activeZoneKey) unless it is `targetKey`, which is about to be navigated to.
-    function pushZones(targetKey = null) {
-        const zones = {};
-        for (const [key, zone] of Object.entries(_navZones)) {
-            if (key === _activeZoneKey && key !== targetKey) continue;
-            zones[key] = zone;
+    // Returns the measures of the current movement, filtered to the active subset if it belongs to it.
+    function getEffectiveMeasuresData(measuresData) {
+        if (!_activeMeasureSubsetIds || _subsetMdivId !== _currentMdivId) return measuresData;
+        const subsetSet = new Set(_activeMeasureSubsetIds);
+        return measuresData.filter(group => subsetSet.has(group.id));
+    }
+
+    // Shows or hides the widgets and viewers that belong to a view mode.
+    function updateModeUi() {
+        const measureView = _viewMode === "measure-view";
+        const stacked = measureView && _voiceMode;
+        imageViewComponent.classList.toggle("display-none", stacked);
+        measureStack.element.classList.toggle("display-none", !stacked);
+        if (!stacked) measureStack.clear();
+        const showMdivSelect = measureView && _movements.length > 1;
+        mdivSelect.classList.toggle("display-none", !showMdivSelect);
+        // The bar is full with the movement selector; a smaller gap leaves it room for a few letters.
+        controlBar.setAttribute("gap", showMdivSelect ? "4px" : "10px");
+        voiceSelect.classList.toggle("display-none", !(stacked && _parts.length > 1));
+        if (!stacked) voiceSelect.hide?.();
+    }
+
+    // --- gotoMeasureStep ---
+    // Shows the measure of a step: in the voice rows, or as a zone jump of the single viewer.
+    async function gotoMeasureStep(idx) {
+        const step = _measureSequenceData[idx];
+        if (!step) return;
+        if (_voiceMode) {
+            mainSession.bumpNavigation();
+            spinBox.setAttribute("current-step", _measureLabels[idx]);
+            await measureStack.showGroup(step.group, _parts, _selectedVoices);
+        } else if (step.zoneId) {
+            await mainSession.gotoZone(step.zoneId, { isCurrent: () => _viewMode === "measure-view" && !_voiceMode });
         }
-        Object.assign(zones, _overlayZones);
-        imageViewComponent.setAttribute("zones-data", JSON.stringify(zones));
-    }
-
-    // Navigates the viewer to a measure zone, after loading it if necessary.
-    async function gotoZone(measureId) {
-        const navigationId = ++_navigationId;
-        await ensureZoneLoaded(measureId);
-        await _imageReady;
-        // The user stepped elsewhere while the zone was loading or the viewer was opening.
-        if (navigationId !== _navigationId) return;
-        if (_viewMode !== "measure-view") return;
-        if (!_navZones[measureId]) {
-            console.warn(`Image view: no zone found for measure "${measureId}".`);
-            return;
-        }
-        pushZones(measureId);
-        imageViewComponent.setAttribute("zone", measureId);
-        _activeZoneKey = measureId;
-        // Same as in activatePageView: the viewer may open on this page without firing page-changed.
-        _viewerPageNumber = _navZones[measureId].page;
-        loadOverlaysForCurrentPage();
-    }
-
-    function applyVisibleTypes() {
-        const types = [];
-        if (_showMeasures) types.push("measure");
-        if (_showAnnotations) types.push("annotation");
-        imageViewComponent.setAttribute("visible-types", JSON.stringify(types));
-    }
-
-    // Loads the overlay data of the page the viewer shows, for the overlays that are switched on.
-    async function loadOverlaysForCurrentPage() {
-        const pageId = _fullPages[_viewerPageNumber - 1]?.id;
-        if (!pageId) return;
-        const loads = [];
-        if (_showMeasures) loads.push(fetchAndCachePageMeasures(pageId));
-        if (_showAnnotations) loads.push(fetchAndCachePageAnnotations(pageId));
-        await Promise.all(loads);
     }
 
     // --- activatePageView ---
     async function activatePageView(targetPageId) {
+        _viewNavigation++;
         _viewMode = "page-view";
         _sequenceData = _pageSequenceData;
         _labels = _pageLabels;
@@ -456,49 +446,54 @@ export function buildImageView(target, config = {}) {
         spinBox.setAttribute("steps-data", JSON.stringify(_pageLabels));
         spinBox.setAttribute("current-step", _pageLabels[idx]);
         viewModeButton.setAttribute("current-state", "page-view");
+        updateModeUi();
 
         // Set at once: the viewer opens on a page requested before it exists, so there is nothing to wait for
         // (and a late write would undo a page the user has stepped to in the meantime).
-        _navigationId++;
-        const pageNumber = _pageIdToIndex.get(_pageSequenceData[idx].id);
-        imageViewComponent.setAttribute("pagenumber", String(pageNumber));
-        // The viewer fires page-changed only when it navigates, not when it opens on this page, so the overlays
-        // that carried over from earlier in the session are loaded here.
-        _viewerPageNumber = pageNumber;
-        loadOverlaysForCurrentPage();
+        const step = _pageSequenceData[idx];
+        if (step) mainSession.setPage(imageDoc.pageIdToIndex.get(step.id));
     }
 
     // --- activateMeasureView ---
-    async function activateMeasureView(targetMeasureIndex, targetMeasureId) {
-        _viewMode = "measure-view";
+    // Opens the measure view on a movement (default: the current, else the first one) at the first group found
+    // for `references` (measure ids in any form), else at `index`, else at the first group.
+    // Returns true when shown, false when the movement has no measures, null when superseded meanwhile.
+    async function activateMeasureView({ mdivId = null, references = [], index = null } = {}) {
+        const navigation = ++_viewNavigation;
+        const targetMdivId = mdivId || _currentMdivId || _movements[0]?.id || null;
+        const measuresData = await loadMeasures(targetMdivId);
+        if (navigation !== _viewNavigation) return null;
+        if (measuresData.length === 0) return false;
 
-        // Fetch measures once and cache
-        if (_measuresData === null && _movements.length > 0) {
-            _measuresData = await getMeasures(_doc, _edition, _movements[0].id);
+        const voiceMode = hasVoices(measuresData);
+        if (voiceMode) {
+            await ensureParts();
+            if (navigation !== _viewNavigation) return null;
         }
-        if (!_measuresData || _measuresData.length === 0) return;
 
-        // Build measure sequence from effective (possibly filtered) data
-        const effective = getEffectiveMeasuresData();
-        if (effective.length === 0) return;
+        _currentMdivId = targetMdivId;
+        const effective = getEffectiveMeasuresData(measuresData);
+        if (effective.length === 0) return false;
 
+        _viewMode = "measure-view";
+        _voiceMode = voiceMode;
         _measureSequenceData = effective.map(group => ({
             type: "zone",
-            id: group.measures[0].id
+            id: group.id,
+            zoneId: group.measures?.[0]?.id,
+            group
         }));
-        _measureLabels = effective.map(group => group.name);
-
+        _measureLabels = effective.map(group => String(group.name));
         _sequenceData = _measureSequenceData;
         _labels = _measureLabels;
 
-        // Resolve target index: prefer ID lookup, fall back to numeric index, then 0.
+        // Resolve target index: prefer a reference, fall back to the numeric index, then 0.
         let idx = -1;
-        if (targetMeasureId) {
-            idx = _measureSequenceData.findIndex(s => s.id === targetMeasureId);
+        for (const reference of references) {
+            idx = findGroupIndex(effective, reference);
+            if (idx !== -1) break;
         }
-        if (idx === -1 && targetMeasureIndex != null) {
-            idx = targetMeasureIndex;
-        }
+        if (idx === -1 && index != null) idx = index;
         if (idx < 0 || idx >= _measureSequenceData.length) idx = 0;
         _currentSequenceIndex = idx;
 
@@ -506,29 +501,11 @@ export function buildImageView(target, config = {}) {
         spinBox.setAttribute("steps-data", JSON.stringify(_measureLabels));
         spinBox.setAttribute("current-step", _measureLabels[idx]);
         viewModeButton.setAttribute("current-state", "measure-view");
+        mdivSelect.setAttribute("value", _currentMdivId);
+        updateModeUi();
 
-        // Ensure zone is loaded and navigate
-        const step = _measureSequenceData[idx];
-        await gotoZone(step.id);
-    }
-
-    // --- ensureZoneLoaded ---
-    async function ensureZoneLoaded(measureId) {
-        if (_navZones[measureId]) return;
-
-        // Try bulk-fetch via cached pageId
-        const cachedPageId = _measurePageIdCache.get(measureId);
-        if (cachedPageId) {
-            await fetchAndCachePageMeasures(cachedPageId);
-            return;
-        }
-
-        // Fallback: single getMeasurePage, then bulk-cache siblings
-        const data = await getMeasurePage(_doc, _edition, measureId);
-        if (data && data.length > 0) {
-            _measurePageIdCache.set(measureId, data[0].pageId);
-            await fetchAndCachePageMeasures(data[0].pageId);
-        }
+        await gotoMeasureStep(idx);
+        return true;
     }
 
     // --- switchViewMode ---
@@ -536,43 +513,24 @@ export function buildImageView(target, config = {}) {
         if (newMode === _viewMode) return;
 
         if (newMode === "measure-view") {
-            // Page → Measure: find first measure on current page
-            const currentPageStep = _pageSequenceData[_currentSequenceIndex];
-            const currentPageId = currentPageStep ? currentPageStep.id : null;
-
-            // Ensure measures are fetched
-            if (_measuresData === null && _movements.length > 0) {
-                _measuresData = await getMeasures(_doc, _edition, _movements[0].id);
-            }
-            if (!_measuresData || _measuresData.length === 0) return;
-
-            // Build measure sequence if not yet built
-            if (_measureSequenceData.length === 0) {
-                const effective = getEffectiveMeasuresData();
-                _measureSequenceData = effective.map(group => ({
-                    type: "zone",
-                    id: group.measures[0].id
-                }));
-                _measureLabels = effective.map(group => group.name);
-            }
-
-            // Single bulk fetch: get all measures on the current page
-            let targetIdx = -1;
+            // Page → Measure: start at the first measure on the current page, in its movement.
+            const currentPageId = _pageSequenceData[_currentSequenceIndex]?.id ?? null;
+            let references = [];
             if (currentPageId) {
-                const pageMeasures = await fetchAndCachePageMeasures(currentPageId);
-                const onPageIds = new Set(pageMeasures.map(m => m.id));
-                targetIdx = _measureSequenceData.findIndex(s => onPageIds.has(s.id));
+                const pageMeasures = await imageDoc.fetchPageMeasures(currentPageId);
+                references = pageMeasures.map(m => m.id);
             }
-            if (targetIdx === -1) targetIdx = 0;
-
-            await activateMeasureView(targetIdx);
+            const mdivId = references.length > 0 ? await resolveMovementId(references[0]) : null;
+            await activateMeasureView({ mdivId, references, index: 0 });
 
         } else if (newMode === "page-view") {
-            // Measure → Page: use pageId from last measure's cached response
+            // Measure → Page: the page of the shown measure (the first voice row's, in a part-wise source).
             const currentMeasureStep = _measureSequenceData[_currentSequenceIndex];
             let targetPageId = null;
-            if (currentMeasureStep) {
-                targetPageId = _measurePageIdCache.get(currentMeasureStep.id);
+            if (_voiceMode) {
+                targetPageId = measureStack.firstPageId();
+            } else if (currentMeasureStep?.zoneId) {
+                targetPageId = imageDoc.measurePageIdCache.get(currentMeasureStep.zoneId) ?? null;
             }
             activatePageView(targetPageId);
         }
@@ -580,19 +538,20 @@ export function buildImageView(target, config = {}) {
 
     // --- setData ---
     // Called by views.js applyViewData / applyCurrentViewFilterState with either
-    // mainData or subsetData.  Tile sources, zones-data, _pageIdToIndex, and
+    // mainData or subsetData.  Tile sources, zones-data, the page numbers, and
     // measure caches are set once in update() and survive filter toggles.
     // isNavigationUpdate is true when called from a concordance connection switch
     // or any other navigation event; false (default) for filter-state toggles.
-    function setData({ pages, movements, measureSubsetIds, jumpMeasureId }, { isNavigationUpdate = false } = {}) {
+    function setData({ pages, movements, measureSubsetIds, mdivId, jumpMeasureId }, { isNavigationUpdate = false } = {}) {
         // Capture current state before rebuilding sequences
         const wasInitialized = _sequenceData.length > 0;
         const previousViewMode = _viewMode;
         const previousStep = _sequenceData[_currentSequenceIndex] || null;
 
         _pages = pages;
-        _movements = movements;
+        _movements = movements || [];
         _activeMeasureSubsetIds = measureSubsetIds || null;
+        _subsetMdivId = measureSubsetIds ? (mdivId ?? null) : null;
 
         // Clear lazily-built measure sequences (rebuilt by activateMeasureView)
         _measureSequenceData = [];
@@ -603,28 +562,30 @@ export function buildImageView(target, config = {}) {
         _pageLabels = pages.map(page => page.name);
 
         // Show/hide toggle based on movements availability
-        if (movements && movements.length > 0) {
-            viewModeButton.classList.remove("hidden");
-        } else {
-            viewModeButton.classList.add("hidden");
-        }
+        viewModeButton.classList.toggle("hidden", _movements.length === 0);
+        mdivSelect.setAttribute("options-data", JSON.stringify(_movements.map(m => ({ value: m.id, label: m.name || m.id }))));
+
+        // Measure view falls back to page view where it has nothing to show.
+        const openMeasureView = (options) => activateMeasureView(options).then(shown => {
+            if (shown === false) activatePageView();
+        });
 
         if (!wasInitialized || isNavigationUpdate) {
             // First load or concordance connection switch: derive view mode from subset.
             // Subset present → measure view; single-ID jump → measure view on that
             // measure, unrestricted; whole-document connection → page view.
             if (_activeMeasureSubsetIds) {
-                activateMeasureView(0);
+                openMeasureView({ mdivId, index: 0 });
             } else if (jumpMeasureId) {
-                activateMeasureView(null, jumpMeasureId);
+                openMeasureView({ mdivId, references: [jumpMeasureId] });
             } else {
                 activatePageView();
             }
         } else {
             // Filter toggle: preserve view mode, stay on current item if still valid.
             if (previousViewMode === "measure-view") {
-                const targetId = previousStep && previousStep.type === "zone" ? previousStep.id : null;
-                activateMeasureView(null, targetId);
+                const references = previousStep && previousStep.type === "zone" ? [previousStep.id] : [];
+                openMeasureView({ mdivId: _activeMeasureSubsetIds ? mdivId : _currentMdivId, references });
             } else {
                 const targetPageId = previousStep && previousStep.type === "page" ? previousStep.id : null;
                 activatePageView(targetPageId);
@@ -643,29 +604,26 @@ export function buildImageView(target, config = {}) {
             // Detect whether the document and edition are the same as the current state.
             // If so we can skip re-initialising the OSD viewer (which is expensive and
             // causes a WebGL context loss + full tile reload) and only recompute the subset.
-            const isSameDoc = doc === _doc && appState.edition.doc === _edition && _fullPages.length > 0;
-
-            _doc = doc;
-            _edition = appState.edition.doc;
+            const edition = appState.edition.doc;
+            const isSameDoc = doc === imageDoc.doc && edition === imageDoc.edition && _fullPages.length > 0;
 
             if (!isSameDoc) {
                 // --- Full load for a new document ---
 
-                // Reset all caches on each update (new data load)
-                _measuresData = null;
+                // Reset the per-document measure and voice state
+                _measuresByMdiv = new Map();
+                _currentMdivId = null;
+                _voiceMode = false;
+                _partsPromise = null;
+                _parts = [];
+                _selectedVoices = null;
                 _measureSequenceData = [];
                 _measureLabels = [];
-                _measurePageIdCache = new Map();
-                _pageMeasuresCache = new Map();
-                _pageAnnotationsCache = new Map();
-                _navZones = {};
-                _overlayZones = {};
-                _activeZoneKey = null;
-                _docGeneration++;
+                measureStack.clear();
 
                 const [pagesData, movementsData] = await Promise.all([
-                    getPages(doc, _edition),
-                    getMovements(doc, _edition)
+                    getPages(doc, edition),
+                    getMovements(doc, edition)
                 ]);
 
                 if (!pagesData || pagesData.length === 0) return { mainData: null, subsetData: null };
@@ -673,9 +631,6 @@ export function buildImageView(target, config = {}) {
                 const movements = movementsData || [];
                 _fullPages = pagesData;
                 _fullMovements = movements;
-
-                // Build _pageIdToIndex from ALL pages (needed for OSD page numbers)
-                _pageIdToIndex = new Map(pagesData.map((page, index) => [page.id, index + 1]));
 
                 // Build tile sources from ALL pages, for the edition's image server
                 const imagePrefix = getPreference("image_prefix");
@@ -686,15 +641,12 @@ export function buildImageView(target, config = {}) {
                 const tileSources = pagesData.map(page =>
                     buildTileSource(page.path, page.width, page.height, imageSettings));
 
-                // Clear the viewer's zones before it is rebuilt, so that its old active zone cannot be
-                // applied to the new document.
-                _viewerPageNumber = 1;
-                imageViewComponent.setAttribute("zones-data", "{}");
+                // Page numbers, zones and caches start anew (all viewers share them)
+                imageDoc.reset(doc, edition, pagesData, tileSources);
 
                 // Setting tilesources re-initialises the OSD viewer, so only do it when the
                 // document actually changes.
-                resetImageReady();
-                imageViewComponent.setAttribute("tilesources", JSON.stringify(tileSources));
+                mainSession.setTileSources();
             }
 
             // --- Subset logic ---
@@ -702,58 +654,51 @@ export function buildImageView(target, config = {}) {
             // manually activate filtered mode even for a single-ID target (see
             // views.js applyViewData's defaultFiltered). jumpMeasureId separately
             // carries where to land when a single-ID target starts unfiltered.
+            // The target's movement is resolved from its first id (not always the first movement).
             let subsetData = null;
             let jumpMeasureId = null;
+            let mdivId = null;
             if (ids.length > 0 && _fullMovements.length > 0) {
-                // For same-doc switches reuse the already-cached measures list; only fetch
-                // when we don't have it yet (first load or after a different-doc reset).
-                if (_measuresData === null) {
-                    _measuresData = await getMeasures(doc, _edition, _fullMovements[0].id);
-                }
-                if (_measuresData && _measuresData.length > 0) {
-                    const idsSet = new Set(ids);
-                    // A group matches if any of its measures has an ID in the target
-                    const matchingGroups = _measuresData.filter(group =>
-                        group.measures.some(m => idsSet.has(m.id))
-                    );
-                    if (matchingGroups.length > 0) {
-                        const matchingPrimaryIds = matchingGroups.map(g => g.measures[0].id);
+                mdivId = await resolveMovementId(ids[0]);
+                const measuresData = await loadMeasures(mdivId);
+                const matching = matchingGroups(measuresData, ids);
+                if (matching.length > 0) {
+                    const matchingGroupIds = matching.map(g => g.id);
+                    if (ids.length === 1) {
+                        jumpMeasureId = matchingGroupIds[0];
+                    }
 
-                        if (ids.length === 1) {
-                            jumpMeasureId = matchingPrimaryIds[0];
-                        }
-
-                        // Determine which pages contain the matching measures.
-                        // For same-doc switches most entries will already be in the cache —
-                        // only fetch the ones that aren't.
-                        const uncached = matchingPrimaryIds.filter(mId => !_measurePageIdCache.has(mId));
-                        if (uncached.length > 0) {
-                            const pageResults = await Promise.all(
-                                uncached.map(mId => getMeasurePage(doc, _edition, mId))
-                            );
-                            for (let i = 0; i < uncached.length; i++) {
-                                const data = pageResults[i];
-                                if (data && data.length > 0) {
-                                    _measurePageIdCache.set(uncached[i], data[0].pageId);
-                                }
+                    // Determine which pages contain the matching measures (the first measure of each group).
+                    // For same-doc switches most entries will already be in the cache —
+                    // only fetch the ones that aren't.
+                    const primaryIds = matching.map(g => g.measures?.[0]?.id).filter(Boolean);
+                    const uncached = primaryIds.filter(mId => !imageDoc.measurePageIdCache.has(mId));
+                    if (uncached.length > 0) {
+                        const pageResults = await Promise.all(
+                            uncached.map(mId => getMeasurePage(doc, edition, mId))
+                        );
+                        for (let i = 0; i < uncached.length; i++) {
+                            const data = pageResults[i];
+                            if (data && data.length > 0 && data[0].pageId) {
+                                imageDoc.measurePageIdCache.set(uncached[i], data[0].pageId);
                             }
                         }
+                    }
 
-                        const relevantPageIds = new Set(
-                            matchingPrimaryIds
-                                .map(mId => _measurePageIdCache.get(mId))
-                                .filter(Boolean)
-                        );
+                    const relevantPageIds = new Set(
+                        primaryIds
+                            .map(mId => imageDoc.measurePageIdCache.get(mId))
+                            .filter(Boolean)
+                    );
 
-                        const filteredPages = _fullPages.filter(p => relevantPageIds.has(p.id));
-                        if (filteredPages.length > 0) {
-                            subsetData = { pages: filteredPages, movements: _fullMovements, measureSubsetIds: matchingPrimaryIds };
-                        }
+                    const filteredPages = _fullPages.filter(p => relevantPageIds.has(p.id));
+                    if (filteredPages.length > 0) {
+                        subsetData = { pages: filteredPages, movements: _fullMovements, measureSubsetIds: matchingGroupIds, mdivId };
                     }
                 }
             }
 
-            const mainData = { pages: _fullPages, movements: _fullMovements, jumpMeasureId };
+            const mainData = { pages: _fullPages, movements: _fullMovements, jumpMeasureId, mdivId };
             return { mainData, subsetData };
         },
         setData

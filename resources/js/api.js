@@ -107,6 +107,33 @@ export async function getMeasurePage(id, edition, measure, measureCount = 1, bac
     return measurePageData;
 }
 
+/**
+ * Resolves a measure reference (a real measure xml:id or a virtual `measure_<mdiv>_<n>` id, optionally with
+ * `?tstamp2=Nm+0`) to the movement it belongs to.
+ * @param {string} id - The URI of the source document
+ * @param {string} edition - The edition URI
+ * @param {string} measureId - The measure reference
+ * @param {string} [backendUrl] - The backend base URL
+ * @returns {Promise<{measureId: string, movementId: string, measureCount: number}|null>}
+ */
+export async function getMeasure(id, edition, measureId, backendUrl = appConfig.backendUrl) {
+    const data = await fetchJSON(buildUrl("getMeasure.xql", { edition, id, measureId }, backendUrl));
+    return data;
+}
+
+/**
+ * Fetches the parts (voices) of a source: its `perfRes`/`instrVoice` elements, in score order. Their ids are
+ * what getMeasures reports as `voice` (there with a leading `#`).
+ * @param {string} uri - The URI of the source document
+ * @param {string} edition - The edition URI
+ * @param {string} [backendUrl] - The backend base URL
+ * @returns {Promise<Array<{id: string, label: string, selectedByDefault: boolean, selected: boolean}>|null>}
+ */
+export async function getParts(uri, edition, backendUrl = appConfig.backendUrl) {
+    const data = await fetchJSON(buildUrl("getParts.xql", { edition, uri }, backendUrl));
+    return data;
+}
+
 export async function getMeasuresOnPage(uri, pageId, edition, backendUrl = appConfig.backendUrl) {
     const data = await fetchJSON(buildUrl("getMeasuresOnPage.xql", { uri, pageId, edition }, backendUrl));
     return data;
