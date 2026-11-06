@@ -16,6 +16,29 @@ const ANNOTATION_ICON_MARKUP = {
     "annotation.category.rasurTektur": '<edirom-icon name="ink_eraser"></edirom-icon>'
 };
 
+// Overlay toggles (measure numbers, annotations) are remembered for the browser session: a freshly built image
+// view starts with whatever the user last chose, in whichever document. sessionStorage ends with the browser
+// session; the module variable keeps the choice within the page where storage is blocked.
+const OVERLAY_STORAGE_KEY = "edirom-mobile.imageView.overlays";
+let _sessionOverlays = null;
+
+function readSessionOverlays() {
+    if (_sessionOverlays) return _sessionOverlays;
+    let stored = null;
+    try {
+        stored = JSON.parse(sessionStorage.getItem(OVERLAY_STORAGE_KEY));
+    } catch (e) { /* storage unavailable or malformed: fall back to the defaults */ }
+    _sessionOverlays = { measures: stored?.measures === true, annotations: stored?.annotations === true };
+    return _sessionOverlays;
+}
+
+function writeSessionOverlays(overlays) {
+    _sessionOverlays = overlays;
+    try {
+        sessionStorage.setItem(OVERLAY_STORAGE_KEY, JSON.stringify(overlays));
+    } catch (e) { /* storage unavailable: the module variable still holds it */ }
+}
+
 /**
  * The URL of the Frontend root. Mobile is served from its `mobile/` directory, and relative URLs in the
  * preferences (image_prefix, additional_css_path) are written for the Frontend page, like `../config.json`.
@@ -137,9 +160,9 @@ export function buildImageView(target, config = {}) {
     let _pageAnnotationsCache = new Map(); // pageId → Promise of getAnnotationsOnPage response
     let _docGeneration = 0;          // incremented per document, so late responses of an old one are dropped
 
-    // Overlay toggles (per view, not remembered)
-    let _showMeasures = false;
-    let _showAnnotations = false;
+    // Overlay toggles, taken over from the browser session (see readSessionOverlays)
+    let _showMeasures = readSessionOverlays().measures;
+    let _showAnnotations = readSessionOverlays().annotations;
     let _viewerPageNumber = 1;        // 1-based page the viewer currently shows, in every view mode
 
     // Counts navigations (spin box steps, view activations, zone jumps). A zone jump that waits for the viewer or
@@ -236,20 +259,21 @@ export function buildImageView(target, config = {}) {
     // --- Overlay toggle buttons (measure numbers, annotations) ---
     // Like the toggle buttons of Edirom-Frontend, they keep their icon and show whether they are switched on
     // by their background: both states have the same icon, and styles.css colours `current-state="on"`.
-    function buildToggleButton(buttonId, iconName, titleKey, titleFallback, setOverlayVisible) {
+    function buildToggleButton(buttonId, iconName, titleKey, titleFallback, isVisible, setOverlayVisible) {
         const button = document.createElement("edirom-button-widget");
         button.id = buttonId;
         button.setAttribute("states-data", JSON.stringify([
             { name: "off", iconName },
             { name: "on", iconName }
         ]));
-        button.setAttribute("current-state", "off");
+        button.setAttribute("current-state", isVisible() ? "on" : "off");
         button.title = getLangString(titleKey, titleFallback);
         button.addEventListener("button-state-requested", (event) => {
             event.stopPropagation();
             const requestedState = event.detail.requestedState;
             button.setAttribute("current-state", requestedState);
             setOverlayVisible(requestedState === "on");
+            writeSessionOverlays({ measures: _showMeasures, annotations: _showAnnotations });
             applyVisibleTypes();
             loadOverlaysForCurrentPage();
         });
@@ -259,12 +283,15 @@ export function buildImageView(target, config = {}) {
     const measureToggleButton = buildToggleButton(
         "image-measure-toggle-button", "eo_toggle_measures",
         "view.window.source.SourceView_showMeasures", "Show/hide measures",
-        (visible) => { _showMeasures = visible; });
+        () => _showMeasures, (visible) => { _showMeasures = visible; });
 
     const annotationToggleButton = buildToggleButton(
         "image-annotation-toggle-button", "eo_toggle_annotations",
         "view.window.source.SourceView_showAnnotations", "Show/hide annotations",
-        (visible) => { _showAnnotations = visible; });
+        () => _showAnnotations, (visible) => { _showAnnotations = visible; });
+
+    // A new view starts with the overlays the user switched on earlier in this session.
+    applyVisibleTypes();
 
     // --- View mode toggle button ---
     const viewModeButton = document.createElement("edirom-button-widget");
@@ -390,6 +417,9 @@ export function buildImageView(target, config = {}) {
         pushZones(measureId);
         imageViewComponent.setAttribute("zone", measureId);
         _activeZoneKey = measureId;
+        // Same as in activatePageView: the viewer may open on this page without firing page-changed.
+        _viewerPageNumber = _navZones[measureId].page;
+        loadOverlaysForCurrentPage();
     }
 
     function applyVisibleTypes() {
@@ -430,7 +460,12 @@ export function buildImageView(target, config = {}) {
         // Set at once: the viewer opens on a page requested before it exists, so there is nothing to wait for
         // (and a late write would undo a page the user has stepped to in the meantime).
         _navigationId++;
-        imageViewComponent.setAttribute("pagenumber", String(_pageIdToIndex.get(_pageSequenceData[idx].id)));
+        const pageNumber = _pageIdToIndex.get(_pageSequenceData[idx].id);
+        imageViewComponent.setAttribute("pagenumber", String(pageNumber));
+        // The viewer fires page-changed only when it navigates, not when it opens on this page, so the overlays
+        // that carried over from earlier in the session are loaded here.
+        _viewerPageNumber = pageNumber;
+        loadOverlaysForCurrentPage();
     }
 
     // --- activateMeasureView ---
