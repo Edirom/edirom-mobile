@@ -83,11 +83,7 @@ export async function initConcordanceNavigator(connectionId = null) {
     concordanceNavigatorElement.addEventListener("load-links-request", (event) => {
         loadLinks(event.detail, { behaviour: "updateViewOrSwitchToNavigator" });
     });
-    concordanceNavigatorElement.addEventListener("concordance-navigator-disabled", () => {
-        onConcordanceNavigatorDisabled().catch((error) => {
-            console.error("Failed to refresh navigator after disabling concordance navigator:", error);
-        });
-    });
+    concordanceNavigatorElement.addEventListener("concordance-navigator-disabled", onConcordanceNavigatorDisabled);
     concordanceNavigatorElement.addEventListener("connection-changed", async (event) => {
         // Read before anything is awaited: it is only true while the workspace sync is applying its state
         const changedByUser = !isApplyingRemoteState();
