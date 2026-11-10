@@ -1,14 +1,65 @@
-@import url("https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap");
+/* Montserrat, self-hosted (resources/fonts/montserrat/, see the README there): no third-party request, and the
+   file can be preloaded from index.html. One variable font per style covers every weight (100-900). Each style
+   is split by unicode-range (as Google Fonts serves it), so a browser only downloads what the text needs:
+   normally just the latin file (German and English, including umlauts and typographic quotes); latin-ext only
+   for text with e.g. Polish or Czech letters. The italic latin file is only fetched once italic text is shown;
+   there is no italic latin-ext (italic text with such letters is rare), the browser falls back for those. */
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/montserrat/montserrat-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/montserrat/montserrat-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/montserrat/montserrat-italic-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
+/* While Montserrat loads (font-display: swap), the text is shown in Arial/Helvetica scaled to Montserrat's size
+   and line metrics, so the swap does not move anything. The values are Montserrat's (at weight 300, the body
+   weight) relative to Arial: size-adjust = ratio of average glyph widths, the overrides = ascent/descent
+   divided by size-adjust. Where none of these system fonts exists, the stack falls through to sans-serif. */
+@font-face {
+  font-family: 'Montserrat Fallback';
+  src: local('Arial'), local('Helvetica'), local('Liberation Sans');
+  size-adjust: 112.57%;
+  ascent-override: 85.99%;
+  descent-override: 22.3%;
+  line-gap-override: 0%;
+}
+
+/* Bravura draws the musical symbols in the annotation badges of <edirom-image-viewer>. The badge rules
+   (annotation-style.css) are cloned into the viewer's shadow root, but a @font-face only takes effect in the
+   main document, from where the family is available to the shadow root as well. The font files are the
+   Frontend's (this page is served from <frontend>/mobile/); the Frontend declares it the same way in its theme. */
+@font-face {
+  font-family: 'Bravura';
+  src: url('../../../resources/fonts/bravura/woff/Bravura.woff') format('woff'),
+       url('../../../resources/fonts/bravura/otf/Bravura.otf') format('opentype');
+}
+
+/* Colours: the palette (--eo-*) comes from the theme file loaded before this stylesheet
+   (theme-edirom.css). Nothing below uses a brand colour literal; the generic names are the
+   contract the web components read (--primary-color etc.), and are filled from the palette here. */
 :root {
-  --edirom-filtered-highlight: #ff1a01;
-  --edirom-mobile-primary-color: #232a44;
-  --edirom-mobile-secondary-color: #e9d9af;
-  --edirom-mobile-tertiary-color: #faf6f0;
-  --filtered-highlight: var(--edirom-filtered-highlight);
-  --primary-color: var(--edirom-mobile-primary-color);
-  --secondary-color: var(--edirom-mobile-secondary-color);
-  --tertiary-color: var(--edirom-mobile-tertiary-color);
+  --filtered-highlight: var(--eo-highlight);
+  --primary-color: var(--eo-primary);
+  --secondary-color: var(--eo-secondary);
+  --tertiary-color: var(--eo-tertiary);
   --header-height: 55px;
   --view-header-height: 0px;
   --control-bar-height: 40px;
@@ -17,15 +68,17 @@
   --viewport-height: 100dvh;
 }
 
+/* Set on the element itself (not just inherited from :root), because a component's own :host defaults
+   would win over an inherited value. They read the palette, not the generic names (that would be a cycle). */
 edirom-navigator {
-  --primary-color: var(--edirom-mobile-primary-color);
-  --secondary-color: var(--edirom-mobile-secondary-color);
-  --tertiary-color: var(--edirom-mobile-tertiary-color);
+  --primary-color: var(--eo-primary);
+  --secondary-color: var(--eo-secondary);
+  --tertiary-color: var(--eo-tertiary);
 }
 
 edirom-control-bar {
-  --primary-color: var(--edirom-mobile-primary-color);
-  --secondary-color: var(--edirom-mobile-secondary-color);
+  --primary-color: var(--eo-primary);
+  --secondary-color: var(--eo-secondary);
   --control-bar-padding: 5px 13px;
 }
 
@@ -52,14 +105,14 @@ html {
 
 body {
   background-color: var(--tertiary-color);
-  font-family: Montserrat;
+  font-family: Montserrat, 'Montserrat Fallback', sans-serif;
   font-weight: 300;
 }
 
 header {
   position: relative;
-  background-color: var(--primary-color);
-  color: var(--secondary-color);
+  background-color: var(--mobile-bar-background);
+  color: var(--mobile-bar-color);
   height: 35px;
   padding: 10px;
   display: flex;
@@ -83,6 +136,17 @@ header > div:last-child {
   display: flex;
   justify-content: flex-end;
   align-items: center;
+}
+
+/* Only present when a WebSocket URL is configured (see connected-workspace.js). The component fills its
+   container (height: 100%, and its button 100% of that), so without a size here it would collapse to nothing;
+   Edirom-Frontend sizes it the same way (24x24). The size matches the burger icon.
+   The component takes its colors from --primary/secondary/tertiary-color above; --quaternary-color
+   (disconnected icon) falls back to --secondary-color, which is readable on the header. */
+#edirom-connected-workspace-container {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
 }
 
 #view-header {
@@ -172,7 +236,7 @@ header > div:last-child {
 }
 
 .header-menu li + li {
-  border-top: 1px solid rgba(35, 42, 68, 0.08);
+  border-top: 1px solid color-mix(in oklch, var(--primary-color) 8%, transparent);
 }
 
 .header-menu a {
@@ -202,7 +266,7 @@ footer {
   position: fixed;
   min-height: var(--base-footer-height);
   background-color: transparent;
-  color: var(--secondary-color);
+  color: var(--mobile-bar-color);
   left: 0;
   right: 0;
   bottom: 0;
@@ -371,7 +435,7 @@ h2 {
   transform: translateX(-50%);
   background-color: var(--primary-color);
   color: var(--secondary-color);
-  border: 1px solid rgba(233, 217, 175, 0.6);
+  border: 1px solid color-mix(in oklch, var(--secondary-color) 60%, transparent);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 1em;
@@ -538,6 +602,65 @@ h2 {
   box-shadow: rgba(0, 0, 0, 0.40) 0px 0px 2px 2px;
 }
 
+/* ── Measure view of part-wise sources: one row per voice (measureStackView.js) ── */
+
+.measure-stack {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background-color: var(--eo-primary);
+}
+
+.voice-row {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+}
+
+.voice-slice {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  background-color: var(--eo-tertiary);
+}
+
+.voice-slice edirom-image-viewer {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The voice's name, top left over the row (like Edirom-Frontend's part label). */
+.voice-row-label {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  max-width: calc(100% - 8px);
+  padding: 1px 6px;
+  border-radius: 3px;
+  background-color: color-mix(in oklch, var(--eo-primary) 75%, transparent);
+  color: var(--eo-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.measure-stack-empty {
+  margin: auto;
+  padding: 16px;
+  color: var(--eo-tertiary);
+  text-align: center;
+}
+
 #view-control-bar-container {
   height: var(--control-bar-height);
   color: var(--primary-color);
@@ -548,13 +671,44 @@ h2 {
 }
 
 edirom-button-widget {
-  --secondary-color: color-mix(in oklch, var(--edirom-mobile-secondary-color) 95%, black);
+  --secondary-color: color-mix(in oklch, var(--eo-secondary) 95%, black);
+}
+
+/* A switched-on toggle button (state "on", e.g. measure numbers, annotations) has a darker background, like
+   the pressed buttons of Edirom-Frontend. */
+edirom-button-widget[current-state="on"] {
+  --secondary-color: color-mix(in oklch, var(--eo-secondary) 75%, black);
 }
 
 edirom-spin-box-widget {
-  --primary-color: color-mix(in oklch, var(--edirom-mobile-secondary-color) 95%, black);
+  --primary-color: color-mix(in oklch, var(--eo-secondary) 95%, black);
   --spin-box-input-width: 4ch;
-  --spin-box-border-color: color-mix(in oklch, var(--edirom-mobile-secondary-color) 80%, black);
+  --spin-box-border-color: color-mix(in oklch, var(--eo-secondary) 80%, black);
+  --spin-box-input-color: var(--eo-primary);
+  --spin-box-input-background: var(--eo-tertiary);
+}
+
+/* Movement selector: compact in the control bar; the native picker shows the full movement names. */
+edirom-select-widget {
+  --select-widget-max-width: 16ch;
+  --select-widget-border-color: color-mix(in oklch, var(--eo-secondary) 80%, black);
+  --select-widget-color: var(--eo-primary);
+  --select-widget-background: var(--eo-tertiary);
+  flex: 0 1 auto;
+  color: var(--eo-primary);
+}
+
+/* Voice selection: the button looks like the other buttons, and is darker while not all voices are shown
+   (like a switched-on toggle). The sheet takes the palette. */
+edirom-multi-select-widget {
+  --secondary-color: color-mix(in oklch, var(--eo-secondary) 95%, black);
+  --multi-select-accent: var(--eo-primary);
+  --multi-select-panel-background: var(--eo-tertiary);
+  --multi-select-panel-color: var(--eo-primary);
+}
+
+edirom-multi-select-widget:state(partial) {
+  --secondary-color: color-mix(in oklch, var(--eo-secondary) 75%, black);
 }
 
 edirom-control-bar.filtered-state #view-filter-button {
@@ -574,165 +728,21 @@ edirom-control-bar.filtered-state edirom-spin-box-widget {
 edirom-concordance-navigator {
   width: 100%;
   min-height: 49px;
-  --concordance-navigator-background: var(--edirom-mobile-primary-color);
+  --concordance-navigator-background: var(--mobile-bar-background);
+  --concordance-navigator-foreground: var(--mobile-bar-color);
 }
 
-/* ── About / Tutorial page ─────────────────────────────────────────── */
+/* ── About page ────────────────────────────────────────────────────── */
 
-#about-edirom-mobile-page {
-  overflow-y: auto;
+#about-page {
+  height: calc(
+    var(--viewport-height) - var(--header-height) - var(--base-footer-height)
+  );
+  overflow: hidden;
+}
+
+#about-page edirom-text-viewer {
   height: 100%;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.about-page-inner {
-  max-width: 680px;
-  margin: 0 auto;
-  padding: 24px 20px 48px;
-  box-sizing: border-box;
-}
-
-/* Hero */
-.about-hero {
-  text-align: center;
-  margin-bottom: 32px;
-  padding-bottom: 24px;
-  border-bottom: 2px solid var(--secondary-color);
-}
-
-.about-hero h1 {
-  font-size: 1.8em;
-  font-weight: 700;
-  color: var(--primary-color);
-  margin: 0 0 8px;
-}
-
-.about-hero-subtitle {
-  font-size: 1em;
-  font-weight: 400;
-  color: var(--primary-color);
-  opacity: 0.65;
-  margin: 0;
-}
-
-/* Table of contents */
-.about-toc {
-  background-color: var(--secondary-color);
-  color: var(--primary-color);
-  border-radius: 8px;
-  padding: 16px 20px 16px 12px;
-  margin-bottom: 32px;
-}
-
-.about-toc-heading {
-  font-size: 0.85em;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin: 0 0 10px;
-  text-align: left;
-  color: var(--primary-color);
-}
-
-.about-toc ol {
-  margin: 0;
-  padding-left: 20px;
-  list-style-type: decimal;
-}
-
-.about-toc ol ol {
-  padding-left: 18px;
-  list-style-type: lower-alpha;
-  margin-top: 4px;
-}
-
-.about-toc li {
-  margin: 4px 0;
-  font-size: 0.9em;
-  line-height: 1.4;
-}
-
-.about-toc a {
-  color: var(--primary-color);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.about-toc a:hover,
-.about-toc a:focus-visible {
-  text-decoration: underline;
-  outline: none;
-}
-
-/* Sections */
-.about-section {
-  margin-bottom: 40px;
-  padding-bottom: 32px;
-  border-bottom: 1px solid color-mix(in oklch, var(--secondary-color) 70%, transparent);
-}
-
-.about-section:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-}
-
-.about-section h2 {
-  font-size: 1.25em;
-  font-weight: 700;
-  color: var(--primary-color);
-  text-align: left;
-  margin: 0 0 10px;
-}
-
-.about-section h3 {
-  font-size: 1em;
-  font-weight: 700;
-  color: var(--primary-color);
-  margin: 22px 0 6px;
-  text-align: left;
-}
-
-.about-section h4 {
-  font-size: 0.9em;
-  font-weight: 600;
-  color: var(--primary-color);
-  opacity: 0.8;
-  margin: 16px 0 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  text-align: left;
-}
-
-/* Lead paragraph */
-.about-lead {
-  font-weight: 500;
-  line-height: 1.6;
-  margin: 0 0 14px;
-  padding: 12px 14px;
-  border-left: 3px solid var(--secondary-color);
-  background-color: color-mix(in oklch, var(--secondary-color) 25%, transparent);
-  border-radius: 0 6px 6px 0;
-}
-
-/* Body text */
-.about-section p {
-  line-height: 1.65;
-  margin: 0 0 12px;
-  font-size: 0.95em;
-}
-
-/* Lists */
-.about-section ul,
-.about-section ol {
-  margin: 8px 0 14px;
-  padding-left: 22px;
-  font-size: 0.95em;
-}
-
-.about-section li {
-  line-height: 1.6;
-  margin-bottom: 6px;
 }
 
 /* ── Global content-container loading overlay ──────────────────────── */
@@ -743,7 +753,7 @@ edirom-concordance-navigator {
   left: 0;
   right: 0;
   bottom: var(--base-footer-height);
-  background-color: color-mix(in oklch, var(--edirom-mobile-primary-color) 50%, transparent);
+  background-color: color-mix(in oklch, var(--eo-primary) 50%, transparent);
   display: none;
   align-items: center;
   justify-content: center;
@@ -756,7 +766,7 @@ edirom-concordance-navigator {
 }
 
 #content-loading-overlay edirom-icon {
-  color: var(--edirom-mobile-secondary-color);
+  color: var(--eo-secondary);
   animation: content-loading-spin 1s linear infinite;
 }
 

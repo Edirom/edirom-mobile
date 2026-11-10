@@ -1,50 +1,89 @@
 import { appState, setAppState } from "./config.js";
-import { buildNavigator, navigateBackInNavigator } from "./navigator.js";
+import { getLangString } from "./languageController.js";
+import { buildNavigator, navigateBackInNavigator, closeSubNavigators } from "./navigator.js";
 import { getAllEditions } from "./api.js";
 import { initEdition } from "./main.js";
 import { resetContentLoadingState } from "./loading.js";
+import { disposeImageViewers } from "./imageView.js";
+import { buildAboutPage } from "./about.js";
+import { captureViewFrame, restoreViewFrame, viewLeavesOnBack } from "./views.js";
+import { createNavigationStack } from "./navigationStack.js";
 
-// Flag to skip the next popstate event (set when we call history.go(1) ourselves)
-let skipNextPopstate = false;
+/**
+ * Where "Back" goes. The browser history only tells us that the user pressed Back; what it means is decided by
+ * the navigation stack (navigationStack.js), which has one frame per page the user can return to. A Back is
+ * resolved in this order (see `handlePopstate`):
+ *  1. something inside the page takes it: an open overlay, the detail page of the annotation view, a
+ *     sub-navigator (`consumeBackInPage`). The browser's step back is then undone.
+ *  2. otherwise the page is left: the frame below is rebuilt (`restoreFrame`). A frame of a view window carries
+ *     what was captured of its view when the user left it (see `captureViewFrame` in views.js).
+ */
+const navigationStack = createNavigationStack();
+
+/** Frame id of the page on screen. The stack can already point elsewhere while a page is being rebuilt. */
+let displayedFrameId = null;
+
+// Identifies the latest navigation that was started. A page is only switched to if no newer navigation has
+// begun meanwhile (e.g. the user pressed Back while a view window was still loading).
+let navigationToken = 0;
+
+/**
+ * Starts a navigation and returns its token. Whatever is waiting for data (a view window that is fetched, a
+ * page that is built) has to check `isCurrentNavigation(token)` before it switches the page.
+ * @returns {number}
+ */
+export function beginNavigation() {
+    return ++navigationToken;
+}
+
+/**
+ * @param {number} token - A token from `beginNavigation`
+ * @returns {boolean} `false` if a newer navigation has been started since, so this one is obsolete
+ */
+export function isCurrentNavigation(token) {
+    return token === navigationToken;
+}
+
+// One-shot flag: lets a deliberate, app-initiated navigation (e.g. "switch to desktop")
+// pass the beforeunload guard once. Consumed by handleBeforeUnload.
+let allowUnload = false;
+
+/**
+ * Lets the next page unload pass without the native "Leave site?" dialog.
+ * Call immediately before an intentional navigation away from the app. The
+ * exemption is one-shot and also expires after a short timeout, so a navigation
+ * that never happens cannot leave the guard disabled. Back-navigation, reload
+ * and tab close are unaffected.
+ */
+export function allowNextUnload() {
+    allowUnload = true;
+    setTimeout(() => {
+        allowUnload = false;
+    }, 1000);
+}
 
 // Handler for beforeunload event - shows browser's native "Leave site?" dialog
 /**
- * Triggers the browser's native "Leave site?" dialog on page unload.
+ * Triggers the browser's native "Leave site?" dialog on page unload,
+ * unless the unload was explicitly allowed via allowNextUnload().
  */
 function handleBeforeUnload(event) {
+    if (allowUnload) {
+        allowUnload = false;
+        return;
+    }
     event.preventDefault();
     event.returnValue = '';
     return '';
 }
 
 /**
- * Dispatches a cancelable 'back-request' event to web components, allowing them
- * to handle back navigation internally (e.g., closing a detail view).
+ * Dispatches a cancelable 'back-request' event to each of the targets in turn, allowing web components to
+ * handle back navigation internally (e.g., closing a detail view).
+ * @param {Iterable<Element>} targets
  * @returns {boolean} true if a component handled the back request
  */
-function requestComponentsBackHandling() {
-    // First pass: global components outside #content-container (header, footer)
-    // that declare they can handle back navigation (e.g. open popovers).
-    const globalTargets = document.querySelectorAll('[data-handles-back-request]');
-    for (const target of globalTargets) {
-        const backRequestEvent = new CustomEvent("back-request", {
-            cancelable: true,
-            bubbles: true,
-            composed: true
-        });
-        target.dispatchEvent(backRequestEvent);
-        if (backRequestEvent.defaultPrevented) {
-            return true;
-        }
-    }
-
-    // Second pass: content-area web components (e.g. annotation view detail page).
-    const contentContainer = document.getElementById("content-container");
-    if (!contentContainer) return false;
-
-    const targets = contentContainer.querySelectorAll(".web-component");
-    if (!targets || targets.length === 0) return false;
-
+function dispatchBackRequest(targets) {
     for (const target of targets) {
         const backRequestEvent = new CustomEvent("back-request", {
             cancelable: true,
@@ -60,19 +99,104 @@ function requestComponentsBackHandling() {
 }
 
 /**
- * Switches the app to a new page, managing content, state, and browser history.
- * @param {string} pageName - The name of the page to switch to
- * @param {HTMLElement|Promise<HTMLElement>} newContent - The content to display
- * @param {Object} options - History management options
- * @param {boolean} options.pushState - Whether to push a new history entry (default: true)
- * @param {boolean} options.replaceState - Whether to replace the current history entry (default: false)
+ * Gives the page a chance to handle a Back itself before it is left: web components get a cancelable
+ * 'back-request' event, and a sub-navigator is closed.
+ * @returns {boolean} true if something inside the page handled the back request
  */
-export async function switchPage(pageName, newContent, { pushState = true, replaceState = false } = {}) {
-    console.log("Switching to page:", pageName, "with options:", { pushState, replaceState });
+function consumeBackInPage() {
+    // First pass: global components outside #content-container (header, footer)
+    // that declare they can handle back navigation (e.g. open popovers).
+    if (dispatchBackRequest(document.querySelectorAll('[data-handles-back-request]'))) {
+        return true;
+    }
 
-    const resolvedContent = await newContent;
+    // Second pass: content-area web components (e.g. annotation view detail page). A view can leave this
+    // out when its page has to be left straight away (see `leaveOnBack` in views.js).
+    const contentContainer = document.getElementById("content-container");
+    const returnsToView = navigationStack.previous?.kind === "views";
+    const viewLeaves = appState.page === "views" && viewLeavesOnBack({ returnsToView });
+    if (contentContainer && !viewLeaves && dispatchBackRequest(contentContainer.querySelectorAll(".web-component"))) {
+        return true;
+    }
+
+    // Navigate back through the sub-navigator stack
+    return appState.page === "navigator" && navigateBackInNavigator();
+}
+
+/**
+ * What is stored when a page is left: what is needed to rebuild it. Only view windows have anything to store
+ * (see `captureViewFrame` in views.js); the other pages are rebuilt from the app state.
+ * @returns {Object|null}
+ */
+function captureLeavingPage() {
+    return appState.page === "views" ? captureViewFrame() : null;
+}
+
+/**
+ * Brings the navigation stack and the browser history in line with the page that was just switched to.
+ * @param {string} pageName - The page that is shown now
+ * @param {"push"|"reset"|"restore"} mode - See `switchPage`
+ * @param {string} previousPage - The page that was shown before
+ * @param {Object|null} leaving - What was captured of the page that is left (only for `push`)
+ */
+function commitHistory(pageName, mode, previousPage, leaving) {
+    if (mode === "restore") {
+        // The browser is on the entry of this frame already, and the stack was cut back to it (popstate).
+        displayedFrameId = navigationStack.top?.id ?? null;
+        return;
+    }
+
+    const stack = navigationStack;
+    if (leaving) {
+        stack.update(displayedFrameId, leaving);
+    }
+
+    let write;
+    if (mode === "reset") {
+        // The first page of the app takes a history entry of its own, above the one the page was loaded with
+        // (see the "guard" case in `handlePopstate`). Later roots take over the entry that is current.
+        write = stack.depth >= 0 ? "replaceState" : "pushState";
+        stack.reset(pageName);
+    } else if (previousPage === pageName && pageName !== "views" && stack.depth >= 0) {
+        // The same page again (e.g. "About" while "About" is shown) is no new page to go Back to.
+        write = "replaceState";
+        stack.replaceTop(pageName);
+    } else {
+        write = "pushState";
+        stack.push(pageName);
+    }
+    window.history[write](stack.historyState(pageName), "");
+    displayedFrameId = stack.top.id;
+}
+
+/**
+ * Switches the app to a new page, managing content, navigation stack and browser history.
+ * @param {string} pageName - The name of the page to switch to
+ * @param {HTMLElement|Promise<HTMLElement>|(() => HTMLElement|Promise<HTMLElement>)} content - The content to
+ *   display. A function is called once what is on screen has been captured (see `captureLeavingPage`), which
+ *   matters for pages whose construction replaces the state of the one that is left.
+ * @param {Object} [options]
+ * @param {"push"|"reset"|"restore"} [options.history="push"] - `"push"`: a page that "Back" returns from, to the
+ *   one that is left. `"reset"`: a new root, all earlier pages are forgotten. `"restore"`: "Back" has returned
+ *   to a page below, whose frame is on top of the stack already; history and stack are left alone.
+ * @param {number} [options.navigation] - The token of the navigation this belongs to (`beginNavigation`); a
+ *   new one is started if omitted
+ * @returns {Promise<boolean>} `true` if the page was switched, `false` if a newer navigation replaced this one
+ */
+export async function switchPage(pageName, content, { history: mode = "push", navigation = beginNavigation() } = {}) {
+    console.log("Switching to page:", pageName, "with history:", mode);
+
+    const previousPage = appState.page;
+    const leaving = mode === "push" ? captureLeavingPage() : null;
+
+    const resolvedContent = await (typeof content === "function" ? content() : content);
+    if (!isCurrentNavigation(navigation)) {
+        console.log("Not switching to page", pageName, "- a newer navigation has begun");
+        return false;
+    }
 
     const contentContainer = document.getElementById("content-container");
+    disposeImageViewers(contentContainer);
     contentContainer.innerHTML = "";
     contentContainer.appendChild(resolvedContent);
     setAppState({ page: pageName });
@@ -94,14 +218,8 @@ export async function switchPage(pageName, newContent, { pushState = true, repla
         window.removeEventListener("beforeunload", handleBeforeUnload);
     }
 
-    // Manage browser history
-    if (replaceState) {
-        // Used for initial page load to claim the browser's initial history entry
-        window.history.replaceState({ ...appState }, "");
-    } else if (pushState) {
-        window.history.pushState({ ...appState }, "");
-    }
-    // When both are false, we're restoring from popstate - don't modify history
+    commitHistory(pageName, mode, previousPage, leaving);
+    return true;
 }
 
 /**
@@ -111,13 +229,15 @@ export async function switchPage(pageName, newContent, { pushState = true, repla
  * to avoid unnecessary remounts of `<edirom-navigator>`. Set `forceRemount`
  * to true when a full rebuild is explicitly required.
  *
+ * The navigator is the root of the app: showing it starts the navigation stack over (`history: "reset"`).
+ *
  * @param {Object} options - History and remount options
- * @param {boolean} [options.pushState=true] - Whether to push a new history entry
- * @param {boolean} [options.replaceState=false] - Whether to replace current history entry
+ * @param {"reset"|"restore"} [options.history="reset"] - See `switchPage`
  * @param {boolean} [options.forceRemount=false] - Force rebuilding navigator even when already active
+ * @param {number} [options.navigation] - The token of the navigation this belongs to, see `switchPage`
  * @returns {Promise<boolean>} `true` if a page switch occurred, `false` if skipped
  */
-export async function showNavigator({ pushState = true, replaceState = false, forceRemount = false } = {}) {
+export async function showNavigator({ history = "reset", forceRemount = false, navigation } = {}) {
     const navigatorElement = document.querySelector("#content-container edirom-navigator");
     const isNavigatorActive = appState.page === "navigator" && !!navigatorElement;
 
@@ -126,180 +246,21 @@ export async function showNavigator({ pushState = true, replaceState = false, fo
     }
 
     resetContentLoadingState();
-    await switchPage("navigator", buildNavigator(), { pushState, replaceState });
-    return true;
+    return switchPage("navigator", () => buildNavigator(), { history, navigation });
 }
 
 /**
- * Builds and returns the "About Edirom Mobile" page element.
- * @returns {HTMLElement} The page container element
+ * "Home": goes to the root of the app from wherever the user is (any view, About, the edition list, a
+ * sub-navigator), and makes it the last page: the navigation stack starts over, so there is nothing to go Back
+ * to. The navigator shows its tabs again (open sub-navigators are closed); the tab and the concordance data
+ * are kept. Whatever is still loading for the page that is left is dropped.
+ * @returns {Promise<boolean>} `true` if a page switch occurred, `false` if the navigator was shown already
  */
-export function buildAboutEdiromMobilePage() {
-    const aboutPageContainer = document.createElement("div");
-    aboutPageContainer.id = "about-edirom-mobile-page";
-
-    aboutPageContainer.innerHTML = `
-        <div class="about-page-inner">
-
-            <div class="about-hero">
-                <h1>Edirom Mobile</h1>
-                <p class="about-hero-subtitle">Einführung in die Nutzung der App</p>
-            </div>
-
-            <nav class="about-toc" aria-label="Inhaltsverzeichnis">
-                <h2 class="about-toc-heading">Inhalt</h2>
-                <ol>
-                    <li><a href="#about-ch1">Willkommen bei Edirom Mobile</a></li>
-                    <li><a href="#about-ch2">Edition und Werk auswählen</a></li>
-                    <li><a href="#about-ch3">Der Navigator: Die Hauptansicht</a></li>
-                    <li>
-                        <a href="#about-ch4">Der Konkordanznavigator</a>
-                        <ol>
-                            <li><a href="#about-ch4-1">Ein- und Ausklappen</a></li>
-                            <li><a href="#about-ch4-2">Eine Konkordanz auswählen</a></li>
-                            <li><a href="#about-ch4-3">Innerhalb einer Konkordanz navigieren</a></li>
-                            <li><a href="#about-ch4-4">Freies Erkunden</a></li>
-                        </ol>
-                    </li>
-                    <li><a href="#about-ch5">Ein Dokument öffnen</a></li>
-                    <li>
-                        <a href="#about-ch6">Die Ansichten im Detail</a>
-                        <ol>
-                            <li><a href="#about-ch6-1">Die Annotationsansicht</a></li>
-                            <li><a href="#about-ch6-2">Die Bildansicht (Faksimile)</a></li>
-                            <li><a href="#about-ch6-3">Die Textansicht</a></li>
-                        </ol>
-                    </li>
-                    <li><a href="#about-ch7">Ansichten sperren und entsperren</a></li>
-                </ol>
-            </nav>
-
-            <section class="about-section" id="about-ch1">
-                <h2>1. Willkommen bei Edirom Mobile</h2>
-                <p class="about-lead">Edirom Mobile ist eine mobile Anwendung, die den direkten und intuitiven Zugang zu digitalen wissenschaftlichen Editionen ermöglicht. Sie erlaubt es, Quellen, Texte und Anmerkungen einer Edition bequem auf dem Mobilgerät zu erkunden – ohne Vorkenntnisse in digitaler Forschungsinfrastruktur.</p>
-                <p>Dieses Tutorial führt Sie Schritt für Schritt durch alle wichtigen Funktionen der App. Sie können es von vorne bis hinten lesen oder gezielt einzelne Abschnitte im Inhaltsverzeichnis ansteuern. Alle Kapitel beginnen mit einem kurzen Überblick – wer es lieber ausführlicher mag, findet die Details direkt im Anschluss.</p>
-                <p>Edirom Mobile ist für den Einsatz mit Editionen aus dem Bereich der Musikwissenschaft und Editionswissenschaft konzipiert. Bestimmte Fachbegriffe – wie Edition, Werk, Konkordanz oder Faksimile – werden daher vorausgesetzt oder dort kurz eingeführt, wo es ihr Gebrauch in der App erfordert.</p>
-            </section>
-
-            <section class="about-section" id="about-ch2">
-                <h2>2. Edition und Werk auswählen</h2>
-                <p class="about-lead">Beim ersten Start zeigt Edirom Mobile eine Übersicht aller verfügbaren Editionen. Ist nur eine Edition vorhanden, wird sie automatisch geladen. Innerhalb einer Edition können Sie das gewünschte Werk über das Auswahlmenü im oberen Bereich der App wechseln.</p>
-
-                <h3>Die Editionsauswahl</h3>
-                <p>Wenn Sie Edirom Mobile öffnen und noch keine Edition aktiv ist, erscheint automatisch die Seite <em>Edition auswählen</em>. Sie zeigt eine Liste aller Editionen, auf die die App zugreifen kann. Tippen Sie auf eine Edition, um sie zu laden.</p>
-                <p>Eine Edition umfasst in der Regel mehrere Werke – etwa verschiedene Opern oder Instrumentalwerke eines Komponisten – sowie die zugehörigen Quellen, Texte und wissenschaftlichen Anmerkungen.</p>
-                <p>Möchten Sie nachträglich eine andere Edition laden, öffnen Sie das Menü über das Symbol oben links (☰) und wählen Sie den Eintrag <em>Editionen</em>.</p>
-
-                <h3>Das Werk wählen</h3>
-                <p>Sobald eine Edition geladen ist, sehen Sie oben in der Kopfzeile den Titel des aktuell ausgewählten Werkes. Ein Tipp auf diesen Titel öffnet ein Auswahlmenü mit allen Werken der Edition. Wählen Sie ein anderes Werk aus, lädt die App den Navigator neu und zeigt die Materialien dieses Werkes an.</p>
-            </section>
-
-            <section class="about-section" id="about-ch3">
-                <h2>3. Der Navigator: Die Hauptansicht</h2>
-                <p class="about-lead">Der Navigator ist die zentrale Übersicht von Edirom Mobile. Er listet alle Dokumente und Ressourcen auf, die zum aktuell gewählten Werk gehören – zum Beispiel Quellen, Textdokumente oder externe Links. Von hier aus öffnen Sie die Inhalte, die Sie erkunden möchten.</p>
-                <p>Die Einträge im Navigator sind in Gruppen gegliedert, typischerweise <em>Dokumente</em> (direkt in der App abrufbare Materialien) und <em>Externe Ressourcen</em> (Links, die im Browser geöffnet werden). Zu jedem Eintrag sehen Sie ein Symbol, das die Art des Inhalts andeutet.</p>
-                <p>Beim ersten Laden erscheint kurz die Meldung <em>„Inhalte werden geladen …"</em> – die App ruft in diesem Moment die Struktur der Edition vom Server ab. Sobald die Daten vorliegen, wird die Liste aufgebaut.</p>
-                <p>Ein Tipp auf einen Eintrag öffnet das zugehörige Dokument in einer der verfügbaren Ansichten. Wie das genau funktioniert, erklärt Kapitel 5.</p>
-            </section>
-
-            <section class="about-section" id="about-ch4">
-                <h2>4. Der Konkordanznavigator</h2>
-                <p class="about-lead">Am unteren Rand der App befindet sich der Konkordanznavigator. Er ermöglicht es, Quellen und Dokumente gezielt nach Konkordanzen zu erkunden – also nach den strukturellen Entsprechungen zwischen verschiedenen Überlieferungsträgern, etwa zwischen zwei Handschriften oder zwischen einer Handschrift und einem Druck. Der Konkordanznavigator lässt sich ein- und ausklappen und ist unabhängig davon bedienbar, welche Ansicht gerade aktiv ist.</p>
-
-                <h3 id="about-ch4-1">4.1 Ein- und Ausklappen</h3>
-                <p>Der Konkordanznavigator ist standardmäßig eingeklappt und zeigt nur einen schmalen Balken am unteren Bildschirmrand. Um ihn vollständig einzusehen, tippen Sie auf den Pfeil rechts in diesem Balken (↑) oder wischen Sie von unten nach oben über den Balken. Mit einem Tipp auf den Pfeil (↓) oder einem Wischen von oben nach unten klappen Sie ihn wieder ein.</p>
-
-                <h3 id="about-ch4-2">4.2 Eine Konkordanz auswählen</h3>
-                <p>Im Konkordanznavigator finden Sie ein Auswahlmenü, das alle in der Edition hinterlegten Konkordanzen auflistet. Eine Konkordanz bündelt dabei die Verbindungen zwischen inhaltlich zusammengehörigen Stellen in verschiedenen Quellen – zum Beispiel alle Taktstellen, die in Quelle A und Quelle B einander entsprechen.</p>
-                <p>Sobald Sie eine Konkordanz auswählen, reagiert der Navigator darauf: Die angezeigte Dokumentenliste wird auf diejenigen Quellen eingeschränkt, die in dieser Konkordanz enthalten sind. So sehen Sie auf einen Blick, welche Quellen für die gewählte Konkordanz relevant sind.</p>
-                <p>Falls die gewählte Konkordanz in Gruppen unterteilt ist (etwa nach Abschnitten oder Formteilen), erscheint unterhalb des Konkordanzmenüs ein weiteres Auswahlmenü für diese Gruppen.</p>
-
-                <h3 id="about-ch4-3">4.3 Innerhalb einer Konkordanz navigieren</h3>
-                <p>Ist eine Konkordanz ausgewählt, können Sie zwischen einzelnen Verbindungen navigieren. Eine Verbindung bezeichnet die konkrete Entsprechung zwischen zwei oder mehr Stellen in verschiedenen Quellen – zum Beispiel: Takt 5 in Quelle A entspricht Takt 7 in Quelle B.</p>
-                <p>Für die Navigation stehen Ihnen zur Verfügung:</p>
-                <ul>
-                    <li><strong>Vor- und Zurück-Pfeile</strong> (← →): Springen zur vorherigen oder nächsten Verbindung.</li>
-                    <li><strong>Eingabefeld</strong>: Geben Sie den Namen einer Verbindung direkt ein und bestätigen Sie mit der Eingabetaste.</li>
-                    <li><strong>Schieberegler</strong>: Ermöglicht das schnelle Durchblättern aller Verbindungen per Wischen.</li>
-                </ul>
-                <p>Wählen Sie eine Verbindung aus, springt die App in der aktuell geöffneten Ansicht zur entsprechenden Stelle und zeigt nur den relevanten Ausschnitt. Haben Sie noch kein Dokument geöffnet, wechselt die App automatisch zum Navigator und zeigt die zu dieser Verbindung gehörigen Quellen an.</p>
-
-                <h3 id="about-ch4-4">4.4 Freies Erkunden</h3>
-                <p>Ganz oben im Konkordanzmenü steht der Eintrag <em>Freies Erkunden</em>. Wählen Sie ihn aus, werden alle durch eine Konkordanz vorgenommenen Einschränkungen aufgehoben: Der Navigator zeigt wieder alle Dokumente des Werkes, und geöffnete Ansichten kehren in den vollen, ungefilterten Modus zurück. <em>Freies Erkunden</em> ist der Ausgangszustand – ohne jede Vorgabe durch eine Konkordanz.</p>
-            </section>
-
-            <section class="about-section" id="about-ch5">
-                <h2>5. Ein Dokument öffnen</h2>
-                <p class="about-lead">Ein Tipp auf einen Eintrag im Navigator öffnet das zugehörige Dokument. Oberhalb des Inhalts erscheint eine Kopfzeile mit dem Dokumententitel und einem Menü zum Wechsel zwischen verschiedenen Ansichten. Welche Ansichten verfügbar sind, richtet sich nach dem Typ des Dokuments und den in der Edition hinterlegten Daten.</p>
-
-                <h3>Der Ansichten-Header</h3>
-                <p>Direkt unterhalb der App-Kopfzeile erscheint beim Öffnen eines Dokuments der Ansichten-Header. Er besteht aus zwei Bereichen:</p>
-                <ul>
-                    <li><strong>Ansichtenauswahl (links)</strong>: Ein Auswahlmenü mit einem Symbol zeigt die aktuell aktive Ansicht an – zum Beispiel <em>Annotationen</em>, <em>Faksimile</em> oder <em>Text</em>. Tippen Sie darauf, um zwischen den verfügbaren Ansichten zu wechseln.</li>
-                    <li><strong>Dokumententitel (rechts)</strong>: Der Titel des geöffneten Dokuments, rechts ausgerichtet. Ist der Titel zu lang für den verfügbaren Platz, wird er abgekürzt angezeigt.</li>
-                </ul>
-                <p>Der Wechsel zwischen Ansichten erfolgt sofort – die App lädt die neue Ansicht, ohne dass Sie zur Dokumentenübersicht zurückkehren müssen.</p>
-            </section>
-
-            <section class="about-section" id="about-ch6">
-                <h2>6. Die Ansichten im Detail</h2>
-                <p class="about-lead">Edirom Mobile bietet derzeit drei Ansichten: die Annotationsansicht für wissenschaftliche Anmerkungen, die Bildansicht (Faksimile) für Quellenseiten und Einzeltakte sowie die Textansicht für Begleittexte der Edition. Jede Ansicht verfügt am unteren Bildschirmrand über eine eigene Leiste mit Bedienelementen.</p>
-
-                <h3 id="about-ch6-1">6.1 Die Annotationsansicht</h3>
-                <p>Die Annotationsansicht zeigt alle wissenschaftlichen Anmerkungen, die dem geöffneten Dokument zugeordnet sind. Sie ist der ideale Ausgangspunkt, um den editorischen Kommentar zu einem Werk zu lesen.</p>
-                <p>Die Ansicht ist in zwei Ebenen gegliedert:</p>
-                <ul>
-                    <li><strong>Übersichtsliste</strong>: Alle Anmerkungen werden als Karten aufgelistet, mit Titel, Kategorie, Priorität und Quellenangabe. Ein Tipp auf eine Karte öffnet die Detailansicht.</li>
-                    <li><strong>Detailansicht</strong>: Zeigt den vollständigen Annotationstext sowie zugehörige Vorschauen – etwa Quellenstellen oder Notenausschnitte. Mit dem Zurück-Pfeil des Browsers gelangen Sie wieder zur Übersichtsliste.</li>
-                </ul>
-
-                <h4>Untere Leiste</h4>
-                <p>Ist die Detailansicht einer Annotation geöffnet, erscheint in der unteren Leiste eine Navigationssteuerung: Über die Vor- und Zurück-Pfeile sowie über ein Eingabefeld können Sie zwischen den Anmerkungen wechseln, ohne in die Liste zurückzukehren. Ist eine Konkordanz aktiv und die Ansicht gesperrt (→ Kapitel 7), bezieht sich die Zählung nur auf die konkordanzrelevanten Anmerkungen.</p>
-
-                <h3 id="about-ch6-2">6.2 Die Bildansicht (Faksimile)</h3>
-                <p>Die Bildansicht zeigt hochaufgelöste digitale Reproduktionen der Quellenseiten. Sie können zwischen zwei Modi wechseln: der Seitenansicht, die eine ganze Seite auf einmal darstellt, und der Taktansicht, die automatisch auf einzelne Takte heranzoomt.</p>
-                <p><strong>Seitenansicht</strong>: Zeigt jeweils eine vollständige Seite des Faksimiles. Über die Bedienelemente in der unteren Leiste blättern Sie seitenweise vor und zurück oder springen direkt zu einer bestimmten Seite. Die Bildanzeige unterstützt die üblichen Touch-Gesten – Auseinanderziehen zum Zoomen, Schieben zum Verschieben des Bildausschnitts.</p>
-                <p><strong>Taktansicht</strong>: Zooms automatisch auf den Bereich des aktuellen Taktes. Die Takte sind mit den Positionsdaten der MEI-Kodierung verknüpft, sodass die App präzise Ausschnitte aus dem Faksimile zeigen kann. Sie navigieren von Takt zu Takt über die Pfeile oder das Eingabefeld in der unteren Leiste.</p>
-
-                <h4>Untere Leiste</h4>
-                <p>Links in der Leiste befindet sich ein Schalter zum Wechsel zwischen Seiten- und Taktansicht – das Symbol zeigt den jeweils aktiven Modus an. Rechts daneben steuern Sie die Navigation: Das Eingabefeld mit Pfeilen (sogenannte Spin-Box) zeigt die aktuelle Seite bzw. den aktuellen Takt und erlaubt das Vor- und Zurückblättern. Der Schalter ist ausgeblendet, wenn das Dokument keine Taktinformationen enthält (zum Beispiel bei einer reinen Textquelle ohne MEI-Kodierung).</p>
-
-                <h3 id="about-ch6-3">6.3 Die Textansicht</h3>
-                <p>Die Textansicht zeigt einen der Edition zugeordneten Text – etwa einen Kritischen Bericht, eine Einleitung oder einen Kommentar. Der Text wird als formatiertes Dokument dargestellt und kann vertikal gescrollt werden.</p>
-                <p>Wird aus dem Konkordanznavigator heraus eine bestimmte Textstelle angesteuert, springt die App automatisch zum entsprechenden Abschnitt. Enthält der Text Querverweise oder interne Links, lassen sich diese direkt antippen, um weitere Dokumente oder Ansichten zu öffnen.</p>
-
-                <h4>Untere Leiste</h4>
-                <p>In der Textansicht enthält die untere Leiste keine Navigationssteuerung – der Text scrollt fortlaufend. Einzig die Schloss-Schaltfläche kann hier erscheinen, falls eine Konkordanz aktiv ist (→ Kapitel 7).</p>
-            </section>
-
-            <section class="about-section" id="about-ch7">
-                <h2>7. Ansichten sperren und entsperren</h2>
-                <p class="about-lead">Das Schloss-Symbol in der unteren Leiste zeigt an, dass die aktuelle Ansicht auf einen durch die Konkordanz vorgegebenen Ausschnitt eingeschränkt ist. Tippen Sie darauf, um zwischen dem fokussierten (gesperrten) und dem vollständigen (entsperrten) Blick zu wechseln – ohne das Dokument schließen zu müssen.</p>
-
-                <h3>Wann erscheint das Schloss?</h3>
-                <p>Das Schloss-Symbol erscheint nur dann, wenn zwei Bedingungen gleichzeitig erfüllt sind: Eine Konkordanz ist ausgewählt, und in dem gerade geöffneten Dokument gibt es Inhalte, die einer Verbindung dieser Konkordanz entsprechen. Ist keine Konkordanz gewählt oder enthält das Dokument keinen passenden Treffer, bleibt die untere Leiste ohne Schloss-Symbol.</p>
-
-                <h3>Gesperrt: Der fokussierte Blick</h3>
-                <p>Im gesperrten Zustand (🔒) hebt ein roter Akzent in der unteren Leiste den eingeschränkten Modus hervor. Die Ansicht zeigt nur den konkordanzrelevanten Ausschnitt:</p>
-                <ul>
-                    <li><strong>Annotationsansicht</strong>: Nur die Anmerkungen, deren Bezug der Konkordanzverbindung entspricht, sind sichtbar und über die untere Leiste navigierbar.</li>
-                    <li><strong>Bildansicht</strong>: Nur Seiten, die die betreffenden Takte enthalten, stehen zur Auswahl. Die Ansicht wechselt automatisch in die Taktansicht und zeigt den relevanten Takt.</li>
-                    <li><strong>Textansicht</strong>: Das Schloss erscheint hier in der Regel nicht, da Texte keine konkordanzbasierten Teilmengen kennen.</li>
-                </ul>
-                <p>Der gesperrte Zustand erleichtert den direkten Vergleich zwischen Quellen: Sie sehen genau das, was die Konkordanz für dieses Dokument als relevant ausweist – ohne ablenkende Umgebung.</p>
-
-                <h3>Entsperrt: Der volle Kontext</h3>
-                <p>Tippen Sie auf das Schloss-Symbol, wechselt es in den entsperrten Zustand (🔓), und die Ansicht kehrt in den vollen Modus zurück – alle Anmerkungen, alle Seiten, alle Takte werden wieder angezeigt. Die aktuelle Position bleibt dabei erhalten: In der Bildansicht bleiben Sie auf der Seite oder beim Takt, den Sie zuletzt gesehen haben; in der Annotationsansicht bleiben Sie bei der gerade gelesenen Anmerkung.</p>
-                <p>Ein erneutes Tippen auf das Schloss schließt es wieder – Sie kehren zum fokussierten Ausschnitt zurück.</p>
-
-                <h3>Zusammenhang mit dem Konkordanznavigator</h3>
-                <p>Sperren und Entsperren sind eng mit dem Konkordanznavigator verknüpft. Solange eine Konkordanz aktiv ist, können Sie jederzeit zwischen fokussiertem und vollem Blick wechseln. Wechseln Sie im Konkordanznavigator zu einer anderen Verbindung, aktualisiert sich die gesperrte Ansicht automatisch auf diese neue Verbindung. Wählen Sie <em>Freies Erkunden</em>, verschwindet das Schloss-Symbol vollständig – die Einschränkung ist dann nicht nur entsperrt, sondern gänzlich aufgehoben.</p>
-            </section>
-
-        </div>
-    `;
-
-    return aboutPageContainer;
+export async function showHome() {
+    // Supersede loads that are under way (e.g. a view window being fetched while the navigator is still shown)
+    const navigation = beginNavigation();
+    closeSubNavigators();
+    return showRoot(navigation, { forceRemount: false });
 }
 
 /**
@@ -319,7 +280,7 @@ export async function buildEditionSelectionPage() {
     editionSelectionContainer.id = "edition-selection-page";
 
     const heading = document.createElement("h1");
-    heading.textContent = "Edition auswählen";
+    heading.textContent = getLangString("mobile.Pages_selectEdition", "Select edition");
     editionSelectionContainer.appendChild(heading);
 
     const editionList = document.createElement("ul");
@@ -330,8 +291,7 @@ export async function buildEditionSelectionPage() {
         editionLink.addEventListener("click", () => {
             console.log("Selected edition:", edition);
             initEdition({
-                editionId: edition.id,
-                backendUrl: edition.backendUrl
+                editionId: edition.id
             });
         });
         listItem.appendChild(editionLink);
@@ -343,74 +303,132 @@ export async function buildEditionSelectionPage() {
 }
 
 /**
- * Handles browser back/forward navigation.
- * 
- * Strategy:
- * 1. First, give web components a chance to handle the back request internally
- * 2. If a component handles it, use history.go(1) to cancel the navigation
- *    (using pushState would trigger Chrome's History Manipulation Intervention)
- * 3. If no component handles it, restore the appropriate page
- * 
- * @see https://chromium.googlesource.com/chromium/src/+/eef521b43a410cb55d4e5b27eec28f826484bfea
- */
-/**
  * Returns true if the navigator page can be meaningfully shown:
  * either saved navigator data exists to re-render, or both edition and work
  * are set so that getNavigatorConfig() can be called successfully.
  * @returns {boolean}
  */
 function canShowNavigator() {
-    const hasNavigatorData =
-        appState.navigatorData.current.length > 0 ||
-        appState.navigatorData.main !== null;
+    const { config, concordance, subNavigators } = appState.navigatorData;
+    const hasNavigatorData = config !== null || concordance !== null || subNavigators.length > 0;
     const canFetchNavigatorData = !!(appState.edition?.doc && appState.work?.id);
     return hasNavigatorData || canFetchNavigatorData;
 }
 
-window.addEventListener("popstate", async (event) => {
-    // Skip popstate events triggered by our own history.go(1) calls
-    if (skipNextPopstate) {
-        skipNextPopstate = false;
+/**
+ * Shows the root of the app: the navigator if it can be shown, else the edition selection.
+ * @param {number} [navigation] - The token of the navigation this belongs to, see `switchPage`
+ * @param {Object} [options]
+ * @param {boolean} [options.forceRemount=true] - Rebuild the navigator even if it is shown already
+ * @returns {Promise<boolean>}
+ */
+async function showRoot(navigation, { forceRemount = true } = {}) {
+    if (canShowNavigator()) {
+        return showNavigator({ history: "reset", forceRemount, navigation });
+    }
+    return switchPage("edition-selection", () => buildEditionSelectionPage(), { history: "reset", navigation });
+}
+
+/**
+ * Rebuilds the page of a frame that "Back" has returned to.
+ * @param {{kind: string}} frame - The frame, see navigationStack.js
+ * @param {number} navigation - The token of this navigation, see `beginNavigation`
+ * @returns {Promise<boolean>} `false` if the page could not be rebuilt or was superseded
+ */
+function restoreFrame(frame, navigation) {
+    switch (frame.kind) {
+        case "navigator":
+            return showNavigator({ history: "restore", forceRemount: true, navigation });
+        case "views":
+            return restoreViewFrame(frame, { navigation });
+        case "about":
+            return switchPage("about", () => buildAboutPage(), { history: "restore", navigation });
+        case "edition-selection":
+            return switchPage("edition-selection", () => buildEditionSelectionPage(), { history: "restore", navigation });
+        default:
+            return Promise.resolve(false);
+    }
+}
+
+/**
+ * Moves the browser's position in the history. Used to undo a step the browser took by itself when the Back
+ * did not leave the page. The `popstate` this causes lands on the frame on screen and is ignored there.
+ * @param {number} entries - Positive: forward, negative: back
+ */
+function moveHistory(entries) {
+    if (entries !== 0) {
+        window.history.go(entries);
+    }
+}
+
+/**
+ * Handles browser back/forward navigation. The history entries carry `{depth, gen}` (see navigationStack.js),
+ * so the event says by itself which frame the browser moved to.
+ *
+ * - `same`: the frame on screen, nothing to do. This is also what our own `moveHistory` ends in.
+ * - `forward`: to a frame that was left by going back. It is gone: return to the frame on screen.
+ * - otherwise it is a Back (to a frame below, past the first one onto the entry the page was loaded with, or
+ *   onto a stale entry). The page gets the chance to handle it first (`consumeBackInPage`), and the browser's
+ *   step is undone with `moveHistory` (using `history.go` rather than pushState, which Chrome's History
+ *   Manipulation Intervention would mistrust). If nothing handles it, the frame below is rebuilt.
+ *
+ * @see https://chromium.googlesource.com/chromium/src/+/eef521b43a410cb55d4e5b27eec28f826484bfea
+ * @param {PopStateEvent} event
+ */
+async function handlePopstate(event) {
+    const stack = navigationStack;
+    const arrival = stack.classifyPopstate(event.state);
+
+    if (arrival.type === "same") {
         return;
     }
 
-    // Fallback for null state (e.g., if replaceState wasn't called on init)
-    if (!event.state) {
-        if (canShowNavigator()) {
-            await showNavigator({ replaceState: true, forceRemount: true });
-        } else {
-            await switchPage("edition-selection", buildEditionSelectionPage(), { replaceState: true });
+    if (arrival.type === "forward") {
+        moveHistory(stack.depth - arrival.depth);
+        return;
+    }
+
+    // How far the browser moved back from the frame on screen (the number of history entries between)
+    const entriesBack = arrival.type === "back" ? stack.depth - arrival.depth
+        : arrival.type === "guard" ? stack.depth + 1
+            : 1;
+
+    // Let the page handle the Back internally first. Not while a page is still being rebuilt after an earlier
+    // Back: what is on screen is a page that has been left already, and must not be asked.
+    const screenLagsStack = stack.top?.id !== displayedFrameId;
+    if (!screenLagsStack && consumeBackInPage()) {
+        // Something inside the page handled it - navigate forward to stay on the current page
+        moveHistory(entriesBack);
+        return;
+    }
+
+    if (arrival.type === "back") {
+        // History and stack agree again at once, the page follows when it is rebuilt
+        stack.truncateTo(arrival.depth);
+        const navigation = beginNavigation();
+        let restored = false;
+        try {
+            restored = await restoreFrame(stack.top, navigation);
+        } catch (error) {
+            console.error("Could not rebuild the page that Back returns to:", error);
+        }
+        if (!restored && isCurrentNavigation(navigation)) {
+            // The page cannot be rebuilt (e.g. its document is gone): start over from the root
+            await showRoot(navigation);
         }
         return;
     }
 
-    if (event.state?.page) {
-        // Let components handle internal back navigation first
-        if (requestComponentsBackHandling()) {
-            // Component handled it - navigate forward to stay on current page
-            skipNextPopstate = true;
-            window.history.go(1);
-            return;
-        }
-
-        // No component handled it - restore the appropriate page
-        if (appState.page === "navigator") {
-            // Navigate back through sub-navigator stack
-            if (navigateBackInNavigator()) {
-                // Popped a level - stay on navigator with updated data
-                return;
-            }
-            // Already at main navigator - block further back navigation
-            skipNextPopstate = true;
-            window.history.go(1);
-            return;
-        }
-
-        // From views or other pages, fall back to navigator if possible
-        if (canShowNavigator()) {
-            await showNavigator({ pushState: false });
-        } else {
-            await switchPage("edition-selection", buildEditionSelectionPage(), { pushState: false });
-        }
+    if (arrival.type === "stale") {
+        // An entry of an earlier navigation: stay where we are (there is nothing to go back to)
+        moveHistory(1);
+        return;
     }
+
+    // "guard": Back from the first page. Show the root again, on the entry the user landed on.
+    await showRoot();
+}
+
+window.addEventListener("popstate", (event) => {
+    handlePopstate(event).catch((error) => console.error("Back navigation failed:", error));
 });

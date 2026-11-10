@@ -1,54 +1,24 @@
-import { appConfig, appState, setAppState } from "./config.js";
-import { getEditions, getAllEditions, getWorks } from "./api.js";
-import { setupHeaderMenu, setWorkTitle } from "./header.js";
+import { appState, setAppState, loadAppConfig } from "./config.js";
+import { getAllEditions, getWorks } from "./api.js";
+import { setupHeaderMenu, renderHeaderMenu, setWorkTitle } from "./header.js";
 import { registerLayoutListeners } from "./layout.js";
 import { switchPage, buildEditionSelectionPage, showNavigator } from "./pages.js";
-import { initConcordanceNavigator, navigateConcordanceNavigatorToConnection } from "./concordanceNavigator.js";
-import { initWebSocketConnector, updateWebSocketConnectorInviteUrl, applyWorkspaceSession, setStateSyncHandler, broadcastAppState } from "./web-socket-connector.js";
+import { initConcordanceNavigator, navigateConcordanceNavigatorToConnection, navigateConcordanceNavigatorToDisabled } from "./concordanceNavigator.js";
+import { initConnectedWorkspace, updateConnectedWorkspaceInviteUrl, applyWorkspaceSession, notifyStateChanged, getSyncedState, setConnectedWorkspaceLanguage } from "./connected-workspace.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
+import { applyLanguage, onLanguageApplied } from "./languageController.js";
+import { resetNavigatorData } from "./navigator.js";
 
 
 /**
- * Checks whether a given edition ID is available on a specific backend.
- * @param {string} editionId - The edition ID to look for
- * @param {string} backendUrl - The backend URL to query
- * @returns {Promise<boolean>} True if the edition was found on that backend
+ * Finds a work among those loaded for the current edition, matching either
+ * the short `id` or the full `doc` URI — the same two identifiers editions
+ * carry (see `initEdition`'s matching for why both are accepted).
+ * @param {string} workId - The work identifier to look for
+ * @returns {Object|undefined} The matching work object, or undefined if not found
  */
-async function isEditionAvailableInBackend(editionId, backendUrl) {
-    let editions = await getEditions(backendUrl);
-    let editionFound = editions.find((edition) => edition.id === editionId);
-    return editionFound !== undefined;
-}
-
-/**
- * Searches all configured backends in parallel to find one that hosts the given edition.
- * @param {string} editionId - The edition ID to search for
- * @returns {Promise<string|null>} The URL of the first matching backend, or null if none found
- */
-async function findBackendForEdition(editionId) {
-    const availabilityChecks = appConfig.backendUrls.map(async url => {
-        try {
-            return { url, available: await isEditionAvailableInBackend(editionId, url) };
-        } catch (error) {
-            console.warn(`Failed to check edition availability at ${url}:`, error);
-            return { url, available: false };
-        }
-    });
-
-    const results = await Promise.all(availabilityChecks);
-    const found = results.find(result => result.available);
-
-    return found ? found.url : null;
-}
-
-/**
- * Checks whether a given work ID is among the works loaded for the current edition.
- * @param {string} workId - The work ID to check
- * @returns {boolean} True if the work is available
- */
-function isWorkAvailableInEdition(workId) {
-    let workFound = appState.worksInEdition.find((work) => work.id === workId);
-    return workFound !== undefined;
+function findWorkInEdition(workId) {
+    return appState.worksInEdition.find((work) => work.id === workId || work.doc === workId);
 }
 
 
@@ -57,101 +27,76 @@ function isWorkAvailableInEdition(workId) {
 
 
 /**
- * Initializes the app for a given edition, resolving which backend hosts it if needed.
+ * Initializes the app for a given edition.
  *
- * If an `editionId` is provided, the function locates the appropriate backend (either
- * the supplied `backendUrl` or the first one found via `findBackendForEdition`). If no
- * `editionId` is given and only a single edition is available across all backends, that
- * edition is selected automatically. If the edition cannot be resolved, the edition
- * selection page is shown instead.
+ * If an `editionId` is provided, it's looked up among the configured backend's
+ * editions. If no `editionId` is given and only one edition is available, that
+ * edition is selected automatically. If the edition cannot be resolved, the
+ * edition selection page is shown instead.
  *
  * @param {Object} [options]
  * @param {string|null} [options.editionId] - The edition ID to initialize
- * @param {string|null} [options.backendUrl] - A known backend URL for the edition
  * @param {string|null} [options.workId] - A specific work ID to initialize after the edition
  * @param {string|null} [options.connectionId] - A specific concordance connection ID to initialize after the work
  * @returns {Promise<void>}
  */
-export async function initEdition({ editionId = null, backendUrl = null, workId = null, connectionId = null } = {}) {
+export async function initEdition({ editionId = null, workId = null, connectionId = null } = {}) {
     const loadingToken = showContentLoading();
     try {
     let foundEditionId = "";
-    let resolvedBackendUrl = backendUrl;
     setAppState({
         edition: {},
         work: {},
         connection: null
     });
 
+    if (!appState.allEditions || appState.allEditions.length === 0) {
+        await getAllEditions();
+    }
+
     if (editionId) {
-        if (!resolvedBackendUrl) {
-            const foundUrl = await findBackendForEdition(editionId);
-            if (foundUrl) {
-                resolvedBackendUrl = foundUrl;
-            }
-        }
-
-        if (resolvedBackendUrl && await isEditionAvailableInBackend(editionId, resolvedBackendUrl)) {
-            foundEditionId = editionId;
-
-            const hasEditionInCache = appState.allEditions.some((edition) =>
-                edition.id === foundEditionId && edition.backendUrl === resolvedBackendUrl
-            );
-
-            if (!hasEditionInCache) {
-                const editionsFromBackend = await getEditions(resolvedBackendUrl);
-                const editionList = Array.isArray(editionsFromBackend) ? editionsFromBackend : (editionsFromBackend ? [editionsFromBackend] : []);
-
-                const existingEntries = new Set(appState.allEditions.map((edition) => `${edition.id}|${edition.backendUrl}`));
-                const mergedEditions = editionList
-                    .map((edition) => ({ ...edition, backendUrl: resolvedBackendUrl }))
-                    .filter((edition) => !existingEntries.has(`${edition.id}|${edition.backendUrl}`));
-
-                setAppState({ allEditions: [...appState.allEditions, ...mergedEditions] });
-            }
+        // Accept either identifier a caller might use: the short `id` (used
+        // internally, e.g. by the edition-selection page) or the full `doc`
+        // URI (used by Desktop, which has no concept of the short id — see
+        // edition.xqm's edition:details()). Both are always present on every
+        // edition object.
+        const matchedEdition = appState.allEditions.find((edition) => edition.id === editionId || edition.doc === editionId);
+        if (matchedEdition) {
+            foundEditionId = matchedEdition.id;
         }
     }
-    else {
-        if (!appState.allEditions || appState.allEditions.length === 0) {
-            await getAllEditions();
-        }
-        if (appState.allEditions.length === 1) {
-            foundEditionId = appState.allEditions[0].id;
-        }
+    else if (appState.allEditions.length === 1) {
+        foundEditionId = appState.allEditions[0].id;
     }
 
+    // Without an edition the app starts over: the edition selection is a new root of the navigation stack
     if (foundEditionId == "") {
         // Edition nicht gefunden, öffne Editionsauswahlseite.
-        switchPage("edition-selection", buildEditionSelectionPage());
+        switchPage("edition-selection", () => buildEditionSelectionPage(), { history: "reset" });
         return;
     }
 
-    // find the foundEditionId in in all Editions to set it as the current edition
-    let editionData = appState.allEditions.find((edition) => {
-        if (edition.id !== foundEditionId) return false;
-        if (!resolvedBackendUrl) return true;
-        return edition.backendUrl === resolvedBackendUrl;
-    });
-
-    if (!editionData && !resolvedBackendUrl) {
-        editionData = appState.allEditions.find((edition) => edition.id === foundEditionId);
-    }
+    const editionData = appState.allEditions.find((edition) => edition.id === foundEditionId);
 
     if (!editionData) {
-        console.error("Resolved edition ID is missing from cache", { foundEditionId, resolvedBackendUrl });
-        switchPage("edition-selection", buildEditionSelectionPage());
+        console.error("Resolved edition ID is missing from cache", { foundEditionId });
+        switchPage("edition-selection", () => buildEditionSelectionPage(), { history: "reset" });
         return;
     }
 
     setAppState({ edition: editionData });
 
-    if (!appState.edition.doc || !appState.edition.backendUrl) {
+    if (!appState.edition.doc) {
         console.error("Edition data is incomplete", appState.edition);
-        switchPage("edition-selection", buildEditionSelectionPage());
+        switchPage("edition-selection", () => buildEditionSelectionPage(), { history: "reset" });
         return;
     }
 
-    const worksInEdition = await getWorks(appState.edition.doc, appState.edition.backendUrl);
+    // The edition's preferences can set another language than the default preferences did at startup (like in
+    // Edirom-Frontend's loadEdiromForEdition). Settle the language before anything is requested for the edition.
+    await applyLanguage(appState.edition.doc);
+
+    const worksInEdition = await getWorks(appState.edition.doc);
     setAppState({ worksInEdition });
 
     await initWork(workId, connectionId);
@@ -175,13 +120,14 @@ export async function initWork(workId = null, connectionId = null) {
     let foundWorkId = "";
     setAppState({
         work: {},
-        connection: null,
-        navigatorData: { main: null, current: [] }
+        connection: null
     });
+    resetNavigatorData();
 
     if (workId) {
-        if (isWorkAvailableInEdition(workId)) {
-            foundWorkId = workId;
+        const matchedWork = findWorkInEdition(workId);
+        if (matchedWork) {
+            foundWorkId = matchedWork.id;
         }
     }
     setAppState({ work: appState.worksInEdition.find((work) => work.id === foundWorkId) });
@@ -208,7 +154,7 @@ export async function initWork(workId = null, connectionId = null) {
         await initConcordanceNavigator();
     }
 
-    broadcastAppState();
+    notifyStateChanged();
 
     console.log("Set work to", appState.work);
 }
@@ -226,21 +172,39 @@ function normalizeParam(value) {
     return trimmedValue === "" ? null : trimmedValue;
 }
 
+// The end of the last navigation started through `applyUrlParams`. A state the ws-server asks for can arrive
+// while the startup navigation is still loading the edition; both must not run at the same time.
+let navigationQueue = Promise.resolve();
+
 /**
  * Applies a set of URL search parameters to initialize the app in the
  * corresponding state. Enforces the `edition > work > connection` hierarchy
  * (work requires edition; connection requires both) and delegates to
  * `initEdition`. This is the single point where URL parameters are translated
- * into app state, used both on startup and when a self-link is activated.
+ * into app state, used on startup, when a self-link is activated and when the
+ * connected workspace moves the app to a synced state. Calls are run one after
+ * the other.
+ *
+ * A `session` parameter (the invite link of a connected workspace session, like
+ * in Edirom-Frontend) joins that session, but only after the navigation is done:
+ * the first state that the ws-server sends to a joiner must not race it.
  * @param {URLSearchParams} urlParams - The parameters to apply
  * @returns {Promise<void>}
  */
-export async function applyUrlParams(urlParams) {
+export function applyUrlParams(urlParams) {
+    const run = navigationQueue.then(async () => {
+        await runUrlParams(urlParams);
+        applyWorkspaceSession(normalizeParam(urlParams.get("session")));
+    });
+    // A failed navigation must not block the ones after it
+    navigationQueue = run.catch(() => {});
+    return run;
+}
+
+async function runUrlParams(urlParams) {
     const editionId = normalizeParam(urlParams.get("edition"));
-    const backendUrl = normalizeParam(urlParams.get("backendUrl"));
     let workId = normalizeParam(urlParams.get("work"));
     let connectionId = normalizeParam(urlParams.get("connection"));
-    const workspaceSession = normalizeParam(urlParams.get("workspaceSession"));
 
     // Enforce URL parameter hierarchy without failing startup.
     // work requires edition, and connection requires both edition and work.
@@ -260,8 +224,7 @@ export async function applyUrlParams(urlParams) {
         connectionId) {
         const navigated = navigateConcordanceNavigatorToConnection(connectionId);
         if (navigated) {
-            updateWebSocketConnectorInviteUrl();
-            if (workspaceSession) applyWorkspaceSession(workspaceSession);
+            updateConnectedWorkspaceInviteUrl();
             return;
         }
         // Connection not found in current concordance data — fall through to full reinitialisation.
@@ -274,19 +237,67 @@ export async function applyUrlParams(urlParams) {
         workId && workId !== appState.work?.id &&
         appState.worksInEdition?.length > 0) {
         await initWork(workId, connectionId);
-        updateWebSocketConnectorInviteUrl();
-        if (workspaceSession) applyWorkspaceSession(workspaceSession);
+        updateConnectedWorkspaceInviteUrl();
         return;
     }
 
     await initEdition({
         editionId,
-        backendUrl,
         workId,
         connectionId
     });
-    updateWebSocketConnectorInviteUrl();
-    if (workspaceSession) applyWorkspaceSession(workspaceSession);
+    updateConnectedWorkspaceInviteUrl();
+}
+
+/**
+ * Moves the app to a state the ws-server asked for (its `syncState`).
+ * Registered with the connected workspace, which also takes care of not
+ * reporting the result back as a new change.
+ *
+ * Other clients may identify an edition or work differently (Desktop uses the
+ * edition's `doc` URI, mobile the short `id`), so both are resolved to this
+ * app's ids first. `null` for edition/work means "no information" and leaves
+ * the current value alone; for `connection` it means free exploration.
+ *
+ * @param {{edition?: string|null, work?: string|null, connection?: string|null}} patch
+ * @returns {Promise<void>}
+ */
+async function applySyncedState(patch) {
+    const current = getSyncedState();
+    const target = { ...current };
+
+    if (patch.edition) {
+        const edition = appState.allEditions?.find((e) => e.id === patch.edition || e.doc === patch.edition);
+        target.edition = edition?.id ?? patch.edition;
+    }
+    // A work can only be resolved against the edition it belongs to.
+    if (patch.work) {
+        const work = target.edition === current.edition ? findWorkInEdition(patch.work) : undefined;
+        target.work = work?.id ?? patch.work;
+    }
+    if ("connection" in patch) {
+        target.connection = patch.connection ?? null;
+    }
+
+    if (!target.edition) return; // nothing to navigate in yet (e.g. still on the edition selection page)
+    if (target.edition === current.edition && target.work === current.work && target.connection === current.connection) return;
+
+    // Same edition and work: only the connection changes.
+    if (target.edition === current.edition && target.work === current.work && target.connection !== current.connection) {
+        if (target.connection === null) {
+            navigateConcordanceNavigatorToDisabled();
+            return;
+        }
+        if (navigateConcordanceNavigatorToConnection(target.connection)) return;
+        // Connection not found in the current concordance data — fall through to a full re-init.
+    }
+
+    // applyUrlParams expects URL parameters; only non-null values are passed.
+    const params = new URLSearchParams();
+    if (target.edition) params.set("edition", target.edition);
+    if (target.work) params.set("work", target.work);
+    if (target.connection) params.set("connection", target.connection);
+    await applyUrlParams(params);
 }
 
 /**
@@ -297,23 +308,18 @@ export async function applyUrlParams(urlParams) {
 async function initApp() {
     console.log("Initializing Edirom Mobile App");
 
+    await loadAppConfig();
+    // Without an edition yet, the language comes from ?lang= or the backend's default preferences.
+    await applyLanguage();
+
+    // What is built from translations once (the header menu, the workspace) follows later language changes.
+    onLanguageApplied((language) => {
+        renderHeaderMenu();
+        setConnectedWorkspaceLanguage(language);
+    });
     setupHeaderMenu();
     registerLayoutListeners();
-    initWebSocketConnector();
-    setStateSyncHandler((state) => {
-        if (!state || typeof state !== "object") return;
-        const edition = state.edition;
-        const work = state.work;
-        const connection = state.connection ?? null;
-        if (edition === appState.edition?.id && work === appState.work?.id && connection === (appState.connection ?? null)) {
-            return;
-        }
-        // applyUrlParams expects URL parameters — pass the state as a
-        // URLSearchParams object purely as an application-side transport.
-        applyUrlParams(new URLSearchParams(state)).catch((error) => {
-            console.error("Failed to apply synced state:", error);
-        });
-    });
+    await initConnectedWorkspace(applySyncedState);
 
     await applyUrlParams(new URLSearchParams(window.location.search));
 }

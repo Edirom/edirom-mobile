@@ -4,12 +4,13 @@ import { getContentSignal } from "./loading.js";
 /**
  * Fetches JSON data from a URL and returns it as a JavaScript object
  * @param {string} url - The URL to fetch JSON from
+ * @param {RequestInit} [options] - Additional `fetch` options, e.g. `method` and `body`
  * @returns {Promise<any>} A promise that resolves to the parsed JSON object
  * @throws {Error} If the request fails or the response is not valid JSON
  */
-async function fetchJSON(url) {
+async function fetchJSON(url, options = {}) {
     try {
-        const response = await fetch(url, { signal: getContentSignal() });
+        const response = await fetch(url, { signal: getContentSignal(), ...options });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -68,28 +69,88 @@ async function fetchText(url) {
     }
 }
 
-export async function getPages(uri, edition, backendUrl = appState.edition.backendUrl) {
-    const pagesData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getPages.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(appState.language)}`);
+/**
+ * Builds the URL of a backend XQuery endpoint. Like Edirom-Frontend's `doAJAXRequest`, which adds `lang` to every
+ * request, this is the one place where the language is put on a request: `lang` is the current
+ * `appState.language`, unless the caller passes one. Parameters that are `undefined` or `null` are left out.
+ * @param {string} endpoint - The file name below `data/xql/`, e.g. `"getPages.xql"`
+ * @param {Object<string, any>} [params] - The query parameters, in the order they should appear
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
+ * @returns {string} The URL including the query string
+ */
+function buildUrl(endpoint, params = {}, backendUrl = appConfig.backendUrl) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null) query.append(key, value);
+    }
+    if (!query.has("lang")) query.set("lang", appState.language);
+    return `${backendUrl}data/xql/${endpoint}?${query}`;
+}
+
+export async function getPages(uri, edition, backendUrl = appConfig.backendUrl) {
+    const pagesData = await fetchJSON(buildUrl("getPages.xql", { edition, uri }, backendUrl));
     return pagesData;
 }
 
-export async function getMovements(uri, edition, backendUrl = appState.edition.backendUrl) {
-    const movementsData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getMovements.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(appState.language)}`);
+export async function getMovements(uri, edition, backendUrl = appConfig.backendUrl) {
+    const movementsData = await fetchJSON(buildUrl("getMovements.xql", { edition, uri }, backendUrl));
     return movementsData;
 }
 
-export async function getMeasures(uri, edition, mdiv, backendUrl = appState.edition.backendUrl) {
-    const measuresData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getMeasures.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&mdiv=${encodeURIComponent(mdiv)}&lang=${encodeURIComponent(appState.language)}`);
+export async function getMeasures(uri, edition, mdiv, backendUrl = appConfig.backendUrl) {
+    const measuresData = await fetchJSON(buildUrl("getMeasures.xql", { edition, uri, mdiv }, backendUrl));
     return measuresData;
 }
 
-export async function getMeasurePage(id, edition, measure, measureCount = 1, backendUrl = appState.edition.backendUrl) {
-    const measurePageData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getMeasurePage.xql?edition=${encodeURIComponent(edition)}&id=${encodeURIComponent(id)}&measure=${encodeURIComponent(measure)}&measureCount=${encodeURIComponent(measureCount)}&lang=${encodeURIComponent(appState.language)}`);
+export async function getMeasurePage(id, edition, measure, measureCount = 1, backendUrl = appConfig.backendUrl) {
+    const measurePageData = await fetchJSON(buildUrl("getMeasurePage.xql", { edition, id, measure, measureCount }, backendUrl));
     return measurePageData;
 }
 
-export async function getMeasuresOnPage(uri, pageId, edition, backendUrl = appState.edition.backendUrl) {
-    const data = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getMeasuresOnPage.xql?uri=${encodeURIComponent(uri)}&pageId=${encodeURIComponent(pageId)}&edition=${encodeURIComponent(edition)}&lang=${encodeURIComponent(appState.language)}`);
+/**
+ * Resolves a measure reference (a real measure xml:id or a virtual `measure_<mdiv>_<n>` id, optionally with
+ * `?tstamp2=Nm+0`) to the movement it belongs to.
+ * @param {string} id - The URI of the source document
+ * @param {string} edition - The edition URI
+ * @param {string} measureId - The measure reference
+ * @param {string} [backendUrl] - The backend base URL
+ * @returns {Promise<{measureId: string, movementId: string, measureCount: number}|null>}
+ */
+export async function getMeasure(id, edition, measureId, backendUrl = appConfig.backendUrl) {
+    const data = await fetchJSON(buildUrl("getMeasure.xql", { edition, id, measureId }, backendUrl));
+    return data;
+}
+
+/**
+ * Fetches the parts (voices) of a source: its `perfRes`/`instrVoice` elements, in score order. Their ids are
+ * what getMeasures reports as `voice` (there with a leading `#`).
+ * @param {string} uri - The URI of the source document
+ * @param {string} edition - The edition URI
+ * @param {string} [backendUrl] - The backend base URL
+ * @returns {Promise<Array<{id: string, label: string, selectedByDefault: boolean, selected: boolean}>|null>}
+ */
+export async function getParts(uri, edition, backendUrl = appConfig.backendUrl) {
+    const data = await fetchJSON(buildUrl("getParts.xql", { edition, uri }, backendUrl));
+    return data;
+}
+
+export async function getMeasuresOnPage(uri, pageId, edition, backendUrl = appConfig.backendUrl) {
+    const data = await fetchJSON(buildUrl("getMeasuresOnPage.xql", { uri, pageId, edition }, backendUrl));
+    return data;
+}
+
+/**
+ * Fetches the annotations that refer to the measures or zones on a page of a source, as the image viewer
+ * shows them (Edirom-Frontend's `SourceView` controller).
+ * @param {string} uri - The URI of the source document
+ * @param {string} pageId - The xml:id of the page (surface)
+ * @param {string} edition - The edition URI
+ * @param {string} [backendUrl] - The backend base URL
+ * @returns {Promise<Array<{id: string, uri: string, plist: Array<{id: string, type: string, ulx: number, uly: number, lrx: number, lry: number}>, priority: string, categories: string}>|null>}
+ *   The annotations, or null on error
+ */
+export async function getAnnotationsOnPage(uri, pageId, edition, backendUrl = appConfig.backendUrl) {
+    const data = await fetchJSON(buildUrl("getAnnotationsOnPage.xql", { uri, pageId, edition }, backendUrl));
     return data;
 }
 
@@ -98,11 +159,11 @@ export async function getMeasuresOnPage(uri, pageId, edition, backendUrl = appSt
  * @param {string} uri - The document URI to fetch text for
  * @param {string} edition - The edition URI
  * @param {string} [idPrefix] - The ID prefix applied to elements in the rendered HTML
- * @param {string} [backendUrl] - The backend URL (defaults to the current edition's backend)
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
  * @returns {Promise<string|null>} The rendered HTML string, or null on error
  */
-export async function getText(uri, edition, idPrefix = "textView_", backendUrl = appState.edition.backendUrl) {
-    const textData = await fetchHtml(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getText.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&idPrefix=${encodeURIComponent(idPrefix)}&lang=${encodeURIComponent(appState.language)}`);
+export async function getText(uri, edition, idPrefix = "textView_", backendUrl = appConfig.backendUrl) {
+    const textData = await fetchHtml(buildUrl("getText.xql", { edition, uri, idPrefix }, backendUrl));
     return textData;
 }
 
@@ -110,11 +171,11 @@ export async function getText(uri, edition, idPrefix = "textView_", backendUrl =
  * Fetches the annotations list for a given document URI within an edition.
  * @param {string} edition - The edition URI
  * @param {string} uri - The document URI to fetch annotations for
- * @param {string} [backendUrl] - The backend URL (defaults to the current edition's backend)
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
  * @returns {Promise<Object|null>} The annotations data object, or null on error
  */
-export async function getAnnotations(edition, uri, backendUrl = appState.edition.backendUrl) {
-    const annotationsData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getAnnotations.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(appState.language)}`);
+export async function getAnnotations(edition, uri, backendUrl = appConfig.backendUrl) {
+    const annotationsData = await fetchJSON(buildUrl("getAnnotations.xql", { edition, uri }, backendUrl));
     return annotationsData;
 }
 
@@ -123,11 +184,11 @@ export async function getAnnotations(edition, uri, backendUrl = appState.edition
  * @param {string} edition - The edition URI
  * @param {string} uri - The annotation URI (document URI + "#" + annotation id)
  * @param {string} lang - The language code for the annotation text
- * @param {string} [backendUrl] - The backend URL (defaults to the current edition's backend)
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
  * @returns {Promise<string|null>} The annotation HTML text, or null on error
  */
-export async function getAnnotationText(edition, uri, lang, backendUrl = appState.edition.backendUrl) {
-    const annotationText = await fetchHtml(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getAnnotationText.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(lang)}`);
+export async function getAnnotationText(edition, uri, lang, backendUrl = appConfig.backendUrl) {
+    const annotationText = await fetchHtml(buildUrl("getAnnotationText.xql", { edition, uri, lang }, backendUrl));
     return annotationText;
 }
 
@@ -136,11 +197,11 @@ export async function getAnnotationText(edition, uri, lang, backendUrl = appStat
  * @param {string} edition - The edition URI
  * @param {string} uri - The annotation URI (document URI + "#" + annotation id)
  * @param {string} lang - The language code
- * @param {string} [backendUrl] - The backend URL (defaults to the current edition's backend)
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
  * @returns {Promise<Object|null>} The annotation previews data, or null on error
  */
-export async function getAnnotationPreviews(edition, uri, lang, backendUrl = appState.edition.backendUrl) {
-    const annotationPreviews = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getAnnotationPreviews.xql?edition=${encodeURIComponent(edition)}&uri=${encodeURIComponent(uri)}&lang=${encodeURIComponent(lang)}`);
+export async function getAnnotationPreviews(edition, uri, lang, backendUrl = appConfig.backendUrl) {
+    const annotationPreviews = await fetchJSON(buildUrl("getAnnotationPreviews.xql", { edition, uri, lang }, backendUrl));
     return annotationPreviews;
 }
 
@@ -148,44 +209,44 @@ export async function getAnnotationPreviews(edition, uri, lang, backendUrl = app
  * Fetches concordance data for a given work within an edition.
  * @param {string} editionUri - The edition URI
  * @param {string} workId - The work ID
- * @param {string} [backendUrl] - The backend URL (defaults to the current edition's backend)
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
  * @returns {Promise<Object|null>} The concordance data, or null on error
  */
-export async function getConcordances(editionUri, workId, backendUrl = appState.edition.backendUrl) {
-    const concordanceData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getConcordances.xql?workId=${encodeURIComponent(workId)}&id=${encodeURIComponent(editionUri)}&edition=${encodeURIComponent(editionUri)}`);
+export async function getConcordances(editionUri, workId, backendUrl = appConfig.backendUrl) {
+    const concordanceData = await fetchJSON(buildUrl("getConcordances.xql", { workId, id: editionUri, edition: editionUri }, backendUrl));
     return concordanceData;
 }
 
 /**
  * Fetches metadata for a single edition by URI.
  * @param {string} editionUri - The edition URI
- * @param {string} [backendUrl] - The backend URL (defaults to the current edition's backend)
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
  * @returns {Promise<Object|null>} The edition data object, or null on error
  */
-export async function getEdition(editionUri, backendUrl = appState.edition.backendUrl) {
-    const editionData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getEdition.xql?id=${encodeURIComponent(editionUri)}`);
+export async function getEdition(editionUri, backendUrl = appConfig.backendUrl) {
+    const editionData = await fetchJSON(buildUrl("getEdition.xql", { id: editionUri }, backendUrl));
     return editionData;
 }
 
 /**
  * Resolves the URI for an edition by its ID.
  * @param {string} editionId - The edition ID
- * @param {string} [backendUrl] - The backend URL (defaults to the current edition's backend)
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
  * @returns {Promise<string|null>} The edition URI string, or null on error
  */
-export async function getEditionUri(editionId, backendUrl = appState.edition.backendUrl) {
-    const editionUriData = await fetchText(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getEditionURI.xql?id=${encodeURIComponent(editionId)}`);
+export async function getEditionUri(editionId, backendUrl = appConfig.backendUrl) {
+    const editionUriData = await fetchText(buildUrl("getEditionURI.xql", { id: editionId }, backendUrl));
     return editionUriData;
 }
 
 /**
  * Fetches all editions available on a backend. Always returns an array,
  * even if the backend returns a single edition object.
- * @param {string} [backendUrl] - The backend URL (defaults to the current edition's backend)
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
  * @returns {Promise<Object[]|null>} An array of edition objects, or null on error
  */
-export async function getEditions(backendUrl = appState.edition.backendUrl) {
-    const editionsData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getEditions.xql`);
+export async function getEditions(backendUrl = appConfig.backendUrl) {
+    const editionsData = await fetchJSON(buildUrl("getEditions.xql", {}, backendUrl));
 
     // if the data is only a single object, wrap in an array
     if (editionsData && !Array.isArray(editionsData)) {
@@ -196,31 +257,13 @@ export async function getEditions(backendUrl = appState.edition.backendUrl) {
 }
 
 /**
- * Fetches all editions from every configured backend URL in parallel and merges
- * them into a single list stored in `appState.allEditions`. Each edition object
- * is enriched with the `backendUrl` it was fetched from. Backends that fail
- * are silently skipped.
- * @returns {Promise<Object[]>} The merged list of all edition objects across all backends
+ * Fetches all editions from the configured backend and stores them in
+ * `appState.allEditions`.
+ * @returns {Promise<Object[]>} The list of all edition objects
  */
 export async function getAllEditions() {
-    const editionPromises = appConfig.backendUrls.map(async (url) => {
-        try {
-            const editions = await getEditions(url);
-            return { backendUrl: url, data: editions };
-        } catch (error) {
-            console.warn(`Failed to fetch editions from ${url}:`, error);
-            return { backendUrl: url, data: null };
-        }
-    });
-
-    const editionResults = await Promise.all(editionPromises);
-    const flattened = editionResults.flatMap(({ backendUrl, data }) => {
-        if (!data) return [];
-        const list = Array.isArray(data) ? data : [data];
-        return list.map((edition) => ({ ...edition, backendUrl }));
-    });
-
-    setAppState({ allEditions: flattened });
+    const editions = await getEditions();
+    setAppState({ allEditions: editions ?? [] });
     console.log("Fetched all editions:", appState.allEditions);
     return appState.allEditions;
 }
@@ -228,11 +271,11 @@ export async function getAllEditions() {
 /**
  * Fetches all works belonging to a given edition document.
  * @param {string} editionDoc - The edition document identifier
- * @param {string} [backendUrl] - The backend URL (defaults to the current edition's backend)
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
  * @returns {Promise<Object[]|null>} An array of work objects, or null on error
  */
-export async function getWorks(editionDoc, backendUrl = appState.edition.backendUrl) {
-    const worksData = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getWorks.xql?editionId=${encodeURIComponent(editionDoc)}`);
+export async function getWorks(editionDoc, backendUrl = appConfig.backendUrl) {
+    const worksData = await fetchJSON(buildUrl("getWorks.xql", { editionId: editionDoc }, backendUrl));
     return worksData;
 }
 
@@ -243,12 +286,12 @@ export async function getWorks(editionDoc, backendUrl = appState.edition.backend
  * @param {string} workId - The work ID
  * @param {string} lang - The language code
  * @param {string} edition - The edition URI
- * @param {string} [backendUrl] - The backend URL (defaults to the current edition's backend)
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
  * @returns {Promise<Object|null>} The navigator config object, or null on error
  */
-export async function getNavigatorConfig(editionId, workId, lang, edition, backendUrl = appState.edition.backendUrl) {
+export async function getNavigatorConfig(editionId, workId, lang, edition, backendUrl = appConfig.backendUrl) {
     console.log("editionId", editionId);
-    const navigatorConfig = await fetchJSON(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getNavigatorConfig.xql?editionId=${encodeURIComponent(editionId)}&workId=${encodeURIComponent(workId)}&lang=${encodeURIComponent(lang)}&edition=${encodeURIComponent(edition)}&mode=json`);
+    const navigatorConfig = await fetchJSON(buildUrl("getNavigatorConfig.xql", { editionId, workId, lang, edition, mode: "json" }, backendUrl));
     return navigatorConfig;
 }
 
@@ -257,14 +300,52 @@ export async function getNavigatorConfig(editionId, workId, lang, edition, backe
  * @param {string} uri - The target document URI
  * @param {string} lang - The language code
  * @param {string} edition - The edition URI
- * @param {string} [backendUrl] - The backend URL (defaults to the current edition's backend)
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
  * @returns {Promise<Object|null>} The link target data object, or null on error
  */
-export function getLinkTarget(uri, lang, edition, backendUrl = appState.edition.backendUrl) {
-    var url = new URL(`${backendUrl}/exist/apps/Edirom-Online-Backend/data/xql/getLinkTarget.xql`);
-    url.searchParams.append("uri", uri);
-    url.searchParams.append("lang", lang);
-    url.searchParams.append("edition", edition);
-    url = url.toString();
-    return fetchJSON(url);
+export function getLinkTarget(uri, lang, edition, backendUrl = appConfig.backendUrl) {
+    return fetchJSON(buildUrl("getLinkTarget.xql", { uri, lang, edition }, backendUrl));
+}
+
+/**
+ * Fetches the metadata (title, available views, ...) of several link target URIs in one request.
+ * Sent as POST, so the number of URIs is not limited by the URL length.
+ * @param {string[]} uris - The target URIs
+ * @param {string} lang - The language code
+ * @param {string} edition - The edition URI
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
+ * @returns {Promise<Object[]|null>} One `getLinkTarget` result (plus the requested `uri`) per URI, in request order; null on error
+ */
+export function getLinkTargets(uris, lang, edition, backendUrl = appConfig.backendUrl) {
+    const body = new URLSearchParams();
+    uris.forEach(uri => body.append("uri", uri));
+    body.append("lang", lang ?? appState.language);
+    body.append("edition", edition);
+    // The parameters are in the body, so the URL is just the endpoint.
+    return fetchJSON(`${backendUrl}data/xql/getLinkTargets.xql`, { method: "POST", body });
+}
+
+/**
+ * Fetches the preferences of an edition (Edirom-Frontend's `initPreferences`): the backend's default preferences
+ * with the preferences of the edition's project on top, as a flat key-value object. Without an edition, only the
+ * defaults are returned.
+ * @param {string} [editionUri] - The edition URI, or empty for the default preferences
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
+ * @returns {Promise<Object<string, any>|null>} The preferences, or null on error
+ */
+export function getPreferences(editionUri = "", backendUrl = appConfig.backendUrl) {
+    // Not tied to the content loading, which is aborted when the page changes: the language is needed regardless.
+    return fetchJSON(buildUrl("getPreferences.xql", { mode: "json", edition: editionUri }, backendUrl), { signal: null });
+}
+
+/**
+ * Fetches a language file (Edirom-Frontend's `initLangFile`): the backend's translations for the UI, with the
+ * translations of the edition's project merged in.
+ * @param {string} lang - The language code, e.g. "de" or "en"
+ * @param {string} [editionUri] - The edition URI, or empty for the backend's own translations only
+ * @param {string} [backendUrl] - The backend URL (defaults to the configured backend)
+ * @returns {Promise<{lang: string, version: string, keys: Object<string, string>}|null>} The language file, or null on error
+ */
+export function getLanguageFile(lang, editionUri = "", backendUrl = appConfig.backendUrl) {
+    return fetchJSON(buildUrl("getLanguageFile.xql", { lang, mode: "json", edition: editionUri }, backendUrl), { signal: null });
 }

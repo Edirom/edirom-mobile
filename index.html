@@ -5,21 +5,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Edirom Mobile</title>
-    <!-- Config System -->
-    <script src="env-config.js"></script>
+    <link rel="preload" href="resources/fonts/montserrat/montserrat-latin.woff2" as="font" type="font/woff2" crossorigin>
     <script src="resources/js/main.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-concordance-navigator/concordanceNavigatorElement.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-navigator/navigator.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-annotation-view/edirom-annotation-view.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-text-viewer/edirom-text-viewer.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-image-viewer/edirom-image-viewer.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-videoplayer/videoplayer.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-controls/edirom-control-bar.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-controls/edirom-spacer-widget.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-controls/edirom-button-widget.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-controls/edirom-spin-box-widget.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-qr-code-scanner/edirom-qr-code-scanner.js" type="module"></script>
-    <script defer src="resources/web-components/edirom-web-socket-connector/edirom-web-socket-connector.js" type="module"></script>
+    <!-- The web components are submodules of Edirom-Frontend (resources/js/), not of this
+         repository. This page is served from <frontend>/mobile/, so they are one level up.
+         They must stay siblings: they import each other as ../edirom-core-web-components/... -->
+    <script defer src="../resources/js/edirom-concordance-navigator/concordanceNavigatorElement.js" type="module"></script>
+    <script defer src="../resources/js/edirom-navigator/navigator.js" type="module"></script>
+    <script defer src="../resources/js/edirom-annotation-view/edirom-annotation-view.js" type="module"></script>
+    <script defer src="../resources/js/edirom-text-viewer/edirom-text-viewer.js" type="module"></script>
+    <script defer src="../resources/js/edirom-image-viewer/edirom-image-viewer.js" type="module"></script>
+    <script defer src="../resources/js/edirom-controls/edirom-control-bar.js" type="module"></script>
+    <script defer src="../resources/js/edirom-controls/edirom-spacer-widget.js" type="module"></script>
+    <script defer src="../resources/js/edirom-controls/edirom-button-widget.js" type="module"></script>
+    <script defer src="../resources/js/edirom-controls/edirom-spin-box-widget.js" type="module"></script>
+    <script defer src="../resources/js/edirom-controls/edirom-select-widget.js" type="module"></script>
+    <script defer src="../resources/js/edirom-controls/edirom-multi-select-widget.js" type="module"></script>
+    <script defer src="../resources/js/edirom-qr-code-scanner/edirom-qr-code-scanner.js" type="module"></script>
+    <!-- edirom-connected-workspace is loaded on demand by initConnectedWorkspace(),
+         only when appConfig.wsUrl is set. -->
+    <link rel="stylesheet" href="resources/css/theme-edirom.css">
     <link rel="stylesheet" href="resources/css/styles.css">
 </head>
 
@@ -28,10 +33,8 @@
     <header>
         <div id="header-burger-menu"><edirom-icon name="menu" size="2rem"></edirom-icon></div>
         <div id="header-edition-name">Edirom Mobile</div>
-        <div id="edirom-web-socket-connector-container">
-            <edirom-web-socket-connector></edirom-web-socket-connector>
-        </div>
-        <nav id="header-menu" class="header-menu" aria-label="Hauptmenü" aria-hidden="true"></nav>
+        <div id="edirom-connected-workspace-container"></div>
+        <nav id="header-menu" class="header-menu" aria-label="Main menu" aria-hidden="true"></nav>
     </header>
     <div id="content-container">
 </div>

@@ -1,0 +1,9 @@
+/*
+ * Touch adjustments for the overlays of <edirom-image-viewer> (measure numbers).
+ * Not linked from index.html: the image view lists it in the viewer's `overlay-stylesheets`, which clones it
+ * into the viewer's shadow root after the Frontend's annotation-style.css, whose rules it builds on.
+ */
+
+.measureInner {
+    font-size: 14px;
+}
