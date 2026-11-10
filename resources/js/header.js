@@ -1,4 +1,4 @@
-import { switchPage, buildEditionSelectionPage, allowNextUnload } from "./pages.js";
+import { switchPage, buildEditionSelectionPage, allowNextUnload, showHome } from "./pages.js";
 import { buildAboutPage } from "./about.js";
 import { appState } from "./config.js";
 import { getLangString } from "./languageController.js";
@@ -13,6 +13,21 @@ import { getWorkspaceSessionId } from "./connected-workspace.js";
  */
 function buildHeaderMenu() {
     const listEl = document.createElement("ul");
+
+    const homeLi = document.createElement("li");
+    const homeLink = document.createElement("a");
+    const homeIcon = document.createElement("edirom-icon");
+    homeIcon.setAttribute("name", "home");
+    homeLink.appendChild(homeIcon);
+    homeLink.appendChild(document.createTextNode(getLangString("mobile.Header_home", "Home")));
+    homeLink.setAttribute("role", "button");
+    homeLink.setAttribute("tabindex", "0");
+    homeLink.addEventListener("click", () => {
+        // The navigator as the last page: no Back from there, whichever views and stack levels were open
+        showHome().catch((error) => console.error("Could not go home:", error));
+    });
+    homeLi.appendChild(homeLink);
+    listEl.appendChild(homeLi);
 
     const editionsLi = document.createElement("li");
     const editionsLink = document.createElement("a");

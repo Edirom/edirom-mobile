@@ -1,6 +1,6 @@
 import { appState, setAppState } from "./config.js";
 import { getLangString } from "./languageController.js";
-import { buildNavigator, navigateBackInNavigator } from "./navigator.js";
+import { buildNavigator, navigateBackInNavigator, closeSubNavigators } from "./navigator.js";
 import { getAllEditions } from "./api.js";
 import { initEdition } from "./main.js";
 import { resetContentLoadingState } from "./loading.js";
@@ -250,6 +250,20 @@ export async function showNavigator({ history = "reset", forceRemount = false, n
 }
 
 /**
+ * "Home": goes to the root of the app from wherever the user is (any view, About, the edition list, a
+ * sub-navigator), and makes it the last page: the navigation stack starts over, so there is nothing to go Back
+ * to. The navigator shows its tabs again (open sub-navigators are closed); the tab and the concordance data
+ * are kept. Whatever is still loading for the page that is left is dropped.
+ * @returns {Promise<boolean>} `true` if a page switch occurred, `false` if the navigator was shown already
+ */
+export async function showHome() {
+    // Supersede loads that are under way (e.g. a view window being fetched while the navigator is still shown)
+    const navigation = beginNavigation();
+    closeSubNavigators();
+    return showRoot(navigation, { forceRemount: false });
+}
+
+/**
  * Builds and returns the edition selection page. If no editions have been loaded
  * yet, fetches them first. Renders a list of all available editions; clicking one
  * initiates the app with the selected edition.
@@ -304,11 +318,13 @@ function canShowNavigator() {
 /**
  * Shows the root of the app: the navigator if it can be shown, else the edition selection.
  * @param {number} [navigation] - The token of the navigation this belongs to, see `switchPage`
+ * @param {Object} [options]
+ * @param {boolean} [options.forceRemount=true] - Rebuild the navigator even if it is shown already
  * @returns {Promise<boolean>}
  */
-async function showRoot(navigation) {
+async function showRoot(navigation, { forceRemount = true } = {}) {
     if (canShowNavigator()) {
-        return showNavigator({ history: "reset", forceRemount: true, navigation });
+        return showNavigator({ history: "reset", forceRemount, navigation });
     }
     return switchPage("edition-selection", () => buildEditionSelectionPage(), { history: "reset", navigation });
 }

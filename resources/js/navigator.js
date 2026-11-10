@@ -247,6 +247,17 @@ export function navigateBackInNavigator() {
 }
 
 /**
+ * Closes all open sub-navigators, so the tabs are shown again. The tab and the concordance data are kept.
+ * Does nothing if no sub-navigator is open.
+ */
+export function closeSubNavigators() {
+    if (appState.navigatorData.subNavigators.length === 0) return;
+
+    updateNavigatorState({ subNavigators: [] });
+    renderNavigator();
+}
+
+/**
  * Enriches a navigator data object by filling in missing item names and collecting the
  * available view icons from the backend.
  *
