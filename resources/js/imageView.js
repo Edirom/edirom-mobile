@@ -197,6 +197,9 @@ export function buildImageView(target, config = {}) {
     // Counts view activations, so that a slow measure-view activation does not override a later one.
     let _viewNavigation = 0;
 
+    // State to bring back with the next setData call (see restoreState), or null
+    let _pendingRestore = null;
+
     const controlBar = document.createElement("edirom-control-bar");
     controlBar.classList.add("web-component");
     controlBar.setAttribute("layout-mode", "mobile");
@@ -570,7 +573,22 @@ export function buildImageView(target, config = {}) {
             if (shown === false) activatePageView();
         });
 
-        if (!wasInitialized || isNavigationUpdate) {
+        // A view that is brought back by "Back" returns to the page or measure it was left on, in the same mode
+        // and movement (voices are remembered per document anyway, see readStoredVoices)
+        const restore = _pendingRestore;
+        _pendingRestore = null;
+
+        if (restore) {
+            if (restore.mode === "measure-view") {
+                openMeasureView({
+                    mdivId: restore.mdivId ?? mdivId,
+                    references: restore.stepId ? [restore.stepId] : [],
+                    index: 0
+                });
+            } else {
+                activatePageView(restore.stepId);
+            }
+        } else if (!wasInitialized || isNavigationUpdate) {
             // First load or concordance connection switch: derive view mode from subset.
             // Subset present → measure view; single-ID jump → measure view on that
             // measure, unrestricted; whole-document connection → page view.
@@ -701,6 +719,22 @@ export function buildImageView(target, config = {}) {
             const mainData = { pages: _fullPages, movements: _fullMovements, jumpMeasureId, mdivId };
             return { mainData, subsetData };
         },
-        setData
+        setData,
+
+        // --- "Back" navigation (see buildView in views.js) ---
+
+        /**
+         * Where the view is: the mode, the movement, and the page (page view) or measure (measure view) that is
+         * shown. Null while nothing is shown yet.
+         */
+        captureState() {
+            const step = _sequenceData[_currentSequenceIndex];
+            if (!step) return null;
+            return { mode: _viewMode, mdivId: _currentMdivId, stepId: step.id };
+        },
+
+        restoreState(state) {
+            _pendingRestore = state && typeof state === "object" ? state : null;
+        }
     };
 }

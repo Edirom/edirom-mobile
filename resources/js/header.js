@@ -23,7 +23,8 @@ function buildHeaderMenu() {
     editionsLink.setAttribute("role", "button");
     editionsLink.setAttribute("tabindex", "0");
     editionsLink.addEventListener("click", (event) => {
-        switchPage("edition-selection", buildEditionSelectionPage());
+        // A page of its own that "Back" returns from, to wherever the user was
+        switchPage("edition-selection", () => buildEditionSelectionPage());
     });
     editionsLi.appendChild(editionsLink);
     listEl.appendChild(editionsLi);
@@ -37,7 +38,7 @@ function buildHeaderMenu() {
     aboutLink.setAttribute("role", "button");
     aboutLink.setAttribute("tabindex", "0");
     aboutLink.addEventListener("click", (event) => {
-        switchPage("about", buildAboutPage());
+        switchPage("about", () => buildAboutPage());
     });
     aboutLi.appendChild(aboutLink);
     listEl.appendChild(aboutLi);

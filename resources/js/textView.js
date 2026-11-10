@@ -48,6 +48,8 @@ export function buildTextView(target, config = {}) {
 
     // Stores the fragment ID to scroll to after the next setData call
     let _scrollToId = null;
+    // Scroll position to bring back with the next setData call (see restoreState), or null
+    let _pendingScrollTop = null;
     // Caches the last fetched HTML to avoid re-fetching when only the fragment changes
     let _currentDocUrl = null;
     let _cachedHtml = null;
@@ -66,13 +68,21 @@ export function buildTextView(target, config = {}) {
 
     function setData(htmlString) {
         if (htmlString === null) return;
+        // A text that is brought back by "Back" returns to where it was left, not to the anchor it was opened at
+        const scrollTop = _pendingScrollTop;
+        _pendingScrollTop = null;
         // Set scroll-to-id before html-data so renderText() picks up the target element
-        if (_scrollToId) {
+        if (_scrollToId && scrollTop === null) {
             textViewComponent.setAttribute("scroll-to-id", "textView_" + _scrollToId);
         } else {
             textViewComponent.removeAttribute("scroll-to-id");
         }
         textViewComponent.setAttribute("html-data", htmlString);
+        if (scrollTop !== null) {
+            // The component itself is the scroller. Set again after layout, in case the text was still growing.
+            textViewComponent.scrollTop = scrollTop;
+            requestAnimationFrame(() => { textViewComponent.scrollTop = scrollTop; });
+        }
     }
 
     async function update(target) {
@@ -97,6 +107,18 @@ export function buildTextView(target, config = {}) {
         controlBar: controlBarContainer,
         controlBarWidget: controlBar,
         update,
-        setData
+        setData,
+
+        // --- "Back" navigation (see buildView in views.js) ---
+
+        /** How far the text is scrolled. */
+        captureState() {
+            return { scrollTop: textViewComponent.scrollTop };
+        },
+
+        restoreState(state) {
+            const scrollTop = Number(state?.scrollTop);
+            _pendingScrollTop = Number.isFinite(scrollTop) && scrollTop >= 0 ? scrollTop : null;
+        }
     };
 }

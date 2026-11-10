@@ -69,9 +69,10 @@ export async function initEdition({ editionId = null, workId = null, connectionI
         foundEditionId = appState.allEditions[0].id;
     }
 
+    // Without an edition the app starts over: the edition selection is a new root of the navigation stack
     if (foundEditionId == "") {
         // Edition nicht gefunden, öffne Editionsauswahlseite.
-        switchPage("edition-selection", buildEditionSelectionPage());
+        switchPage("edition-selection", () => buildEditionSelectionPage(), { history: "reset" });
         return;
     }
 
@@ -79,7 +80,7 @@ export async function initEdition({ editionId = null, workId = null, connectionI
 
     if (!editionData) {
         console.error("Resolved edition ID is missing from cache", { foundEditionId });
-        switchPage("edition-selection", buildEditionSelectionPage());
+        switchPage("edition-selection", () => buildEditionSelectionPage(), { history: "reset" });
         return;
     }
 
@@ -87,7 +88,7 @@ export async function initEdition({ editionId = null, workId = null, connectionI
 
     if (!appState.edition.doc) {
         console.error("Edition data is incomplete", appState.edition);
-        switchPage("edition-selection", buildEditionSelectionPage());
+        switchPage("edition-selection", () => buildEditionSelectionPage(), { history: "reset" });
         return;
     }
 

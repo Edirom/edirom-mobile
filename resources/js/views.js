@@ -1,5 +1,5 @@
 import { appConfig, appState, setAppState } from "./config.js";
-import { switchPage } from "./pages.js";
+import { switchPage, beginNavigation, isCurrentNavigation } from "./pages.js";
 import { getLinkTarget } from "./api.js";
 import { getLangString } from "./languageController.js";
 import { buildAnnotationView } from "./annotationView.js";
@@ -8,7 +8,7 @@ import { buildTextView } from "./textView.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
 import { showContentLoading, hideContentLoading, resetContentLoadingState } from "./loading.js";
 
-/** @type {function|null} Update function for the currently active view (not stored on appState to avoid history.pushState serialization issues) */
+/** @type {function|null} Update function for the currently active view (functions are kept out of appState, which must stay plain data) */
 let currentViewUpdate = null;
 
 /** @type {function|null} Writes a data array to the currently active view component */
@@ -31,6 +31,18 @@ let currentViewControlBarWidget = null;
 
 /** @type {Object[]} The available views for the currently open document (from getLinkTarget) */
 let currentViewAvailableViews = [];
+
+/** @type {string|null} The target (document URI, optional `#id` fragments) of the view window on screen, as it was opened or last updated */
+let currentViewTarget = null;
+
+/** @type {string|null} The type of the view on screen (e.g. `"sourceView"`) */
+let currentViewType = null;
+
+/** @type {function|null} Reads the state of the view on screen, see `captureViewFrame` */
+let currentViewCaptureState = null;
+
+/** @type {function|null} Asks the view on screen whether a Back has to leave it, see `viewLeavesOnBack` */
+let currentViewLeaveOnBack = null;
 
 /**
  * Resolves the view-specific URI for a given view type from the available views list.
@@ -56,22 +68,36 @@ function resolveViewSpecificTarget(viewType, target, availableViews) {
  * first available view is used.
  * @param {string} target - The document URI to open (e.g. `xmldb:exist:///…#id`)
  * @param {Object} [config={}] - Additional link config (passed through to view components)
- * @returns {Promise<void>}
+ * @param {Object} [options]
+ * @param {"push"|"restore"} [options.history="push"] - `"push"`: a new page that "Back" returns from.
+ *   `"restore"`: "Back" has returned to this view window (see `restoreViewFrame`).
+ * @param {string|null} [options.activeView=null] - The view type to show; the default view if null or unavailable
+ * @param {{viewState: *, filterState: string|null}|null} [options.restore=null] - What was captured of the view
+ *   window when it was left (see `captureViewFrame`), to bring it back as it was
+ * @param {number} [options.navigation] - The token of the navigation this belongs to (`beginNavigation`)
+ * @returns {Promise<boolean>} `true` if the view window is shown, `false` if it could not be opened or a newer
+ *   navigation took over
  */
-export async function createViewWindow(target, config = {}) {
+export async function createViewWindow(target, config = {}, {
+    history: historyMode = "push",
+    activeView: requestedView = null,
+    restore = null,
+    navigation = beginNavigation()
+} = {}) {
     resetContentLoadingState();
     const loadingToken = showContentLoading();
     try {
     let linkData = await getLinkTarget(target, appState.language, appState.edition.doc);
 
-    if (!linkData) return;
+    // No data, or the user went somewhere else while it was loading (e.g. pressed Back)
+    if (!linkData || !isCurrentNavigation(navigation)) return false;
 
-    let activeView = null;
+    let activeView = requestedView;
 
     let availableViews = reduceToAvailableViews(linkData.views);
     if (availableViews.length === 0) {
         console.warn("No available views to load.");
-        return;
+        return false;
     }
     // If no active view is specified or the specified one is not available, pick the first available or the default one
     if (activeView === null || !availableViews.some(view => view.type === activeView)) {
@@ -82,9 +108,69 @@ export async function createViewWindow(target, config = {}) {
             }
         });
     }
-    switchPage("views", buildViewsContainer(linkData, activeView, availableViews, target, config));
+    // The view window is built once what is on screen has been captured (switchPage calls the function)
+    return await switchPage("views", () => buildViewsContainer(linkData, activeView, availableViews, target, config, restore), {
+        history: historyMode,
+        navigation
+    });
     } finally {
         hideContentLoading(loadingToken);
+    }
+}
+
+/**
+ * Captures the view window on screen for the navigation stack, so that "Back" can bring it back later. Called
+ * when the user leaves the page (see `switchPage`), before anything of the next page is built.
+ * @returns {{target: string, viewType: string, viewState: *, filterState: string|null}|null} Plain data: the
+ *   window's target, the view type, what the view reports through its `captureState`, and the filter state.
+ *   Null if there is no view window to capture.
+ */
+export function captureViewFrame() {
+    if (!currentViewUpdate || !currentViewTarget) return null;
+
+    // A view that cannot report its state must not keep the user from leaving: the window is still restored
+    let viewState = null;
+    try {
+        viewState = currentViewCaptureState?.() ?? null;
+    } catch (error) {
+        console.warn("Could not capture the state of the view:", error);
+    }
+    return { target: currentViewTarget, viewType: currentViewType, viewState, filterState: currentViewFilterState };
+}
+
+/**
+ * Brings back a view window that was captured with `captureViewFrame`: the same target and view type, with the
+ * view state as it was. Used when "Back" returns to a view window.
+ * @param {{target: string, viewType: string, viewState: *, filterState: string|null}} frame
+ * @param {Object} [options]
+ * @param {number} [options.navigation] - The token of the navigation this belongs to (`beginNavigation`)
+ * @returns {Promise<boolean>} `false` if the window could not be brought back
+ */
+export function restoreViewFrame(frame, { navigation } = {}) {
+    if (!frame?.target) return Promise.resolve(false);
+    return createViewWindow(frame.target, {}, {
+        history: "restore",
+        activeView: frame.viewType,
+        restore: { viewState: frame.viewState, filterState: frame.filterState },
+        navigation
+    });
+}
+
+/**
+ * Asks the view on screen whether a Back has to leave it right now, without the view's web components getting a
+ * `back-request` first. A view says so through its `leaveOnBack` function (see `buildAnnotationView`); most
+ * views have none, so their components handle the Back as before.
+ * @param {{returnsToView: boolean}} context - `returnsToView`: "Back" leaves this view for another view
+ *   window (it was opened from there), not for the navigator
+ * @returns {boolean}
+ */
+export function viewLeavesOnBack(context) {
+    if (!currentViewLeaveOnBack) return false;
+    try {
+        return currentViewLeaveOnBack(context) === true;
+    } catch (error) {
+        console.warn("The view could not tell whether Back leaves it:", error);
+        return false;
     }
 }
 
@@ -97,9 +183,11 @@ export async function createViewWindow(target, config = {}) {
  * @param {Object[]} availableViews - The filtered list of views to show as tabs
  * @param {string} target - The document URI for the displayed content
  * @param {Object} [config={}] - Additional link config passed to view components
+ * @param {{viewState: *, filterState: string|null}|null} [restore=null] - What was captured of this window when it
+ *   was left, to bring the initial view back as it was (see `captureViewFrame`)
  * @returns {HTMLElement} The views container element
  */
-function buildViewsContainer(linkData, activeView, availableViews, target, config = {}) {
+function buildViewsContainer(linkData, activeView, availableViews, target, config = {}, restore = null) {
     let viewsContainer = document.createElement("div");
     viewsContainer.id = "views-container";
 
@@ -117,7 +205,7 @@ function buildViewsContainer(linkData, activeView, availableViews, target, confi
     controlBarWrapper.id = "view-control-bar-wrapper";
     viewsContainer.appendChild(controlBarWrapper);
 
-    switchView(viewsContainer, activeView, target, config, availableViews);
+    switchView(viewsContainer, activeView, target, config, availableViews, restore);
 
     return viewsContainer;
 }
@@ -127,10 +215,19 @@ function buildViewsContainer(linkData, activeView, availableViews, target, confi
  * constructs the view web component, its control bar, wires up their
  * bidirectional event listeners, and returns an update function for fetching
  * new data and a setData function for writing data to the component.
+ *
+ * A view can also take part in "Back" navigation (all three are optional; a view without them is brought
+ * back by its target alone):
+ * - `captureState()` returns the state of the view as plain, structured-cloneable data (or null), read when
+ *   the user leaves the page.
+ * - `restoreState(state)` is called once, right after the view is built and before its data is fetched, with
+ *   what `captureState` returned. The view applies it together with its first `setData`.
+ * - `leaveOnBack({ returnsToView })` returns true if a Back has to leave the view straight away, so that the
+ *   web components of the view are not sent the `back-request` first. Most views leave this to their components.
  * @param {string} viewType - The view type to build (e.g. `"annotationView"`)
  * @param {string} target - The document URI (with optional `#id` fragment)
  * @param {Object} [config={}] - Additional link config passed to the view component
- * @returns {{ content: HTMLElement, controlBar: HTMLElement, controlBarWidget: HTMLElement, update: function, setData: function }} The view content, control bar wrapper, control bar widget, data-fetch function, and data-write function
+ * @returns {{ content: HTMLElement, controlBar: HTMLElement, controlBarWidget: HTMLElement, update: function, setData: function, captureState?: function, restoreState?: function, leaveOnBack?: function }} The view content, control bar wrapper, control bar widget, data-fetch function, data-write function and the optional "Back" hooks
  */
 function buildView(viewType, target, config = {}) {
     switch (viewType) {
@@ -264,8 +361,11 @@ function applyCurrentViewFilterState(newFilterState) {
  * @param {string} target - The document URI for the new view
  * @param {Object} [config={}] - Additional link config passed to view components
  * @param {Object[]} [availableViews=[]] - The available views from getLinkTarget, used to resolve view-specific URIs
+ * @param {{viewState: *, filterState: string|null}|null} [restore=null] - What was captured when the window was
+ *   left: the view gets its `viewState` (see `restoreState` of the view builders) and the filter state is
+ *   applied with the first data
  */
-async function switchView(viewsContainer, newView, target, config = {}, availableViews = []) {
+async function switchView(viewsContainer, newView, target, config = {}, availableViews = [], restore = null) {
     currentViewAvailableViews = availableViews;
     const viewSpecificTarget = resolveViewSpecificTarget(newView, target, availableViews);
     const view = buildView(newView, viewSpecificTarget, config);
@@ -299,6 +399,19 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
     currentViewMainData = null;
     currentViewSubsetData = null;
     currentViewFilterState = null;
+    currentViewTarget = target;
+    currentViewType = newView;
+    currentViewCaptureState = view.captureState ?? null;
+    currentViewLeaveOnBack = view.leaveOnBack ?? null;
+
+    // The view applies this together with its first data (it may not have any yet)
+    if (restore?.viewState != null && view.restoreState) {
+        try {
+            view.restoreState(restore.viewState);
+        } catch (error) {
+            console.warn("Could not restore the state of the view:", error);
+        }
+    }
 
     const loadingToken = showContentLoading();
     let mainData, subsetData;
@@ -307,8 +420,14 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
     } finally {
         hideContentLoading(loadingToken);
     }
+    // Another view took over while this one was loading (the user went Back, or chose another view type):
+    // its data must not be written into the view that is current now.
+    if (currentViewSetData !== view.setData) return;
+
     const { ids } = splitTargetIntoDocAndIds(viewSpecificTarget);
-    applyViewData(mainData, subsetData, true, ids.length > 1);
+    // A window that comes back from "Back" keeps the filter state it was left in
+    const restoredFilter = restore?.filterState === "filtered" ? true : restore?.filterState === "unfiltered" ? false : null;
+    applyViewData(mainData, subsetData, true, restoredFilter ?? ids.length > 1);
     setAppState({ viewWindow: { ...appState.viewWindow, target, viewSpecificTarget } });
 }
 
@@ -333,6 +452,7 @@ export async function updateCurrentView(target, viewContentDiv, config = {}) {
         const { ids } = splitTargetIntoDocAndIds(viewSpecificTarget);
         applyViewData(mainData, subsetData, true, ids.length > 1);
         setAppState({ viewWindow: { ...appState.viewWindow, target, viewSpecificTarget } });
+        currentViewTarget = target;
     } else {
         console.warn(`No update function defined for view type: ${appState.viewWindow.view}`);
     }

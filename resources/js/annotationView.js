@@ -27,6 +27,11 @@ export function buildAnnotationView(target, config = {}) {
     // Single-ID target to auto-navigate to on the next setData call, or null.
     // Set by update(), consumed once by setData() (mirrors textView's _scrollToId).
     let _pendingJumpAnnotationId = null;
+    // How the detail page was reached: true if the user tapped an annotation in the list (Back then returns to
+    // the list), false if it was opened directly, by a link or a jump to a single annotation.
+    let detailEnteredFromList = false;
+    // State to bring back with the next setData call (see restoreState), or null.
+    let _pendingRestore = null;
 
     const controlBar = document.createElement("edirom-control-bar");
     controlBar.classList.add("web-component");
@@ -56,6 +61,7 @@ export function buildAnnotationView(target, config = {}) {
     }
 
     annotationViewComponent.addEventListener("annotation-selected", (event) => {
+        detailEnteredFromList = true;
         navigateToAnnotation(event.detail.annotationData);
     });
 
@@ -78,13 +84,37 @@ export function buildAnnotationView(target, config = {}) {
             spinBox.setAttribute("steps-data", JSON.stringify(currentAnnotationsData.map(a => a.pos)));
             spinBox.classList.remove("hidden");
         } else {
+            detailEnteredFromList = false;
             spinBox.classList.add("hidden");
         }
     });
 
+    /**
+     * Brings back the state captured by `captureState`: the detail page of the annotation (if it is still in
+     * the data), else the list at its scroll position.
+     */
+    function applyRestoredState({ page, annotationId, enteredFromList, listScrollTop }, annotations) {
+        const annotation = page === "annotation" ? annotations.find(a => a.id === annotationId) : null;
+        if (annotation) {
+            detailEnteredFromList = enteredFromList === true;
+            navigateToAnnotation(annotation);
+        } else if (Number.isFinite(listScrollTop) && listScrollTop > 0) {
+            // The component scrolls itself to the top when it renders the list, so this comes after
+            requestAnimationFrame(() => { annotationViewComponent.scrollTop = listScrollTop; });
+        }
+    }
+
     function setData(annotations, { isNavigationUpdate = false } = {}) {
         currentAnnotationsData = annotations;
         annotationViewComponent.setAttribute("annotations-data", JSON.stringify(annotations));
+
+        if (_pendingRestore) {
+            const restoredState = _pendingRestore;
+            _pendingRestore = null;
+            _pendingJumpAnnotationId = null;
+            applyRestoredState(restoredState, annotations);
+            return;
+        }
 
         if (isNavigationUpdate && _pendingJumpAnnotationId) {
             const alreadyShowing = annotationViewComponent.currentPage === "annotation"
@@ -92,6 +122,7 @@ export function buildAnnotationView(target, config = {}) {
             if (!alreadyShowing) {
                 const matchedAnnotation = annotations.find(a => a.id === _pendingJumpAnnotationId);
                 if (matchedAnnotation) {
+                    detailEnteredFromList = false;
                     navigateToAnnotation(matchedAnnotation);
                     return;
                 }
@@ -133,7 +164,37 @@ export function buildAnnotationView(target, config = {}) {
             _pendingJumpAnnotationId = jumpAnnotationId;
             return { mainData, subsetData };
         },
-        setData
+        setData,
+
+        // --- "Back" navigation (see buildView in views.js) ---
+
+        /** The page the view is on: the list or the detail page of an annotation. */
+        captureState() {
+            const page = annotationViewComponent.currentPage;
+            return {
+                page,
+                annotationId: page === "annotation" ? annotationViewComponent.annotationData?.id ?? null : null,
+                enteredFromList: detailEnteredFromList,
+                listScrollTop: page === "annotations" ? annotationViewComponent.scrollTop : 0
+            };
+        },
+
+        restoreState(state) {
+            _pendingRestore = state && typeof state === "object" ? state : null;
+        },
+
+        /**
+         * An annotation that was opened by a link from another view (an annotation badge, a link in a text) is
+         * left by Back straight away, back to that view: the user never saw the list. The component is not
+         * asked then, as it would only go to the list. In all other cases, e.g. when the annotation view was
+         * opened from the navigator or the detail page was reached from the list, the component handles the
+         * Back as usual.
+         */
+        leaveOnBack({ returnsToView }) {
+            return returnsToView === true
+                && annotationViewComponent.currentPage === "annotation"
+                && !detailEnteredFromList;
+        }
     };
 }
 
