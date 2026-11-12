@@ -28,7 +28,6 @@ import { applyUrlParams } from "./main.js";
  * @returns {Promise<void>}
  */
 export async function loadLinks(plist, additionalConfig = {}, { selectConcordanceTab = true } = {}) {
-    console.log("Loading links from plist:", plist);
     let parsedTargets = parseTargets(plist, additionalConfig);
 
     if (parsedTargets.length === 0) {
@@ -126,8 +125,6 @@ export async function loadLinks(plist, additionalConfig = {}, { selectConcordanc
  * @returns {boolean} `true` if a view action was taken, `false` otherwise
  */
 export function loadLink(targets, updateExistingViewWindow = true, createNewViewWindow = true) {
-    console.log("Load link:", targets, { updateExistingViewWindow, createNewViewWindow });
-
     if (!Array.isArray(targets) || targets.length === 0) {
         console.warn("Targets is not an Array or is empty.");
         return false;

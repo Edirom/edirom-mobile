@@ -412,8 +412,6 @@ export function buildNavigatorDataFromParsedTargets(parsedTargets) {
  * @returns {Object} A navigator data object with a `navigatorDefinition` array
  */
 function buildNavigatorDataFromUrisData(urisData) {
-    console.log("Building navigator data from urisData", urisData);
-
     const categories = [
         { key: "docs", name: getLangString("mobile.Navigator_documents", "Documents") },
         { key: "externalLinks", name: getLangString("mobile.Navigator_externalResources", "External resources") }

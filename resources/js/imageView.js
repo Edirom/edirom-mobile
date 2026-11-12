@@ -617,7 +617,6 @@ export function buildImageView(target, config = {}) {
         controlBarWidget: controlBar,
         update: async (target) => {
             const { doc, ids } = splitTargetIntoDocAndIds(target);
-            console.log("Updating image view with doc:", doc, "and ids:", ids);
 
             // Detect whether the document and edition are the same as the current state.
             // If so we can skip re-initialising the OSD viewer (which is expensive and

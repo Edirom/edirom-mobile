@@ -264,7 +264,6 @@ export async function getEditions(backendUrl = appConfig.backendUrl) {
 export async function getAllEditions() {
     const editions = await getEditions();
     setAppState({ allEditions: editions ?? [] });
-    console.log("Fetched all editions:", appState.allEditions);
     return appState.allEditions;
 }
 
@@ -290,7 +289,6 @@ export async function getWorks(editionDoc, backendUrl = appConfig.backendUrl) {
  * @returns {Promise<Object|null>} The navigator config object, or null on error
  */
 export async function getNavigatorConfig(editionId, workId, lang, edition, backendUrl = appConfig.backendUrl) {
-    console.log("editionId", editionId);
     const navigatorConfig = await fetchJSON(buildUrl("getNavigatorConfig.xql", { editionId, workId, lang, edition, mode: "json" }, backendUrl));
     return navigatorConfig;
 }

@@ -116,7 +116,6 @@ export async function initEdition({ editionId = null, workId = null, connectionI
  * @returns {Promise<void>}
  */
 export async function initWork(workId = null, connectionId = null) {
-    console.log("Initializing work");
     let foundWorkId = "";
     setAppState({
         work: {},
@@ -155,8 +154,6 @@ export async function initWork(workId = null, connectionId = null) {
     }
 
     notifyStateChanged();
-
-    console.log("Set work to", appState.work);
 }
 
 
@@ -306,8 +303,6 @@ async function applySyncedState(patch) {
  * @returns {Promise<void>}
  */
 async function initApp() {
-    console.log("Initializing Edirom Mobile App");
-
     await loadAppConfig();
     // Without an edition yet, the language comes from ?lang= or the backend's default preferences.
     await applyLanguage();

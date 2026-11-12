@@ -23,7 +23,6 @@ export function buildTextView(target, config = {}) {
     // already encodes the URI and any config block in parseTargets-compatible format.
     textViewComponent.addEventListener('load-link', (e) => {
         const parsed = parseTargets(e.detail.plist);
-        console.log("Parsed load-link targets:", parsed);
         const config = parsed[0]?.config ?? {};
 
         // Map Edirom Online config keys to a Mobile behaviour.
@@ -38,7 +37,6 @@ export function buildTextView(target, config = {}) {
         } else {
             defaultBehaviour = 'updateViewOrCreateViewWindow';
         }
-        console.log("Derived load-link behaviour:", defaultBehaviour);
         loadLinks(e.detail.plist, { behaviour: defaultBehaviour });
     });
 
@@ -87,7 +85,6 @@ export function buildTextView(target, config = {}) {
 
     async function update(target) {
         const { doc, ids } = splitTargetIntoDocAndIds(target);
-        console.log(`Updating text view for doc "${doc}" and ids:`, ids);
         _scrollToId = ids.length > 0 ? ids[0] : null;
 
         if (doc === _currentDocUrl && _cachedHtml !== null) {

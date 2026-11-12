@@ -184,14 +184,11 @@ function commitHistory(pageName, mode, previousPage, leaving) {
  * @returns {Promise<boolean>} `true` if the page was switched, `false` if a newer navigation replaced this one
  */
 export async function switchPage(pageName, content, { history: mode = "push", navigation = beginNavigation() } = {}) {
-    console.log("Switching to page:", pageName, "with history:", mode);
-
     const previousPage = appState.page;
     const leaving = mode === "push" ? captureLeavingPage() : null;
 
     const resolvedContent = await (typeof content === "function" ? content() : content);
     if (!isCurrentNavigation(navigation)) {
-        console.log("Not switching to page", pageName, "- a newer navigation has begun");
         return false;
     }
 
@@ -289,7 +286,6 @@ export async function buildEditionSelectionPage() {
         const editionLink = document.createElement("span");
         editionLink.textContent = edition.name;
         editionLink.addEventListener("click", () => {
-            console.log("Selected edition:", edition);
             initEdition({
                 editionId: edition.id
             });

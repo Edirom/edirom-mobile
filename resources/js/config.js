@@ -78,12 +78,11 @@ export const appState = {
 
 /**
  * Central setter for `appState`. Merges the given key-value pairs into
- * `appState` and logs every passed key with its new value.
+ * `appState`.
  * @param {Object} updates - Key-value pairs to set on `appState`
  * @returns {Object} The updated `appState`
  */
 export function setAppState(updates) {
     Object.assign(appState, updates);
-    console.log("appState updated:", { ...updates });
     return appState;
 }

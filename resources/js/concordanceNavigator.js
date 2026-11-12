@@ -151,7 +151,6 @@ export function navigateConcordanceNavigatorToDisabled() {
  * Removes the navigator's concordance tab, so that only the edition's navigator config is left.
  */
 function onConcordanceNavigatorDisabled() {
-    console.log("Concordance navigator disabled");
     removeCurrentViewSubset();
     setAppState({ connection: null });
     updateConnectedWorkspaceInviteUrl();
