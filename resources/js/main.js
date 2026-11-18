@@ -8,6 +8,8 @@ import { initConnectedWorkspace, updateConnectedWorkspaceInviteUrl, applyWorkspa
 import { showContentLoading, hideContentLoading } from "./loading.js";
 import { applyLanguage, onLanguageApplied } from "./languageController.js";
 import { resetNavigatorData } from "./navigator.js";
+import { createViewWindow } from "./views.js";
+import { paramsFromLocation, readDocumentLink } from "./documentLink.js";
 
 
 /**
@@ -202,6 +204,8 @@ async function runUrlParams(urlParams) {
     const editionId = normalizeParam(urlParams.get("edition"));
     let workId = normalizeParam(urlParams.get("work"));
     let connectionId = normalizeParam(urlParams.get("connection"));
+    // The document is requested from the edition's backend context, so it needs an edition (a work is optional)
+    const documentLink = editionId ? readDocumentLink(urlParams) : null;
 
     // Enforce URL parameter hierarchy without failing startup.
     // work requires edition, and connection requires both edition and work.
@@ -213,6 +217,33 @@ async function runUrlParams(urlParams) {
         connectionId = null;
     }
 
+    await navigateToContext({ editionId, workId, connectionId });
+
+    if (documentLink) {
+        await openDocumentLink(documentLink);
+    }
+}
+
+/**
+ * Opens a document in a view window on top of the navigator, so that "Back" returns to the navigator. The viewer
+ * follows from the id of the link (see viewSelection.js). If the document cannot be opened (it does not exist, or
+ * has no view Mobile can show), the user stays where the navigation to the edition and work left them.
+ * @param {string} documentLink - The document URI with its optional `#id`
+ * @returns {Promise<void>}
+ */
+async function openDocumentLink(documentLink) {
+    // Without a resolved edition the edition selection is shown, and there is nothing to request the document from
+    if (!appState.edition?.doc) return;
+    await createViewWindow(documentLink);
+}
+
+/**
+ * Moves the app to the edition, work and concordance connection that are asked for, taking the shortest way.
+ * @param {{editionId: string|null, workId: string|null, connectionId: string|null}} context - Already normalized
+ *   to follow the `edition > work > connection` hierarchy
+ * @returns {Promise<void>}
+ */
+async function navigateToContext({ editionId, workId, connectionId }) {
     // Fast path: same edition + same work + new connection.
     // Reuse the existing concordance navigator element — nothing is rebuilt and the
     // scanner stays paused so it can resume instantly on next open.
@@ -316,7 +347,7 @@ async function initApp() {
     registerLayoutListeners();
     await initConnectedWorkspace(applySyncedState);
 
-    await applyUrlParams(new URLSearchParams(window.location.search));
+    await applyUrlParams(paramsFromLocation(window.location.search, window.location.hash));
 }
 
 document.addEventListener("DOMContentLoaded", () => {

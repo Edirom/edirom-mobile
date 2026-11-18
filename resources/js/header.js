@@ -4,6 +4,7 @@ import { appState } from "./config.js";
 import { getLangString } from "./languageController.js";
 import { initWork } from "./main.js";
 import { buildDesktopUrl } from "./uiSwitch.js";
+import { getCurrentDocumentLink } from "./views.js";
 
 /**
  * Builds the header navigation menu as a `<ul>` element containing links for
@@ -68,7 +69,7 @@ function buildHeaderMenu() {
     switchToDesktopLink.addEventListener("click", (event) => {
         // Deliberate exit: skip the "Leave site?" dialog for this navigation only
         allowNextUnload();
-        window.location.href = buildDesktopUrl();
+        window.location.href = buildDesktopUrl({ documentLink: getCurrentDocumentLink() });
     });
     switchToDesktopLi.appendChild(switchToDesktopLink);
     listEl.appendChild(switchToDesktopLi);

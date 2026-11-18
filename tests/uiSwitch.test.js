@@ -76,3 +76,26 @@ test("an explicit ?lang= wins over the edition's preference in the desktop URL",
     setLocation("?lang=fr");
     assert.equal(new URL(buildDesktopUrl(), "https://edirom.test/mobile/index.html").searchParams.get("lang"), "de");
 });
+
+test("the desktop URL carries the document that is open, with its xml:id", () => {
+    setLocation();
+    setAppState({ edition: { id: "ed1" }, work: { id: "w1" }, connection: null });
+    const documentLink = "xmldb:exist:///db/apps/ed1/sources/source1.xml#surface_12";
+
+    const url = new URL(buildDesktopUrl({ documentLink }), "https://edirom.test/mobile/index.html");
+
+    // The "#" is encoded, so Desktop reads it as part of the parameter and not as its own hash
+    assert.equal(url.hash, "");
+    assert.equal(url.searchParams.get("uri"), documentLink);
+    // The rest of the context is carried as before
+    assert.equal(url.searchParams.get("edition"), "ed1");
+    assert.equal(url.searchParams.get("work"), "w1");
+});
+
+test("the desktop URL has no uri without an open document", () => {
+    setLocation();
+    setAppState({ edition: { id: "ed1" }, work: { id: "w1" } });
+
+    assert.equal(new URL(buildDesktopUrl(), "https://edirom.test/mobile/index.html").searchParams.has("uri"), false);
+    assert.equal(new URL(buildDesktopUrl({ documentLink: null }), "https://edirom.test/mobile/index.html").searchParams.has("uri"), false);
+});

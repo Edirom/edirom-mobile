@@ -1,5 +1,5 @@
 import { appState } from "./config.js";
-import { parseTargets, buildTargetsStringWithConfig } from "./targets.js";
+import { parseTargets, buildTargetsStringWithConfig, isDocumentUri } from "./targets.js";
 import { createViewWindow, updateCurrentView } from "./views.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
 import { showConcordanceInNavigator, showSubNavigator } from "./navigator.js";
@@ -232,7 +232,7 @@ export function loadLink(targets, updateExistingViewWindow = true, createNewView
  *   `"externalLink"` for all other HTTP/WWW URLs, `"unknown"` otherwise
  */
 export function getUriType(uri) {
-    if (uri.startsWith("xmldb:exist")) {
+    if (isDocumentUri(uri)) {
         return "doc";
     }
     if (uri.startsWith("http") || uri.startsWith("www")) {

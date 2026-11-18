@@ -22,6 +22,7 @@ Edirom Mobile supports deep-linking through these URL parameters:
 - `work`: Work ID
 - `connection`: Concordance connection ID
 - `lang`: UI language, `de` or `en` (see [Language](#language))
+- `uri`: a document to open, e.g. `xmldb:exist:///db/apps/ed1/sources/source1.xml#surface_12`. The same parameter as in Edirom-Frontend's Desktop UI. It needs `edition`.
 
 Example:
 

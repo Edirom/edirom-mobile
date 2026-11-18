@@ -184,6 +184,16 @@ export function buildAnnotationView(target, config = {}) {
         },
 
         /**
+         * The xml:id of the annotation that is shown on the detail page. The list shows none, so a link to the
+         * list carries no id (see `getCurrentInternalId` in views.js).
+         */
+        getCurrentInternalId() {
+            return annotationViewComponent.currentPage === "annotation"
+                ? annotationViewComponent.annotationData?.id ?? null
+                : null;
+        },
+
+        /**
          * An annotation that was opened by a link from another view (an annotation badge, a link in a text) is
          * left by Back straight away, back to that view: the user never saw the list. The component is not
          * asked then, as it would only go to the list. In all other cases, e.g. when the annotation view was

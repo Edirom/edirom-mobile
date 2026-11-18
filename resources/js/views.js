@@ -6,6 +6,7 @@ import { buildAnnotationView } from "./annotationView.js";
 import { buildImageView, disposeImageViewers } from "./imageView.js";
 import { buildTextView } from "./textView.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
+import { chooseInitialView } from "./viewSelection.js";
 import { showContentLoading, hideContentLoading, resetContentLoadingState } from "./loading.js";
 
 /** @type {function|null} Update function for the currently active view (functions are kept out of appState, which must stay plain data) */
@@ -40,6 +41,9 @@ let currentViewType = null;
 
 /** @type {function|null} Reads the state of the view on screen, see `captureViewFrame` */
 let currentViewCaptureState = null;
+
+/** @type {function|null} Asks the view on screen which xml:id it shows, see `getCurrentDocumentLink` */
+let currentViewGetCurrentInternalId = null;
 
 /** @type {function|null} Asks the view on screen whether a Back has to leave it, see `viewLeavesOnBack` */
 let currentViewLeaveOnBack = null;
@@ -92,22 +96,17 @@ export async function createViewWindow(target, config = {}, {
     // No data, or the user went somewhere else while it was loading (e.g. pressed Back)
     if (!linkData || !isCurrentNavigation(navigation)) return false;
 
-    let activeView = requestedView;
-
     let availableViews = reduceToAvailableViews(linkData.views);
     if (availableViews.length === 0) {
         console.warn("No available views to load.");
         return false;
     }
-    // If no active view is specified or the specified one is not available, pick the first available or the default one
-    if (activeView === null || !availableViews.some(view => view.type === activeView)) {
-        activeView = availableViews[0].type;
-        linkData.views.forEach(view => {
-            if (view.defaultView === true) {
-                activeView = view.type;
-            }
-        });
-    }
+    // The requested view, else the one the id of the target implies (like Desktop), else the default view
+    const activeView = chooseInitialView({
+        requested: requestedView,
+        internalIdType: linkData.internalIdType,
+        availableViews
+    });
     // The view window is built once what is on screen has been captured (switchPage calls the function)
     return await switchPage("views", () => buildViewsContainer(linkData, activeView, availableViews, target, config, restore), {
         history: historyMode,
@@ -154,6 +153,27 @@ export function restoreViewFrame(frame, { navigation } = {}) {
         restore: { viewState: frame.viewState, filterState: frame.filterState },
         navigation
     });
+}
+
+/**
+ * A link to where the user is, for the "Switch to desktop view": the document of the view window on screen, with
+ * the xml:id of what the view shows (the page, the measure, the annotation). Desktop opens the link in the viewer
+ * that the id implies. A view that has no id to report (see `getCurrentInternalId` in `buildView`) leaves the id
+ * the window was opened with.
+ * @returns {string|null} `doc.xml#id` (or `doc.xml`), or null if no view window is on screen
+ */
+export function getCurrentDocumentLink() {
+    if (appState.page !== "views" || !currentViewTarget) return null;
+
+    const { doc, ids } = splitTargetIntoDocAndIds(currentViewTarget);
+    let id = null;
+    try {
+        id = currentViewGetCurrentInternalId?.() ?? null;
+    } catch (error) {
+        console.warn("Could not read the position of the view:", error);
+    }
+    id = id || ids[0] || null;
+    return id ? `${doc}#${id}` : doc;
 }
 
 /**
@@ -224,10 +244,15 @@ function buildViewsContainer(linkData, activeView, availableViews, target, confi
  *   what `captureState` returned. The view applies it together with its first `setData`.
  * - `leaveOnBack({ returnsToView })` returns true if a Back has to leave the view straight away, so that the
  *   web components of the view are not sent the `back-request` first. Most views leave this to their components.
+ *
+ * A view can also say where it is, for the "Switch to desktop view" (optional; a view without it keeps the id of
+ * the target it was opened with):
+ * - `getCurrentInternalId()` returns the xml:id of what the view shows right now (the counterpart of an id in the
+ *   target, which the view shows when it is opened), or null if it shows nothing that has an id.
  * @param {string} viewType - The view type to build (e.g. `"annotationView"`)
  * @param {string} target - The document URI (with optional `#id` fragment)
  * @param {Object} [config={}] - Additional link config passed to the view component
- * @returns {{ content: HTMLElement, controlBar: HTMLElement, controlBarWidget: HTMLElement, update: function, setData: function, captureState?: function, restoreState?: function, leaveOnBack?: function }} The view content, control bar wrapper, control bar widget, data-fetch function, data-write function and the optional "Back" hooks
+ * @returns {{ content: HTMLElement, controlBar: HTMLElement, controlBarWidget: HTMLElement, update: function, setData: function, captureState?: function, restoreState?: function, leaveOnBack?: function, getCurrentInternalId?: function }} The view content, control bar wrapper, control bar widget, data-fetch function, data-write function and the optional "Back" and position hooks
  */
 function buildView(viewType, target, config = {}) {
     switch (viewType) {
@@ -402,6 +427,7 @@ async function switchView(viewsContainer, newView, target, config = {}, availabl
     currentViewTarget = target;
     currentViewType = newView;
     currentViewCaptureState = view.captureState ?? null;
+    currentViewGetCurrentInternalId = view.getCurrentInternalId ?? null;
     currentViewLeaveOnBack = view.leaveOnBack ?? null;
 
     // The view applies this together with its first data (it may not have any yet)

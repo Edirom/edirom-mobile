@@ -545,7 +545,7 @@ export function buildImageView(target, config = {}) {
     // measure caches are set once in update() and survive filter toggles.
     // isNavigationUpdate is true when called from a concordance connection switch
     // or any other navigation event; false (default) for filter-state toggles.
-    function setData({ pages, movements, measureSubsetIds, mdivId, jumpMeasureId }, { isNavigationUpdate = false } = {}) {
+    function setData({ pages, movements, measureSubsetIds, mdivId, jumpMeasureId, jumpPageId }, { isNavigationUpdate = false } = {}) {
         // Capture current state before rebuilding sequences
         const wasInitialized = _sequenceData.length > 0;
         const previousViewMode = _viewMode;
@@ -591,11 +591,14 @@ export function buildImageView(target, config = {}) {
         } else if (!wasInitialized || isNavigationUpdate) {
             // First load or concordance connection switch: derive view mode from subset.
             // Subset present → measure view; single-ID jump → measure view on that
-            // measure, unrestricted; whole-document connection → page view.
+            // measure, unrestricted; page jump → page view on that page; whole-document
+            // connection → page view.
             if (_activeMeasureSubsetIds) {
                 openMeasureView({ mdivId, index: 0 });
             } else if (jumpMeasureId) {
                 openMeasureView({ mdivId, references: [jumpMeasureId] });
+            } else if (jumpPageId) {
+                activatePageView(jumpPageId);
             } else {
                 activatePageView();
             }
@@ -675,7 +678,10 @@ export function buildImageView(target, config = {}) {
             let subsetData = null;
             let jumpMeasureId = null;
             let mdivId = null;
-            if (ids.length > 0 && _fullMovements.length > 0) {
+            // A page of the document as the only id (Desktop links to a page like this): the page is shown, there
+            // are no measures to look for.
+            const jumpPageId = ids.length === 1 && _fullPages.some(page => page.id === ids[0]) ? ids[0] : null;
+            if (ids.length > 0 && _fullMovements.length > 0 && jumpPageId === null) {
                 mdivId = await resolveMovementId(ids[0]);
                 const measuresData = await loadMeasures(mdivId);
                 const matching = matchingGroups(measuresData, ids);
@@ -715,7 +721,7 @@ export function buildImageView(target, config = {}) {
                 }
             }
 
-            const mainData = { pages: _fullPages, movements: _fullMovements, jumpMeasureId, mdivId };
+            const mainData = { pages: _fullPages, movements: _fullMovements, jumpMeasureId, jumpPageId, mdivId };
             return { mainData, subsetData };
         },
         setData,
@@ -734,6 +740,14 @@ export function buildImageView(target, config = {}) {
 
         restoreState(state) {
             _pendingRestore = state && typeof state === "object" ? state : null;
+        },
+
+        /**
+         * The xml:id of what the view shows: the page in page view, the measure (or the measure across the
+         * parts) in measure view. Desktop shows either in its facsimile view, see `getCurrentInternalId` in views.js.
+         */
+        getCurrentInternalId() {
+            return _sequenceData[_currentSequenceIndex]?.id ?? null;
         }
     };
 }

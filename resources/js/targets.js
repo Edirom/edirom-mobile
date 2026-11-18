@@ -4,6 +4,16 @@
  */
 
 /**
+ * Whether a URI points to a document in the eXist database (`xmldb:exist://…`), the kind of target a view window
+ * is opened for.
+ * @param {string} uri
+ * @returns {boolean}
+ */
+export function isDocumentUri(uri) {
+    return uri.startsWith("xmldb:exist");
+}
+
+/**
  * Inverse of parseTargets. Builds a target string with an optional config block in brackets.
  * Serializes the config object as key=value pairs joined by commas, appended to the target URI.
  * Keys in excludeKeys are omitted from the config block.
