@@ -7,6 +7,7 @@ import {
     buildInviteUrl,
     updateConnectedWorkspaceInviteUrl,
     applyWorkspaceSession,
+    requestSessionJoin,
     isApplyingRemoteState
 } from "../resources/js/connected-workspace.js";
 
@@ -96,4 +97,38 @@ test("every other export is a no-op while the connected workspace is disabled", 
         updateConnectedWorkspaceInviteUrl();
         applyWorkspaceSession("ABC123");
     });
+});
+
+/**
+ * An element that treats the `session` attribute like the component does: a join is started by a change of the
+ * attribute to a value, and a change that keeps the value is ignored (see attributeChangedCallback there).
+ */
+function fakeConnector() {
+    const attrs = new Map();
+    const joins = [];
+    return {
+        joins,
+        getAttribute: (name) => attrs.has(name) ? attrs.get(name) : null,
+        setAttribute(name, value) {
+            const oldValue = attrs.has(name) ? attrs.get(name) : null;
+            attrs.set(name, String(value));
+            if (oldValue !== String(value) && name === "session") joins.push(String(value));
+        },
+        removeAttribute(name) {
+            attrs.delete(name);
+        }
+    };
+}
+
+test("a session invite scanned again after leaving the session joins again", () => {
+    const el = fakeConnector();
+
+    requestSessionJoin(el, "ABC123");
+    // ...the user leaves the session, the attribute stays; the same invite is scanned again
+    requestSessionJoin(el, "ABC123");
+    requestSessionJoin(el, "XYZ789");
+    requestSessionJoin(el, "ABC123");
+
+    assert.deepEqual(el.joins, ["ABC123", "ABC123", "XYZ789", "ABC123"]);
+    assert.equal(el.getAttribute("session"), "ABC123");
 });

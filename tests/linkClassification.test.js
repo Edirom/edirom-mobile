@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyUri, isSelfLink } from "../resources/js/targets.js";
+import { classifyUri, isSelfLink, isInternalTarget } from "../resources/js/targets.js";
 
 /** Where Mobile runs: <frontend>/mobile/index.html */
 function at(href) {
@@ -60,4 +60,43 @@ test("Edirom-Frontend's root is found from where Mobile runs", () => {
     const nested = at("https://example.com/edirom/mobile/");
     assert.equal(isSelfLink(new URL("https://example.com/edirom/?edition=e1"), nested), true);
     assert.equal(isSelfLink(new URL("https://example.com/?edition=e1"), nested), false);
+});
+
+test("documents and links to Mobile itself are internal targets, including the invite of a session", () => {
+    for (const text of [
+        "xmldb:exist:///db/apps/ed1/sources/source1.xml#surface_12",
+        "https://edirom.example.com/mobile/index.html?edition=e1&work=w1&session=ABC123",
+        // The invites of Mobile (Frontend's index.html) and of Desktop (the Frontend's root)
+        "https://edirom.example.com/index.html?edition=e1&work=w1&lang=de&session=ABC123",
+        "https://edirom.example.com/?edition=e1&work=w1&session=ABC123",
+        "  https://edirom.example.com/?session=ABC123  ",
+        // Read like loadLinks reads it: several targets, with a config block
+        "xmldb:exist:///db/a.xml#m1 xmldb:exist:///db/b.xml#m2[behaviour='updateView']"
+    ]) {
+        assert.equal(isInternalTarget(text, here), true, text);
+    }
+});
+
+test("anything that leaves the app is not an internal target", () => {
+    for (const text of [
+        "https://qr.example.com/e1/001",
+        "https://en.wikipedia.org/wiki/Korngold",
+        "https://other.example.com/?edition=e1&session=ABC123",
+        "https://edirom.example.com/?ui=desktop&session=ABC123",
+        "https://edirom.example.com.evil.example.org/?session=ABC123",
+        "https://edirom.example.com@evil.example.org/?session=ABC123",
+        "www.example.org/page",
+        "javascript:alert(1)",
+        // One target that leaves the app is enough
+        "xmldb:exist:///db/a.xml#m1 https://en.wikipedia.org/wiki/Korngold",
+        "just text",
+        "[behaviour='updateView']",
+        "",
+        "   ",
+        null,
+        undefined,
+        42
+    ]) {
+        assert.equal(isInternalTarget(text, here), false, String(text));
+    }
 });

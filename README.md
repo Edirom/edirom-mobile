@@ -46,7 +46,7 @@ Edirom Mobile reads the edition's preferences (`prefs.xml`, see `resources/js/pr
 
   Boolean options are opt-in: anything but `true` (case-insensitive) counts as off.
 
-- `edirom_concordance_navigator` → `qr_regex`: a regular expression that a scanned QR code has to match to be acted on. Without it every code is accepted. An invalid regex logs a warning and disables the scanner. Write `&` as `&amp;` and `<` as `&lt;` in the XML.
+- `edirom_concordance_navigator` → `qr_regex`: a regular expression that a scanned QR code has to match to be acted on. Without it every code is accepted. **Document URIs and links to Mobile itself are always accepted** (see below), so the regex only has to describe what comes from outside, such as short links. An invalid regex logs a warning and disables the scanner. Write `&` as `&amp;` and `<` as `&lt;` in the XML.
 
   ```xml
   <option key="qr_regex" value="^https://qr\.example\.com/"/>
@@ -57,7 +57,9 @@ Edirom Mobile reads the edition's preferences (`prefs.xml`, see `resources/js/pr
 ### What a scanned QR code does
 
 1. A **document URI** (`xmldb:exist://…`) opens in a view.
-2. A link to **Mobile itself** (its own page, or Edirom-Frontend's root, which forwards to Mobile; not with `ui=desktop`) is applied in the running app: edition, work and connection change in place.
+2. A link to **Mobile itself** (its own page, or Edirom-Frontend's root, which forwards to Mobile; not with `ui=desktop`) is applied in the running app: edition, work and connection change in place. This includes the **invite QR code of a connected workspace session**: the scanning device joins that session without reloading the page. What is open is not reloaded either: if the link names the edition and work that are open (by short id or by `doc` URI) and no connection, the app stays as it is (navigator, views, connection); with a connection only that is selected; another work of the open edition skips the edition's initialization (`resources/js/contextPlan.js`).
+
+   Steps 1 and 2 are accepted whatever `qr_regex` says, because nothing leaves the app. They are told apart by the code (`isInternalTarget` in `resources/js/targets.js`), not by a pattern, so the decision always agrees with what is then done with the code.
 3. Any **other `http(s)` URL** is asked for its target once, as it may be a *short link* such as `https://qr.example.com/aGq`: Mobile fetches it with `Accept: application/json` and expects `{"url": "<target>"}`. The target is then handled like a scanned code (steps 1 and 2; any other web page is opened in this tab), but not asked for again. If the request fails (no network, no CORS headers, an error, no valid answer) the URL is opened in this tab as it is.
 
 The resolver only has to answer such requests with JSON and CORS headers; Mobile knows no host names (see `resources/js/shortLinkResolver.js`). Only `http(s)` and `xmldb:` targets are accepted.

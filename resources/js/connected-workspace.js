@@ -187,6 +187,19 @@ export function applyWorkspaceSession(sessionId) {
     if (!connectedWorkspaceEnabled) return;
     const el = getConnectorElement();
     if (!el || !sessionId) return;
+    requestSessionJoin(el, sessionId);
+}
+
+/**
+ * Sets the `session` attribute of the connector, which makes it join that session. The component ignores an
+ * attribute change that keeps the value, and the attribute stays after the join: scanning the invite of a session
+ * again, after having left it, would do nothing. So the attribute is removed first and every request is a change.
+ * Joining the session this device is in already is harmless, the component skips it.
+ * @param {Element} el - The `<edirom-connected-workspace>` element
+ * @param {string} sessionId - The session ID to join
+ */
+export function requestSessionJoin(el, sessionId) {
+    el.removeAttribute('session');
     el.setAttribute('session', sessionId);
 }
 

@@ -10,6 +10,7 @@ import { applyLanguage, onLanguageApplied } from "./languageController.js";
 import { resetNavigatorData } from "./navigator.js";
 import { createViewWindow } from "./views.js";
 import { paramsFromLocation, readDocumentLink } from "./documentLink.js";
+import { planContextNavigation } from "./contextPlan.js";
 
 
 /**
@@ -238,32 +239,40 @@ async function openDocumentLink(documentLink) {
 }
 
 /**
- * Moves the app to the edition, work and concordance connection that are asked for, taking the shortest way.
+ * Moves the app to the edition, work and concordance connection that are asked for, taking the shortest way
+ * (see `planContextNavigation`): what is open already is never reloaded.
  * @param {{editionId: string|null, workId: string|null, connectionId: string|null}} context - Already normalized
  *   to follow the `edition > work > connection` hierarchy
  * @returns {Promise<void>}
  */
 async function navigateToContext({ editionId, workId, connectionId }) {
-    // Fast path: same edition + same work + new connection.
+    const plan = planContextNavigation(
+        { editionId, workId, connectionId },
+        { edition: appState.edition, work: appState.work, hasWorks: appState.worksInEdition?.length > 0 }
+    );
+
+    // Same edition + same work, no connection: there is nothing to change. This is also what the invite link of a
+    // connected workspace session asks for when the device has the edition and work open already; the app keeps its
+    // navigator, views and connection, and the session is joined afterwards (see `applyUrlParams`).
+    if (plan === "none") return;
+
+    // Same edition + same work + a connection.
     // Reuse the existing concordance navigator element — nothing is rebuilt and the
     // scanner stays paused so it can resume instantly on next open.
-    if (editionId && editionId === appState.edition?.id &&
-        workId && workId === appState.work?.id &&
-        connectionId) {
-        const navigated = navigateConcordanceNavigatorToConnection(connectionId);
-        if (navigated) {
+    if (plan === "connection") {
+        if (navigateConcordanceNavigatorToConnection(connectionId)) {
             updateConnectedWorkspaceInviteUrl();
-            return;
+        } else {
+            // Not in the concordance data of this work: reinitializing would not find it either
+            console.warn("The connection is not known for the open work, staying where the app is:", connectionId);
         }
-        // Connection not found in current concordance data — fall through to full reinitialisation.
+        return;
     }
 
-    // Medium path: same edition, different work.
+    // Same edition, different work.
     // Skip initEdition() and its backend availability checks; call initWork() directly.
     // Navigator data reset and rebuild are handled inside initWork().
-    if (editionId && editionId === appState.edition?.id &&
-        workId && workId !== appState.work?.id &&
-        appState.worksInEdition?.length > 0) {
+    if (plan === "work") {
         await initWork(workId, connectionId);
         updateConnectedWorkspaceInviteUrl();
         return;
@@ -317,7 +326,8 @@ async function applySyncedState(patch) {
             return;
         }
         if (navigateConcordanceNavigatorToConnection(target.connection)) return;
-        // Connection not found in the current concordance data — fall through to a full re-init.
+        // The navigator could not select it, e.g. because it is not built yet while the startup navigation is still
+        // loading. Fall through: applyUrlParams queues this behind that navigation and tries again once it is done.
     }
 
     // applyUrlParams expects URL parameters; only non-null values are passed.

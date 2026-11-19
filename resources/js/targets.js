@@ -252,3 +252,23 @@ export function classifyUri(uri, here) {
     }
     return "unknown";
 }
+
+/**
+ * Whether a text (e.g. a scanned QR code) only refers to things that are opened inside the running app: documents
+ * (`xmldb:exist://…`) and links to Mobile itself (see `isSelfLink`, this includes the invite link of a connected
+ * workspace session). Nothing is requested from, or navigated to, anywhere else, so such a text is safe without
+ * the edition's `qr_regex`, which is there to limit exactly that. The text is read like `loadLinks` reads it (one or
+ * more targets, optionally with a config block), and every target has to qualify. Decided by `classifyUri` and
+ * not by a pattern, so that it can never disagree with what is done with the text afterwards.
+ * @param {string} text - The text to check
+ * @param {{href: string, origin: string, pathname: string}} here - Where Mobile runs (`window.location`)
+ * @returns {boolean}
+ */
+export function isInternalTarget(text, here) {
+    if (typeof text !== "string") return false;
+    const targets = parseTargets(text);
+    return targets.length > 0 && targets.every(({ target }) => {
+        const type = classifyUri(target, here);
+        return type === "doc" || type === "selfLink";
+    });
+}

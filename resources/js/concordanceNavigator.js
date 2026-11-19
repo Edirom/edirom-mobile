@@ -7,6 +7,7 @@ import { clearConcordanceFromNavigator } from "./navigator.js";
 import { removeCurrentViewSubset } from "./views.js";
 import { updateConnectedWorkspaceInviteUrl, notifyStateChanged, isApplyingRemoteState } from "./connected-workspace.js";
 import { resolveScannedText } from "./shortLinkResolver.js";
+import { isInternalTarget } from "./targets.js";
 import { showContentLoading, hideContentLoading } from "./loading.js";
 
 function hasConnectionId(concordances, connectionId) {
@@ -97,6 +98,9 @@ export async function initConcordanceNavigator(connectionId = null) {
         if (qrRegex !== null) {
             concordanceNavigatorElement.setAttribute("qr-regex", qrRegex);
         }
+        // What opens inside the app (documents, links to Mobile itself such as the invite of a connected workspace
+        // session) is accepted whatever the regex says: it limits what is fetched or opened elsewhere, not this.
+        concordanceNavigatorElement.qrAlsoAccept = (text) => isInternalTarget(text, window.location);
     }
     if (connectionExists) {
         concordanceNavigatorElement.setAttribute("current-connection", connectionId);
