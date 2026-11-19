@@ -8,7 +8,8 @@ import {
     initPreferences,
     getPreference,
     getWebComponentOption,
-    getWebComponentFlag
+    getWebComponentFlag,
+    getQrRegex
 } from "../resources/js/preferenceController.js";
 
 const realFetch = globalThis.fetch;
@@ -167,4 +168,30 @@ test("a web component flag is only on for an explicit \"true\"", async () => {
         await initPreferences("ed");
         assert.equal(getWebComponentFlag("edirom_concordance_navigator", "enable_qr_code_scanner"), expected, String(value));
     }
+});
+
+test("the QR regex is the trimmed qr_regex option, and null if it is not set", async () => {
+    const regex = String.raw`^https://qr\.example\.com/`;
+    const cases = [[regex, regex], [`  ${regex}\n`, regex], ["", null], ["   ", null], [undefined, null]];
+    for (const [value, expected] of cases) {
+        const options = value === undefined ? {} : { qr_regex: value };
+        stubPreferences({ "web-components": { edirom_concordance_navigator: options } });
+        await initPreferences("ed");
+        assert.equal(getQrRegex(), expected, JSON.stringify(value));
+    }
+});
+
+test("the QR regex is null without preferences or without the component's section, and is not checked", async () => {
+    stubPreferences(null);
+    await initPreferences("ed");
+    assert.equal(getQrRegex(), null);
+
+    stubPreferences({ "web-components": { other_component: { qr_regex: "x" } } });
+    await initPreferences("ed");
+    assert.equal(getQrRegex(), null);
+
+    // An invalid regex is the components' business: it is passed on as it is
+    stubPreferences({ "web-components": { edirom_concordance_navigator: { qr_regex: "(" } } });
+    await initPreferences("ed");
+    assert.equal(getQrRegex(), "(");
 });

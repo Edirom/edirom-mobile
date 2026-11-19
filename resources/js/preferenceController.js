@@ -94,3 +94,15 @@ export function getWebComponentFlag(componentKey, optionKey) {
     const value = getWebComponentOption(componentKey, optionKey);
     return typeof value === "string" && value.trim().toLowerCase() === "true";
 }
+
+/**
+ * Returns the regex that a scanned QR code has to match to be acted on (`qr_regex` of the
+ * `edirom_concordance_navigator` web component). It decides which URLs may be opened, and, as every accepted
+ * URL that is not one of Mobile's own is asked for its target (see shortLinkResolver.js), which ones may be
+ * fetched. It is passed on unchanged: the components check it and disable the scanner if it is invalid.
+ * @returns {string|null} The regex, or null if the preferences don't set one (then every code is accepted)
+ */
+export function getQrRegex() {
+    const value = getWebComponentOption("edirom_concordance_navigator", "qr_regex");
+    return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}

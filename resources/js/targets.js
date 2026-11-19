@@ -199,3 +199,56 @@ export function parseTargets(targets, additionalConfig = {}) {
 
     return targetList.map(function (t) { return { target: t, config: config }; });
 }
+/**
+ * The directory of a pathname with a trailing `index.html` removed, so that `/mobile/`, `/mobile` and
+ * `/mobile/index.html` are the same page.
+ * @param {string} pathname
+ * @returns {string} The pathname ending in "/"
+ */
+function toDirectoryPath(pathname) {
+    const directory = pathname.replace(/index\.html$/, "");
+    return directory.endsWith("/") ? directory : directory + "/";
+}
+
+/**
+ * Whether a URL points to Mobile itself, which is then applied in the running app instead of being opened: it has
+ * Mobile's origin, and its path is Mobile's page or the page of Edirom-Frontend (`<frontend>/`, which forwards a
+ * mobile device to `mobile/index.html` with the same query string, see device-gateway.js). A link that forces the
+ * Desktop UI (`ui=desktop`) is not Mobile.
+ * @param {URL} url - The URL to check
+ * @param {{href: string, origin: string, pathname: string}} here - Where Mobile runs (`window.location`)
+ * @returns {boolean}
+ */
+export function isSelfLink(url, here) {
+    if (url.origin !== here.origin) return false;
+    if (url.searchParams.get("ui") === "desktop") return false;
+    const path = toDirectoryPath(url.pathname);
+    return path === toDirectoryPath(here.pathname)
+        || path === toDirectoryPath(new URL("../", here.href).pathname);
+}
+
+/**
+ * Determines the type of a URI string.
+ * @param {string} uri - The URI to classify
+ * @param {{href: string, origin: string, pathname: string}} here - Where Mobile runs (`window.location`)
+ * @returns {"doc"|"selfLink"|"externalLink"|"unknown"} `"doc"` for `xmldb:exist://...` URIs,
+ *   `"selfLink"` for HTTP/WWW URLs that point to Mobile itself (see `isSelfLink`),
+ *   `"externalLink"` for all other HTTP/WWW URLs, `"unknown"` otherwise
+ */
+export function classifyUri(uri, here) {
+    if (isDocumentUri(uri)) {
+        return "doc";
+    }
+    if (uri.startsWith("http") || uri.startsWith("www")) {
+        try {
+            const url = new URL(uri);
+            // Only web pages are navigated to; "httpfoo:" or the like is not a link
+            if (url.protocol !== "http:" && url.protocol !== "https:") return "unknown";
+            if (isSelfLink(url, here)) return "selfLink";
+        } catch {
+            // Malformed URL (e.g. "www.example.org" without a scheme) — fall through to "externalLink"
+        }
+        return "externalLink";
+    }
+    return "unknown";
+}

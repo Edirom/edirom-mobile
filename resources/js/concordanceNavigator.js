@@ -1,11 +1,13 @@
 import { getConcordances } from "./api.js";
 import { appState, setAppState } from "./config.js";
 import { getLangString } from "./languageController.js";
-import { getWebComponentFlag } from "./preferenceController.js";
+import { getWebComponentFlag, getQrRegex } from "./preferenceController.js";
 import { loadLinks } from "./linkController.js";
 import { clearConcordanceFromNavigator } from "./navigator.js";
 import { removeCurrentViewSubset } from "./views.js";
 import { updateConnectedWorkspaceInviteUrl, notifyStateChanged, isApplyingRemoteState } from "./connected-workspace.js";
+import { resolveScannedText } from "./shortLinkResolver.js";
+import { showContentLoading, hideContentLoading } from "./loading.js";
 
 function hasConnectionId(concordances, connectionId) {
     if (!Array.isArray(concordances) || !connectionId) return false;
@@ -29,6 +31,24 @@ function hasConnectionId(concordances, connectionId) {
     }
 
     return false;
+}
+
+/**
+ * Opens what a QR code asks for. The navigator's scanner is the only source of this event. A short link is replaced
+ * by the URL it stands for first (see shortLinkResolver.js); an external URL is then opened in this tab.
+ * @param {CustomEvent<string>} event - `load-links-request`, with the scanned text as `detail`
+ */
+async function onLoadLinksRequest(event) {
+    const navigatorElement = event.currentTarget;
+    const loadingToken = showContentLoading();
+    try {
+        const text = await resolveScannedText(event.detail, window.location);
+        await loadLinks(text, { behaviour: "updateViewOrSwitchToNavigator", sameTab: true });
+    } finally {
+        hideContentLoading(loadingToken);
+        // The scanner popover must not stay open over what was opened
+        navigatorElement.closeScannerPopover?.();
+    }
 }
 
 /**
@@ -71,18 +91,17 @@ export async function initConcordanceNavigator(connectionId = null) {
     // presence flag in the component (`enable-qr-code-scanner="false"` would enable it too), so it is only set when on.
     if (getWebComponentFlag("edirom_concordance_navigator", "enable_qr_code_scanner")) {
         concordanceNavigatorElement.setAttribute("enable-qr-code-scanner", "");
-        // Build a regex that matches only URLs sharing the current client's origin and pathname,
-        // so the embedded QR scanner filters at scan time and only self-links fire qr-code-scanned.
-        const escapedOrigin = window.location.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const escapedPathname = window.location.pathname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        concordanceNavigatorElement.setAttribute("qr-regex", `^${escapedOrigin}${escapedPathname}`);
+        // Which scanned codes are accepted is the edition's decision (`qr_regex`); without one every code is. The
+        // components check the regex and disable the scanner, with a warning, if it is not a valid one.
+        const qrRegex = getQrRegex();
+        if (qrRegex !== null) {
+            concordanceNavigatorElement.setAttribute("qr-regex", qrRegex);
+        }
     }
     if (connectionExists) {
         concordanceNavigatorElement.setAttribute("current-connection", connectionId);
     }
-    concordanceNavigatorElement.addEventListener("load-links-request", (event) => {
-        loadLinks(event.detail, { behaviour: "updateViewOrSwitchToNavigator" });
-    });
+    concordanceNavigatorElement.addEventListener("load-links-request", onLoadLinksRequest);
     concordanceNavigatorElement.addEventListener("concordance-navigator-disabled", onConcordanceNavigatorDisabled);
     concordanceNavigatorElement.addEventListener("connection-changed", async (event) => {
         // Read before anything is awaited: it is only true while the workspace sync is applying its state

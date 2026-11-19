@@ -1,5 +1,5 @@
 import { appState } from "./config.js";
-import { parseTargets, buildTargetsStringWithConfig, isDocumentUri } from "./targets.js";
+import { parseTargets, buildTargetsStringWithConfig, classifyUri } from "./targets.js";
 import { createViewWindow, updateCurrentView } from "./views.js";
 import { splitTargetIntoDocAndIds } from "./utils.js";
 import { showConcordanceInNavigator, showSubNavigator } from "./navigator.js";
@@ -112,6 +112,21 @@ export async function loadLinks(plist, additionalConfig = {}, { selectConcordanc
 }
 
 /**
+ * Opens an external link: in a new tab, or, with `config.sameTab`, in this one. A scanned QR code uses the same
+ * tab: it is only known after a request (see shortLinkResolver.js) that the code is an external link, which
+ * browsers no longer count as a reaction to a user action, so they would block a new tab.
+ * @param {string} target - The URL
+ * @param {{sameTab?: boolean}} config - The target's config
+ */
+function openExternalLink(target, config) {
+    if (config.sameTab) {
+        window.location.assign(target);
+    } else {
+        window.open(target, '_blank');
+    }
+}
+
+/**
  * Attempts to navigate to the given target(s) by updating an existing view
  * window or opening a new one, depending on the flags. For a single target:
  * unknown URI types return false, external links open in a new tab and return
@@ -144,7 +159,7 @@ export function loadLink(targets, updateExistingViewWindow = true, createNewView
             return true;
         }
         else if (uriType === "externalLink") {
-            window.open(target, '_blank');
+            openExternalLink(target, config);
             return true;
         }
         else if (uriType === "doc") {
@@ -225,28 +240,14 @@ export function loadLink(targets, updateExistingViewWindow = true, createNewView
 }
 
 /**
- * Determines the type of a URI string.
+ * Determines the type of a URI string, relative to the page that Mobile runs on.
  * @param {string} uri - The URI to classify
  * @returns {"doc"|"selfLink"|"externalLink"|"unknown"} `"doc"` for `xmldb:exist://...` URIs,
- *   `"selfLink"` for HTTP/WWW URLs that share the running client's origin and pathname,
+ *   `"selfLink"` for HTTP/WWW URLs that point to Mobile itself (its page, or Edirom-Frontend's, see `isSelfLink`),
  *   `"externalLink"` for all other HTTP/WWW URLs, `"unknown"` otherwise
  */
 export function getUriType(uri) {
-    if (isDocumentUri(uri)) {
-        return "doc";
-    }
-    if (uri.startsWith("http") || uri.startsWith("www")) {
-        try {
-            const url = new URL(uri);
-            if (url.origin === window.location.origin && url.pathname === window.location.pathname) {
-                return "selfLink";
-            }
-        } catch {
-            // Malformed URL — fall through to "externalLink"
-        }
-        return "externalLink";
-    }
-    return "unknown";
+    return classifyUri(uri, window.location);
 }
 
 export { parseTargets, buildTargetsStringWithConfig };
